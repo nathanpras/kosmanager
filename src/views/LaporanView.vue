@@ -80,13 +80,15 @@ const propName = computed(() => {
   if (app.currentPropertyId === 'all') return 'Semua Properti'
   return properties.items.find(p => p.id === app.currentPropertyId)?.nama ?? ''
 })
+
+function exportPDF() { window.print() }
 </script>
 
 <template>
   <div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="font-size:13px;color:var(--text3)">{{ propName }}</div>
-      <button class="btn btn-ghost btn-sm" @click="() => window.print()">📄 Export PDF</button>
+      <button class="btn btn-ghost btn-sm" @click="exportPDF">📄 Export PDF</button>
     </div>
 
     <!-- Summary metrics -->
