@@ -9,6 +9,8 @@ import { useAppStore }         from '../stores/app'
 import { useLogStore }         from '../stores/log'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
+import { useWAReminder, DEFAULT_TEMPLATE } from '../composables/useWAReminder'
+import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl }         from '../utils/format'
 import { today, bulanIni, monthsBack } from '../utils/date'
 import type { Tagihan, TagihanStatus } from '../types'
@@ -22,6 +24,8 @@ const app         = useAppStore()
 const log         = useLogStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
+const settings    = useSettingsStore()
+const { generateReminderURL } = useWAReminder()
 
 const months = computed(() => monthsBack(6))
 const activeBulan = ref(bulanIni())
@@ -124,6 +128,29 @@ async function saveAdd() {
 const confirmDelete = ref(false)
 const deleteTarget = ref<Tagihan | null>(null)
 function askDelete(t: Tagihan) { deleteTarget.value = t; confirmDelete.value = true }
+
+// Reminder state
+const showReminder  = ref(false)
+const reminderBulan = ref('')
+
+const unpaidForReminder = computed(() => {
+  if (!reminderBulan.value) return []
+  const template = settings.data.wa_template || DEFAULT_TEMPLATE
+  return filterByProperty(tagihan.items)
+    .filter(t => t.bulan === reminderBulan.value && (t.status === 'belum' || t.status === 'kurang'))
+    .map(t => {
+      const p = penghuni.items.find(p => p.kamar === t.kamar && p.property_id === t.property_id)
+      return { tagihan: t, penghuni: p, url: p ? generateReminderURL(p, t, template) : null }
+    })
+    .filter((x): x is { tagihan: typeof x.tagihan; penghuni: NonNullable<typeof x.penghuni>; url: string } =>
+      x.penghuni != null && x.url != null
+    )
+})
+
+function openReminder(bulan: string) {
+  reminderBulan.value = bulan
+  showReminder.value = true
+}
 async function doDelete() {
   if (!deleteTarget.value) return
   try {
@@ -152,6 +179,9 @@ async function doDelete() {
 
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-primary" @click="openAddTagihan">+ Tambah Tagihan</button>
+      <button class="btn btn-sm" style="background:var(--green2);color:var(--green3);border-color:#A8E5D2" @click="openReminder(activeBulan)">
+        📱 Kirim Reminder
+      </button>
     </div>
 
     <!-- Summary for this month -->
@@ -260,6 +290,47 @@ async function doDelete() {
         <div class="modal-foot">
           <button class="btn btn-ghost" @click="showAdd = false">Batal</button>
           <button class="btn btn-primary" @click="saveAdd">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reminder Sheet -->
+    <div class="overlay" :class="{ open: showReminder }" @click.self="showReminder = false">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-head">
+          <h2>Reminder {{ reminderBulan }}</h2>
+          <button class="close-btn" @click="showReminder = false">✕</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="unpaidForReminder.length === 0" class="empty-state">
+            <div class="ei">✅</div>
+            <p>Semua sudah lunas bulan ini!</p>
+          </div>
+          <div v-for="item in unpaidForReminder" :key="item.tagihan.id" class="mc" style="margin-bottom:10px">
+            <div class="mc-top">
+              <span class="mc-name">{{ item.tagihan.kamar }} · {{ item.penghuni.nama }}</span>
+              <span class="mc-val" style="color:var(--red)">{{ fmt(item.tagihan.jumlah) }}</span>
+            </div>
+            <div class="mc-rows" style="margin-bottom:8px">
+              <div class="mc-row">
+                <span class="mc-label">HP</span>
+                <span class="mc-val">{{ item.penghuni.no_hp }}</span>
+              </div>
+            </div>
+            <a
+              :href="item.url"
+              target="_blank"
+              rel="noopener"
+              class="btn btn-primary btn-sm"
+              style="width:100%;text-decoration:none;text-align:center;display:block"
+            >
+              📱 Kirim WA
+            </a>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="showReminder = false">Tutup</button>
         </div>
       </div>
     </div>
