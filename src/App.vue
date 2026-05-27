@@ -26,6 +26,8 @@ const properties  = usePropertiesStore()
 const settings    = useSettingsStore()
 const log         = useLogStore()
 
+const w = window
+
 type PinMode = 'enter' | 'setup' | 'confirm' | 'change'
 const pinMode   = ref<PinMode>('enter')
 const showPin   = ref(false)
@@ -91,7 +93,7 @@ onMounted(async () => {
       <div style="font-size:40px;margin-bottom:12px">⚠️</div>
       <div style="font-weight:700;font-size:17px;margin-bottom:8px">Gagal Terhubung</div>
       <div style="font-size:12px;color:#888;background:#f5f5f5;padding:10px 12px;border-radius:8px;margin-bottom:16px">{{ loadError }}</div>
-      <button @click="() => location.reload()" style="padding:12px 24px;background:#0D9B6E;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;width:100%">🔄 Coba Lagi</button>
+      <button @click="() => w.location.reload()" style="padding:12px 24px;background:#0D9B6E;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;width:100%">🔄 Coba Lagi</button>
     </div>
   </div>
 

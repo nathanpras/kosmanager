@@ -4,7 +4,7 @@ import { useSettingsStore }    from '../stores/settings'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useToast }            from '../composables/useToast'
-import type { Property }       from '../types'
+import type { Property, AppSettings }       from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
 const settings   = useSettingsStore()
@@ -15,8 +15,8 @@ const { show: toast } = useToast()
 const activeTab = ref<'umum' | 'properti' | 'kategori' | 'tipe'>('umum')
 
 // General settings
-const settingsForm = ref({ ...settings.data.value })
-watch(() => settings.data.value, (newVal) => {
+const settingsForm = ref<AppSettings>({ ...settings.data })
+watch(() => settings.data, (newVal) => {
   settingsForm.value = { ...newVal }
 }, { deep: true })
 async function saveSettings() {

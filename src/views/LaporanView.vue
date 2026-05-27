@@ -6,6 +6,7 @@ import { useProperty }         from '../composables/useProperty'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { bulanIni, monthsBack } from '../utils/date'
 
+const w = window
 const tagihan     = useTagihanStore()
 const pengeluaran = usePengeluaranStore()
 const { filterByProperty } = useProperty()
@@ -85,6 +86,6 @@ const net = computed(() => totalMasuk.value - totalKeluar.value)
     </div>
 
     <!-- Print button -->
-    <button class="btn btn-ghost" @click="() => window.print()">🖨 Cetak Laporan</button>
+    <button class="btn btn-ghost" @click="() => w.print()">🖨 Cetak Laporan</button>
   </div>
 </template>

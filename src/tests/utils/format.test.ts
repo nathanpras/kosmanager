@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fmt, fmtTgl, fmtTime } from '../../utils/format'
+import { fmt, fmtTgl } from '../../utils/format'
 
 describe('fmt', () => {
   it('formats a number as Rupiah', () => {

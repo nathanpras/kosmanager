@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
 import { useTagihanStore } from '../../stores/tagihan'
-import { useAppStore } from '../../stores/app'
 import { computed } from 'vue'
 import { bulanIni } from '../../utils/date'
 import { useProperty } from '../../composables/useProperty'
