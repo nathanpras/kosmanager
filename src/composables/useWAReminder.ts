@@ -21,7 +21,10 @@ export function generateReminderURL(
   template: string,
 ): string {
   const msg = generateReminderMessage(penghuni, tagihan, template)
-  const phone = penghuni.no_hp.replace(/\D/g, '')
+  let phone = penghuni.no_hp.replace(/\D/g, '')
+  if (phone.startsWith('0')) {
+    phone = '62' + phone.substring(1)
+  }
   return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
 }
 

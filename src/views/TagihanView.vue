@@ -136,15 +136,16 @@ const reminderBulan = ref('')
 const unpaidForReminder = computed(() => {
   if (!reminderBulan.value) return []
   const template = settings.data.wa_template || DEFAULT_TEMPLATE
-  return filterByProperty(tagihan.items)
+  const results: Array<{ tagihan: Tagihan; penghuni: typeof penghuni.items[0]; url: string }> = []
+  filterByProperty(tagihan.items)
     .filter(t => t.bulan === reminderBulan.value && (t.status === 'belum' || t.status === 'kurang'))
-    .map(t => {
+    .forEach(t => {
       const p = penghuni.items.find(p => p.kamar === t.kamar && p.property_id === t.property_id)
-      return { tagihan: t, penghuni: p, url: p ? generateReminderURL(p, t, template) : null }
+      if (p) {
+        results.push({ tagihan: t, penghuni: p, url: generateReminderURL(p, t, template) })
+      }
     })
-    .filter((x): x is { tagihan: typeof x.tagihan; penghuni: NonNullable<typeof x.penghuni>; url: string } =>
-      x.penghuni != null && x.url != null
-    )
+  return results
 })
 
 function openReminder(bulan: string) {
