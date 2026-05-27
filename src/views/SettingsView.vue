@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useSettingsStore }    from '../stores/settings'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
@@ -15,7 +15,10 @@ const { show: toast } = useToast()
 const activeTab = ref<'umum' | 'properti' | 'kategori' | 'tipe'>('umum')
 
 // General settings
-const settingsForm = ref({ ...settings.data })
+const settingsForm = ref({ ...settings.data.value })
+watch(() => settings.data.value, (newVal) => {
+  settingsForm.value = { ...newVal }
+}, { deep: true })
 async function saveSettings() {
   try {
     await settings.save(settingsForm.value)

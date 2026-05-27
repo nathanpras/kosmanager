@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { deleteField }         from '../firebase'
 import { useTagihanStore }     from '../stores/tagihan'
 import { usePenghuniStore }    from '../stores/penghuni'
 import { useKamarStore }       from '../stores/kamar'
@@ -75,7 +76,8 @@ async function pay() {
 
 async function undoPay(t: Tagihan) {
   try {
-    await tagihan.update(t.id, { status: 'belum', jumlah_bayar: 0, tgl: undefined })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await tagihan.update(t.id, { status: 'belum', jumlah_bayar: 0, tgl: deleteField() as any })
     toast('Pembayaran dibatalkan', 'success')
   } catch {
     toast('Gagal membatalkan pembayaran', 'error')

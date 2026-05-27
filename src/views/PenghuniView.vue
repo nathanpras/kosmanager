@@ -56,10 +56,20 @@ function openEdit(p: Penghuni) {
 }
 
 async function save() {
-  if (!form.value.nama || !form.value.kamar) { toast('Nama dan kamar wajib diisi', 'error'); return }
+  if (!form.value.nama || !form.value.kamar || !form.value.no_hp) { toast('Nama, kamar, dan no HP wajib diisi', 'error'); return }
   try {
     if (editId.value) {
+      // Find original penghuni to check if room changed
+      const original = penghuni.items.find(p => p.id === editId.value)
       await penghuni.update(editId.value, form.value)
+      if (original && original.kamar !== form.value.kamar) {
+        // Old room → back to kosong
+        const oldRoom = kamar.items.find(k => k.nomor === original.kamar && k.property_id === original.property_id)
+        if (oldRoom) await kamar.update(oldRoom.id, { status: 'kosong' })
+        // New room → mark terisi
+        const newRoom = kamar.items.find(k => k.nomor === form.value.kamar)
+        if (newRoom) await kamar.update(newRoom.id, { status: 'terisi' })
+      }
       toast('Penghuni diperbarui', 'success')
     } else {
       await penghuni.add(form.value as Omit<Penghuni, 'id'>)

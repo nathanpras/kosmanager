@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useTagihanStore }     from '../stores/tagihan'
 import { usePengeluaranStore } from '../stores/pengeluaran'
 import { useProperty }         from '../composables/useProperty'
-import { fmt, fmtTgl }         from '../utils/format'
+import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { bulanIni, monthsBack } from '../utils/date'
 
 const tagihan     = useTagihanStore()
@@ -23,7 +23,7 @@ const totalMasuk = computed(() =>
 const totalKeluar = computed(() => filteredExp.value.filter(p => {
   if (!p.tgl) return false
   const d = new Date(p.tgl)
-  const monthStr = `${ ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getUTCMonth()] } ${d.getUTCFullYear()}`
+  const monthStr = `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`
   return monthStr === activeBulan.value
 }).reduce((s, p) => s + (p.jumlah || 0), 0))
 const net = computed(() => totalMasuk.value - totalKeluar.value)
