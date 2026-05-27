@@ -15,12 +15,13 @@ import {
 } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyBNcwZ7jlUqO0j2HR6OrzPkdRXcSufcuW4",
   authDomain: "kos-manager-93c43.firebaseapp.com",
   projectId: "kos-manager-93c43",
   storageBucket: "kos-manager-93c43.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  messagingSenderId: "511610972401",
+  appId: "1:511610972401:web:29d02183090afd12be2150",
+  measurementId: "G-TRGKXQB71N",
 }
 
 const app = initializeApp(firebaseConfig)
