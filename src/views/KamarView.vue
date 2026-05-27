@@ -8,7 +8,6 @@ import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
 import { fmt, fmtTgl }        from '../utils/format'
-import { today }              from '../utils/date'
 import type { Kamar }         from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
@@ -43,6 +42,10 @@ const form      = ref<Partial<Kamar>>({})
 const modalTitle = computed(() => editId.value ? 'Edit Kamar' : 'Tambah Kamar')
 
 function openAdd() {
+  if (app.currentPropertyId === 'all' && properties.items.length === 0) {
+    toast('Tambah properti terlebih dahulu di Pengaturan', 'error')
+    return
+  }
   editId.value = null
   form.value = { status: 'kosong', tipe: properties.tipeKamar[0]?.nama ?? 'Standard', property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId }
   showModal.value = true
@@ -55,16 +58,20 @@ function openEdit(k: Kamar) {
 }
 
 async function save() {
-  if (!form.value.nomor || !form.value.harga) { toast('Nomor dan harga wajib diisi', 'error'); return }
-  if (editId.value) {
-    await kamar.update(editId.value, form.value)
-    toast('Kamar diperbarui', 'success')
-  } else {
-    await kamar.add(form.value as Omit<Kamar, 'id'>)
-    await log.add(`Kamar ${form.value.nomor} ditambahkan`, 'green', form.value.property_id ?? '')
-    toast('Kamar ditambahkan', 'success')
+  if (!form.value.nomor || form.value.harga == null) { toast('Nomor dan harga wajib diisi', 'error'); return }
+  try {
+    if (editId.value) {
+      await kamar.update(editId.value, form.value)
+      toast('Kamar diperbarui', 'success')
+    } else {
+      await kamar.add(form.value as Omit<Kamar, 'id'>)
+      await log.add(`Kamar ${form.value.nomor} ditambahkan`, 'green', form.value.property_id ?? '')
+      toast('Kamar ditambahkan', 'success')
+    }
+    showModal.value = false
+  } catch {
+    toast('Gagal menyimpan kamar', 'error')
   }
-  showModal.value = false
 }
 
 // Confirm delete
@@ -74,16 +81,37 @@ const deleteTarget = ref<Kamar | null>(null)
 function askDelete(k: Kamar) { deleteTarget.value = k; confirmOpen.value = true }
 async function doDelete() {
   if (!deleteTarget.value) return
-  await kamar.remove(deleteTarget.value.id)
-  await log.add(`Kamar ${deleteTarget.value.nomor} dihapus`, 'red', deleteTarget.value.property_id)
-  toast('Kamar dihapus', 'success')
-  confirmOpen.value = false
+  try {
+    await kamar.remove(deleteTarget.value.id)
+    await log.add(`Kamar ${deleteTarget.value.nomor} dihapus`, 'red', deleteTarget.value.property_id)
+    toast('Kamar dihapus', 'success')
+    confirmOpen.value = false
+    deleteTarget.value = null
+  } catch {
+    toast('Gagal menghapus kamar', 'error')
+  }
 }
 
 // Detail modal
 const showDetail = ref(false)
 const detailKamar = ref<Kamar | null>(null)
 function openDetail(k: Kamar) { detailKamar.value = k; showDetail.value = true }
+function closeDetail() {
+  showDetail.value = false
+  detailKamar.value = null
+}
+function handleEdit() {
+  const k = detailKamar.value
+  if (!k) return
+  closeDetail()
+  openEdit(k)
+}
+function handleDelete() {
+  const k = detailKamar.value
+  if (!k) return
+  closeDetail()
+  askDelete(k)
+}
 
 const statusLabel: Record<string, string> = {
   kosong: 'Kosong', terisi: 'Terisi', telat: 'Telat Bayar', booked: 'Booked'
@@ -180,12 +208,12 @@ const statusCls: Record<string, string> = {
     </div>
 
     <!-- Detail Modal -->
-    <div class="overlay" :class="{ open: showDetail }" @click.self="showDetail = false">
+    <div class="overlay" :class="{ open: showDetail }" @click.self="closeDetail()">
       <div v-if="detailKamar" class="modal">
         <div class="modal-handle"></div>
         <div class="modal-head">
           <h2>Kamar {{ detailKamar.nomor }}</h2>
-          <button class="close-btn" @click="showDetail = false">✕</button>
+          <button class="close-btn" @click="closeDetail()">✕</button>
         </div>
         <div class="modal-body">
           <div class="info-row"><span class="info-label">Tipe</span><span class="info-val">{{ detailKamar.tipe }}</span></div>
@@ -196,7 +224,7 @@ const statusCls: Record<string, string> = {
           <div v-if="detailKamar.status === 'terisi' || detailKamar.status === 'telat'">
             <hr class="divider">
             <div class="card-title" style="margin-bottom:8px">Penghuni</div>
-            <div v-for="p in penghuni.items.filter(p => p.kamar === detailKamar!.nomor)" :key="p.id">
+            <div v-for="p in penghuni.items.filter(p => p.kamar === detailKamar!.nomor && p.property_id === detailKamar!.property_id)" :key="p.id">
               <div class="info-row"><span class="info-label">Nama</span><span class="info-val">{{ p.nama }}</span></div>
               <div class="info-row"><span class="info-label">No HP</span><span class="info-val">{{ p.no_hp }}</span></div>
               <div class="info-row"><span class="info-label">Kontrak s/d</span><span class="info-val">{{ fmtTgl(p.kontrak_selesai ?? '') }}</span></div>
@@ -204,8 +232,8 @@ const statusCls: Record<string, string> = {
           </div>
         </div>
         <div class="modal-foot">
-          <button class="btn btn-ghost" @click="showDetail = false; openEdit(detailKamar!)">✏️ Edit</button>
-          <button class="btn btn-danger" @click="showDetail = false; askDelete(detailKamar!)">🗑 Hapus</button>
+          <button class="btn btn-ghost" @click="handleEdit()">✏️ Edit</button>
+          <button class="btn btn-danger" @click="handleDelete()">🗑 Hapus</button>
         </div>
       </div>
     </div>
