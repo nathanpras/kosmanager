@@ -19,36 +19,45 @@ const properties  = usePropertiesStore()
 const app         = useAppStore()
 const { filterByProperty } = useProperty()
 
-const bln = bulanIni()
+const bln = computed(() => bulanIni())
 
 const filteredKamar    = computed(() => filterByProperty(kamar.items))
 const filteredPenghuni = computed(() => filterByProperty(penghuni.items))
 const filteredTagihan  = computed(() => filterByProperty(tagihan.items))
 const filteredExp      = computed(() => filterByProperty(pengeluaran.items))
+const filteredExpBln   = computed(() => filteredExp.value.filter(p => {
+  if (!p.tgl) return false
+  const d = new Date(p.tgl)
+  const monthStr = `${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getUTCMonth()]} ${d.getUTCFullYear()}`
+  return monthStr === bln.value
+}))
 
 const terisi  = computed(() => filteredKamar.value.filter(k => k.status === 'terisi' || k.status === 'telat').length)
 const booked  = computed(() => filteredKamar.value.filter(k => k.status === 'booked').length)
 const total   = computed(() => filteredKamar.value.length || 1)
 const pct     = computed(() => Math.round((terisi.value + booked.value) / total.value * 100))
 
-const tgBln   = computed(() => filteredTagihan.value.filter(t => t.bulan === bln))
+const tgBln   = computed(() => filteredTagihan.value.filter(t => t.bulan === bln.value))
 const masuk   = computed(() => tgBln.value.reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? Number(t.jumlah) || 0 : 0)), 0))
-const keluar  = computed(() => filteredExp.value.reduce((s, p) => s + (p.jumlah || 0), 0))
+const keluar  = computed(() => filteredExpBln.value.reduce((s, p) => s + (p.jumlah || 0), 0))
 const net     = computed(() => masuk.value - keluar.value)
 
 const belumBayar = computed(() =>
   tgBln.value.filter(t => {
-    if (t.status && t.status !== 'belum') return false
+    if (t.status !== 'belum' && t.status !== 'kurang') return false
     const k = filteredKamar.value.find(x => x.nomor === t.kamar)
     return !(k && k.status === 'booked')
   })
 )
 
-const soon = new Date(); soon.setDate(soon.getDate() + 30)
-const soonStr = soon.toISOString().split('T')[0]
-const kontrakAlert = computed(() =>
-  filteredPenghuni.value.filter(p => p.kontrak_selesai && p.kontrak_selesai <= soonStr && p.kontrak_selesai >= today())
-)
+const kontrakAlert = computed(() => {
+  const soon = new Date()
+  soon.setDate(soon.getDate() + 30)
+  const soonStr = soon.toISOString().split('T')[0]
+  return filteredPenghuni.value.filter(p =>
+    p.kontrak_selesai && p.kontrak_selesai <= soonStr && p.kontrak_selesai >= today()
+  )
+})
 
 function tagStatusInfo(t: typeof tagihan.items[0]): TagihanStatus {
   const total = Number(t.jumlah) || 0
@@ -59,6 +68,12 @@ function tagStatusInfo(t: typeof tagihan.items[0]): TagihanStatus {
   if (telat) return { status: 'telat', cls: 'br', label: '🔴 Telat', dibayar: 0, sisa: total, telat: true }
   return { status: 'belum', cls: 'br', label: 'Belum Bayar', dibayar: 0, sisa: total }
 }
+
+const statusMap = computed(() => {
+  const m = new Map<string, TagihanStatus>()
+  filteredTagihan.value.forEach(t => m.set(t.id, tagStatusInfo(t)))
+  return m
+})
 
 // Property comparison mode
 const isAllView = computed(() => app.currentPropertyId === 'all' && properties.items.length > 1)
@@ -131,7 +146,7 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
       <div class="metric mr">
         <div class="m-lbl">Pengeluaran</div>
         <div class="m-val red">{{ fmt(keluar) }}</div>
-        <div class="m-sub">{{ filteredExp.length }} transaksi</div>
+        <div class="m-sub">{{ filteredExpBln.length }} transaksi</div>
       </div>
       <div class="metric" :class="net >= 0 ? 'mg' : 'mr'">
         <div class="m-lbl">Keuntungan Bersih</div>
@@ -157,7 +172,7 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
                 <td>{{ t.kamar }}</td>
                 <td style="color:var(--text2)">{{ t.bulan }}</td>
                 <td>{{ fmt(t.jumlah) }}</td>
-                <td><span class="badge" :class="tagStatusInfo(t).cls">{{ tagStatusInfo(t).label }}</span></td>
+                <td><span class="badge" :class="statusMap.get(t.id)!.cls">{{ statusMap.get(t.id)!.label }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -168,7 +183,7 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
           <div v-for="t in filteredTagihan.slice(0,4)" :key="t.id" class="mc">
             <div class="mc-top">
               <span class="mc-name">{{ t.kamar }} <span style="font-size:12px;font-weight:400;color:var(--text2)">{{ t.penghuni }}</span></span>
-              <span class="badge" :class="tagStatusInfo(t).cls">{{ tagStatusInfo(t).label }}</span>
+              <span class="badge" :class="statusMap.get(t.id)!.cls">{{ statusMap.get(t.id)!.label }}</span>
             </div>
             <div class="mc-rows">
               <div class="mc-row"><span class="mc-label">Jumlah</span><span class="mc-val">{{ fmt(t.jumlah) }}</span></div>
