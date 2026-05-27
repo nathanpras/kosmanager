@@ -55,18 +55,19 @@ async function save() {
     toast('Kamar dan deskripsi wajib diisi', 'error')
     return
   }
+  if (!form.value.property_id) {
+    toast('Pilih properti terlebih dahulu', 'error')
+    return
+  }
   try {
     if (editId.value) {
       await maintenance.update(editId.value, form.value)
       toast('Maintenance diperbarui', 'success')
     } else {
       await maintenance.add(form.value as Omit<Maintenance, 'id'>)
-      await log.add(
-        `Maintenance dilaporkan: kamar ${form.value.kamar} — ${form.value.deskripsi}`,
-        'amber',
-        form.value.property_id ?? '',
-      )
       toast('Masalah dilaporkan', 'success')
+      // log is best-effort — don't block the modal close
+      log.add(`Maintenance dilaporkan: kamar ${form.value.kamar} — ${form.value.deskripsi}`, 'amber', form.value.property_id).catch(() => {})
     }
     showModal.value = false
   } catch {
@@ -95,7 +96,8 @@ async function updateStatus(m: Maintenance, status: Maintenance['status']) {
     await maintenance.update(m.id, { status })
     await log.add(`Maintenance kamar ${m.kamar} → ${status}`, 'blue', m.property_id)
     toast('Status diperbarui', 'success')
-    if (detailItem.value?.id === m.id) detailItem.value = { ...m, status }
+    const fresh = maintenance.items.find(item => item.id === m.id)
+    if (fresh && detailItem.value?.id === m.id) detailItem.value = { ...fresh, status }
   } catch {
     toast('Gagal memperbarui status', 'error')
   }
