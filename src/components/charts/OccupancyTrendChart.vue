@@ -45,7 +45,7 @@ const chartOptions = computed(() => ({
       max: 100,
       ticks: {
         color: app.isDark ? '#9B99A6' : '#65636B',
-        callback: (v: unknown) => `${v}%`,
+        callback: (v: number | string) => `${v}%`,
       },
       grid: { color: app.isDark ? '#2E2E32' : '#E0DDD8' },
     },

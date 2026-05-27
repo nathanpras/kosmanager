@@ -41,7 +41,7 @@ const chartOptions = computed(() => ({
     y: {
       ticks: {
         color: app.isDark ? '#9B99A6' : '#65636B',
-        callback: (v: unknown) => `Rp ${Number(v).toLocaleString('id-ID')}`,
+        callback: (v: number | string) => `Rp ${Number(v).toLocaleString('id-ID')}`,
       },
       grid: { color: app.isDark ? '#2E2E32' : '#E0DDD8' },
     },

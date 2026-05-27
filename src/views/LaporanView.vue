@@ -21,11 +21,11 @@ const properties  = usePropertiesStore()
 const app         = useAppStore()
 const { filterByProperty } = useProperty()
 
-const months = monthsBack(6)
+const months = computed(() => monthsBack(6))
 
 // Revenue bar chart — monthly totals over last 6 months
 const revenueByMonth = computed(() =>
-  months.map(bln =>
+  months.value.map(bln =>
     filterByProperty(tagihan.items)
       .filter(t => t.bulan === bln)
       .reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? Number(t.jumlah) || 0 : 0)), 0)
@@ -47,7 +47,7 @@ const expenseByKategori = computed(() => {
 // Occupancy trend — active tenants per month / total rooms
 const occupancyByMonth = computed(() => {
   const totalRooms = filterByProperty(kamar.items).length || 1
-  return months.map(bln => {
+  return months.value.map(bln => {
     const parts = bln.split(' ')
     const monthIdx = MONTHS_FULL.indexOf(parts[0])
     const year = parseInt(parts[1])
@@ -111,7 +111,10 @@ const propName = computed(() => {
         <div class="card-hd">
           <div class="card-title">📊 Pemasukan 6 Bulan Terakhir</div>
         </div>
-        <RevenueBarChart :labels="months" :values="revenueByMonth" />
+        <div v-if="revenueByMonth.every(v => v === 0)" class="empty-state" style="padding:24px">
+          <div class="ei">📊</div><p>Belum ada data pemasukan</p>
+        </div>
+        <RevenueBarChart v-else :labels="months" :values="revenueByMonth" />
       </div>
       <div class="card">
         <div class="card-hd">
@@ -132,7 +135,10 @@ const propName = computed(() => {
       <div class="card-hd">
         <div class="card-title">📈 Tingkat Hunian 6 Bulan Terakhir</div>
       </div>
-      <OccupancyTrendChart :labels="months" :values="occupancyByMonth" />
+      <div v-if="occupancyByMonth.every(v => v === 0)" class="empty-state" style="padding:24px">
+        <div class="ei">📈</div><p>Belum ada data hunian</p>
+      </div>
+      <OccupancyTrendChart v-else :labels="months" :values="occupancyByMonth" />
     </div>
 
     <!-- Tagihan detail table -->

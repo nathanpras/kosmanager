@@ -21,7 +21,7 @@ const chartData = computed(() => ({
   }],
 }))
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -36,7 +36,7 @@ const chartOptions = {
       },
     },
   },
-}
+}))
 </script>
 
 <template>
