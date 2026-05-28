@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { MONTHS_FULL }         from './utils/format'
 import { useAppStore }         from './stores/app'
 import { useKamarStore }       from './stores/kamar'
 import { usePenghuniStore }    from './stores/penghuni'
@@ -58,6 +59,30 @@ async function onPinVerified(pin: string) {
   }
 }
 
+async function autoGenerateNextMonth() {
+  const d = new Date()
+  const nextIdx  = (d.getMonth() + 1) % 12
+  const nextYear = nextIdx === 0 ? d.getFullYear() + 1 : d.getFullYear()
+  const nextBulan  = `${MONTHS_FULL[nextIdx]} ${nextYear}`
+  const firstOfNext = new Date(nextYear, nextIdx, 1).toISOString().split('T')[0]
+
+  const existing = new Set(
+    tagihan.items.filter(t => t.bulan === nextBulan).map(t => `${t.kamar}|${t.property_id}`)
+  )
+  const toCreate = penghuni.items.filter(p =>
+    (!p.kontrak_selesai || p.kontrak_selesai >= firstOfNext) &&
+    !existing.has(`${p.kamar}|${p.property_id}`)
+  )
+  for (const p of toCreate) {
+    const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
+    await tagihan.add({
+      penghuni: p.nama, kamar: p.kamar, bulan: nextBulan,
+      jumlah: k?.harga ?? 0, status: 'belum',
+      property_id: p.property_id, createdAt: new Date().toISOString()
+    })
+  }
+}
+
 async function loadData() {
   await Promise.all([
     kamar.load(), penghuni.load(), tagihan.load(),
@@ -67,6 +92,7 @@ async function loadData() {
   app.initProperty()
   app.isReady = true
   showApp.value = true
+  autoGenerateNextMonth().catch(() => {})
 }
 
 onMounted(async () => {
