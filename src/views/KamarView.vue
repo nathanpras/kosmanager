@@ -21,7 +21,6 @@ const { show: toast } = useToast()
 
 const filtered = computed(() => filterByProperty(kamar.items))
 
-// Group by kategori
 const groups = computed(() => {
   const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
   const map: Record<string, Kamar[]> = {}
@@ -35,27 +34,42 @@ const groups = computed(() => {
   return katList.filter(k => (map[k]?.length ?? 0) > 0).map(k => ({ name: k, items: map[k] }))
 })
 
+// Stats
+const terisiCount  = computed(() => filtered.value.filter(k => k.status === 'terisi').length)
+const telatCount   = computed(() => filtered.value.filter(k => k.status === 'telat').length)
+const bookedCount  = computed(() => filtered.value.filter(k => k.status === 'booked').length)
+const kosongCount  = computed(() => filtered.value.filter(k => k.status === 'kosong').length)
+const hunianPct    = computed(() => filtered.value.length > 0
+  ? Math.round((terisiCount.value + telatCount.value + bookedCount.value) / filtered.value.length * 100) : 0)
+
+function dotClass(status: string) {
+  if (status === 'terisi') return 'active'
+  if (status === 'telat')  return 'late'
+  if (status === 'booked') return 'booked'
+  return 'empty'
+}
+function roomStat(k: Kamar) {
+  if (k.status === 'terisi') return '👤 Terisi'
+  if (k.status === 'telat')  return '⚠ Telat'
+  if (k.status === 'booked') return '📋 Booked'
+  return '✓ Kosong'
+}
+
 // Modal state
-const showModal = ref(false)
-const editId    = ref<string | null>(null)
-const form      = ref<Partial<Kamar>>({})
+const showModal  = ref(false)
+const editId     = ref<string | null>(null)
+const form       = ref<Partial<Kamar>>({})
 const modalTitle = computed(() => editId.value ? 'Edit Kamar' : 'Tambah Kamar')
 
 function openAdd() {
   if (app.currentPropertyId === 'all' && properties.items.length === 0) {
-    toast('Tambah properti terlebih dahulu di Pengaturan', 'error')
-    return
+    toast('Tambah properti terlebih dahulu di Pengaturan', 'error'); return
   }
   editId.value = null
   form.value = { status: 'kosong', tipe: properties.tipeKamar[0]?.nama ?? 'Standard', property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId }
   showModal.value = true
 }
-
-function openEdit(k: Kamar) {
-  editId.value = k.id
-  form.value = { ...k }
-  showModal.value = true
-}
+function openEdit(k: Kamar) { editId.value = k.id; form.value = { ...k }; showModal.value = true }
 
 async function save() {
   if (!form.value.nomor || form.value.harga == null) { toast('Nomor dan harga wajib diisi', 'error'); return }
@@ -69,15 +83,11 @@ async function save() {
       toast('Kamar ditambahkan', 'success')
     }
     showModal.value = false
-  } catch {
-    toast('Gagal menyimpan kamar', 'error')
-  }
+  } catch { toast('Gagal menyimpan kamar', 'error') }
 }
 
-// Confirm delete
-const confirmOpen = ref(false)
+const confirmOpen  = ref(false)
 const deleteTarget = ref<Kamar | null>(null)
-
 function askDelete(k: Kamar) { deleteTarget.value = k; confirmOpen.value = true }
 async function doDelete() {
   if (!deleteTarget.value) return
@@ -85,63 +95,79 @@ async function doDelete() {
     await kamar.remove(deleteTarget.value.id)
     await log.add(`Kamar ${deleteTarget.value.nomor} dihapus`, 'red', deleteTarget.value.property_id)
     toast('Kamar dihapus', 'success')
-    confirmOpen.value = false
-    deleteTarget.value = null
-  } catch {
-    toast('Gagal menghapus kamar', 'error')
-  }
+    confirmOpen.value = false; deleteTarget.value = null
+  } catch { toast('Gagal menghapus kamar', 'error') }
 }
 
-// Detail modal
-const showDetail = ref(false)
+const showDetail  = ref(false)
 const detailKamar = ref<Kamar | null>(null)
 function openDetail(k: Kamar) { detailKamar.value = k; showDetail.value = true }
-function closeDetail() {
-  showDetail.value = false
-  detailKamar.value = null
-}
-function handleEdit() {
-  const k = detailKamar.value
-  if (!k) return
-  closeDetail()
-  openEdit(k)
-}
-function handleDelete() {
-  const k = detailKamar.value
-  if (!k) return
-  closeDetail()
-  askDelete(k)
-}
+function closeDetail() { showDetail.value = false; detailKamar.value = null }
+function handleEdit()   { const k = detailKamar.value; if (!k) return; closeDetail(); openEdit(k) }
+function handleDelete() { const k = detailKamar.value; if (!k) return; closeDetail(); askDelete(k) }
 
-const statusLabel: Record<string, string> = {
-  kosong: 'Kosong', terisi: 'Terisi', telat: 'Telat Bayar', booked: 'Booked'
-}
-const statusCls: Record<string, string> = {
-  kosong: 'empty', terisi: 'occupied', telat: 'late', booked: 'booked'
-}
+const statusCls: Record<string, string> = { kosong: 'empty', terisi: 'occupied', telat: 'late', booked: 'booked' }
+const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi', telat: 'Telat Bayar', booked: 'Booked' }
 </script>
 
 <template>
   <div>
     <button class="btn btn-primary" style="margin-bottom:16px" @click="openAdd">+ Tambah Kamar</button>
 
+    <!-- Animated stats -->
+    <div v-if="filtered.length > 0" class="kamar-stats">
+      <div class="ks-card ks-green anim-metric" style="--n:1">
+        <div class="ks-val">{{ terisiCount }}</div>
+        <div class="ks-lbl">Terisi</div>
+      </div>
+      <div class="ks-card ks-red anim-metric" style="--n:2">
+        <div class="ks-val">{{ telatCount }}</div>
+        <div class="ks-lbl">Telat</div>
+      </div>
+      <div class="ks-card ks-amber anim-metric" style="--n:3">
+        <div class="ks-val">{{ bookedCount }}</div>
+        <div class="ks-lbl">Booked</div>
+      </div>
+      <div class="ks-card ks-gray anim-metric" style="--n:4">
+        <div class="ks-val">{{ kosongCount }}</div>
+        <div class="ks-lbl">Kosong</div>
+      </div>
+    </div>
+
+    <!-- Occupancy bar -->
+    <div v-if="filtered.length > 0" class="occ-wrap anim-card" style="--n:0;margin-bottom:20px">
+      <div class="occ-top">
+        <span class="occ-label">Tingkat Hunian</span>
+        <span class="occ-pct">{{ hunianPct }}%</span>
+      </div>
+      <div class="prog-bar-wrap">
+        <div class="prog-bar-fill" :style="{ width: hunianPct + '%', background: hunianPct >= 80 ? 'var(--green)' : hunianPct >= 50 ? 'var(--amber)' : 'var(--red)' }"></div>
+      </div>
+    </div>
+
+    <!-- Groups -->
     <div v-for="group in groups" :key="group.name" style="margin-bottom:20px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3)">{{ group.name }}</span>
-        <span style="flex:1;height:1px;background:var(--border)"></span>
-        <span style="font-size:11px;color:var(--text3)">{{ group.items.filter(k => k.status !== 'kosong').length }}/{{ group.items.length }} terisi</span>
+      <div class="kat-header">
+        <span class="kat-header-text">{{ group.name }}</span>
+        <span class="kat-header-badge">{{ group.items.filter(k => k.status !== 'kosong').length }}/{{ group.items.length }}</span>
+        <span class="kat-header-line"></span>
+        <span style="font-size:11px;color:var(--text3)">{{ group.items.length > 0 ? Math.round(group.items.filter(k => k.status !== 'kosong').length / group.items.length * 100) : 0 }}%</span>
       </div>
       <div class="room-grid">
         <div
-          v-for="k in group.items"
+          v-for="(k, bi) in group.items"
           :key="k.id"
           class="room-box"
           :class="statusCls[k.status] ?? 'empty'"
+          :style="{ animationDelay: bi * 0.04 + 's', animation: 'scaleIn .35s cubic-bezier(.34,1.3,.64,1) both' }"
           @click="openDetail(k)"
         >
+          <div style="display:flex;justify-content:center;margin-bottom:3px">
+            <span class="status-dot" :class="dotClass(k.status)"></span>
+          </div>
           <div class="room-num">{{ k.nomor }}</div>
           <div class="room-type">{{ k.tipe }}</div>
-          <div class="room-stat">{{ statusLabel[k.status] }}</div>
+          <div class="room-stat">{{ roomStat(k) }}</div>
         </div>
       </div>
     </div>
@@ -160,44 +186,27 @@ const statusCls: Record<string, string> = {
         </div>
         <div class="modal-body">
           <div class="form-grid">
-            <div class="fg">
-              <label>Nomor Kamar</label>
-              <input v-model="form.nomor" placeholder="cth: A1, B2" />
-            </div>
-            <div class="fg">
-              <label>Tipe</label>
+            <div class="fg"><label>Nomor Kamar</label><input v-model="form.nomor" placeholder="cth: A1, B2" /></div>
+            <div class="fg"><label>Tipe</label>
               <select v-model="form.tipe">
                 <option v-for="t in properties.tipeKamar" :key="t.id" :value="t.nama">{{ t.nama }}</option>
               </select>
             </div>
-            <div class="fg">
-              <label>Harga / Bulan (Rp)</label>
-              <input v-model.number="form.harga" type="number" placeholder="1500000" />
-            </div>
-            <div class="fg">
-              <label>Status</label>
+            <div class="fg"><label>Harga / Bulan (Rp)</label><input v-model.number="form.harga" type="number" placeholder="1500000" /></div>
+            <div class="fg"><label>Status</label>
               <select v-model="form.status">
-                <option value="kosong">Kosong</option>
-                <option value="terisi">Terisi</option>
-                <option value="telat">Telat Bayar</option>
-                <option value="booked">Booked</option>
+                <option value="kosong">Kosong</option><option value="terisi">Terisi</option>
+                <option value="telat">Telat Bayar</option><option value="booked">Booked</option>
               </select>
             </div>
-            <div class="fg">
-              <label>Deposit (Rp)</label>
-              <input v-model.number="form.deposit" type="number" placeholder="500000" />
-            </div>
-            <div class="fg">
-              <label>Kategori</label>
+            <div class="fg"><label>Deposit (Rp)</label><input v-model.number="form.deposit" type="number" placeholder="500000" /></div>
+            <div class="fg"><label>Kategori</label>
               <select v-model="form.kategori">
                 <option value="">— Tanpa Kategori —</option>
                 <option v-for="k in properties.kategori" :key="k.id" :value="k.nama">{{ k.nama }}</option>
               </select>
             </div>
-            <div class="fg full">
-              <label>Keterangan</label>
-              <textarea v-model="form.keterangan" placeholder="Fasilitas, catatan, dsb..."></textarea>
-            </div>
+            <div class="fg full"><label>Keterangan</label><textarea v-model="form.keterangan" placeholder="Fasilitas, catatan, dsb..."></textarea></div>
           </div>
         </div>
         <div class="modal-foot">
@@ -239,14 +248,47 @@ const statusCls: Record<string, string> = {
     </div>
 
     <ConfirmDialog
-      :open="confirmOpen"
-      icon="🗑"
+      :open="confirmOpen" icon="🗑"
       :msg="`Hapus kamar ${deleteTarget?.nomor}?`"
       sub="Semua data terkait kamar ini akan terhapus."
-      ok-label="Hapus"
-      :danger="true"
-      @confirm="doDelete"
-      @cancel="confirmOpen = false"
+      ok-label="Hapus" :danger="true"
+      @confirm="doDelete" @cancel="confirmOpen = false"
     />
   </div>
 </template>
+
+<style scoped>
+.kamar-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ks-card {
+  border-radius: var(--rl);
+  padding: 14px 10px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--surf);
+  position: relative;
+  overflow: hidden;
+}
+.ks-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.ks-green::before { background: var(--green); }
+.ks-red::before   { background: var(--red); }
+.ks-amber::before { background: var(--amber); }
+.ks-gray::before  { background: var(--border2); }
+.ks-val { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+.ks-green .ks-val { color: var(--green); }
+.ks-red .ks-val   { color: var(--red); }
+.ks-amber .ks-val { color: var(--amber); }
+.ks-gray .ks-val  { color: var(--text3); }
+.ks-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text3); margin-top: 3px; }
+.occ-wrap { background: var(--surf); border: 1px solid var(--border); border-radius: var(--rl); padding: 14px 16px; }
+.occ-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.occ-label { font-size: 12px; font-weight: 600; color: var(--text2); }
+.occ-pct { font-size: 18px; font-weight: 800; color: var(--green); letter-spacing: -0.5px; }
+@media(max-width:768px) {
+  .kamar-stats { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
