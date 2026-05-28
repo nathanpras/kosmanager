@@ -94,14 +94,32 @@ const belumBayar = computed(() =>
     return !(k && k.status === 'booked')
   })
 )
+const telatTagihan = computed(() =>
+  filteredTagihan.value.filter(t =>
+    (t.status === 'belum' || t.status === 'kurang') && t.jatuh_tempo && t.jatuh_tempo < today()
+  )
+)
+const kontrakExpired = computed(() =>
+  filteredPenghuni.value.filter(p => p.kontrak_selesai && p.kontrak_selesai < today())
+)
 const kontrakAlert = computed(() => {
-  const soon = new Date()
-  soon.setDate(soon.getDate() + 30)
+  const soon = new Date(); soon.setDate(soon.getDate() + 30)
   const soonStr = soon.toISOString().split('T')[0]
   return filteredPenghuni.value.filter(p =>
     p.kontrak_selesai && p.kontrak_selesai <= soonStr && p.kontrak_selesai >= today()
   )
 })
+const kontrakUrgent = computed(() => {
+  const d7 = new Date(); d7.setDate(d7.getDate() + 7)
+  const d7Str = d7.toISOString().split('T')[0]
+  return filteredPenghuni.value.filter(p =>
+    p.kontrak_selesai && p.kontrak_selesai <= d7Str && p.kontrak_selesai >= today()
+  )
+})
+const hasAlerts = computed(() =>
+  telatTagihan.value.length > 0 || kontrakExpired.value.length > 0 ||
+  kontrakUrgent.value.length > 0 || belumBayar.value.length > 0 || kontrakAlert.value.length > 0
+)
 
 function tagStatusInfo(t: typeof tagihan.items[0]): TagihanStatus {
   const tot = Number(t.jumlah) || 0
@@ -208,16 +226,29 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
       </div>
     </div>
 
-    <!-- Alerts always bulan ini -->
-    <div v-if="belumBayar.length > 0" class="alert alert-amber" style="animation:slideInLeft .4s ease both">
-      ⚠️ <strong>{{ belumBayar.length }} kamar</strong> belum bayar {{ bulanIni() }}: {{ belumBayar.map(t => t.kamar).join(', ') }}
+    <!-- Smart proactive alerts -->
+    <div v-if="telatTagihan.length > 0" class="alert alert-red" style="animation:slideInLeft .35s ease both">
+      🔴 <strong>{{ telatTagihan.length }} tagihan melewati jatuh tempo!</strong>
+      Kamar: {{ telatTagihan.map(t => t.kamar).join(', ') }}
     </div>
-    <div v-else-if="filteredPenghuni.length > 0" class="alert alert-green" style="animation:slideInLeft .4s ease both">
-      ✅ Semua kamar sudah lunas bulan {{ bulanIni() }}
+    <div v-if="kontrakExpired.length > 0" class="alert alert-red" style="animation:slideInLeft .38s ease both">
+      🚪 <strong>{{ kontrakExpired.length }} kontrak sudah habis:</strong>
+      {{ kontrakExpired.map(p => `${p.nama} (${p.kamar})`).join(', ') }}
     </div>
-    <div v-if="kontrakAlert.length > 0" class="alert alert-amber" style="animation:slideInLeft .5s ease both">
-      📅 <strong>{{ kontrakAlert.length }} kontrak</strong> habis dalam 30 hari:
-      {{ kontrakAlert.map(p => `${p.nama} (${p.kamar}) — ${fmtTgl(p.kontrak_selesai!)}`).join(', ') }}
+    <div v-if="kontrakUrgent.length > 0" class="alert alert-red" style="animation:slideInLeft .41s ease both">
+      🚨 <strong>{{ kontrakUrgent.length }} kontrak habis dalam 7 hari:</strong>
+      {{ kontrakUrgent.map(p => `${p.nama} — ${fmtTgl(p.kontrak_selesai!)}`).join(', ') }}
+    </div>
+    <div v-if="belumBayar.filter(t => !telatTagihan.find(tt => tt.id === t.id)).length > 0" class="alert alert-amber" style="animation:slideInLeft .44s ease both">
+      ⚠️ <strong>{{ belumBayar.filter(t => !telatTagihan.find(tt => tt.id === t.id)).length }} kamar</strong>
+      belum bayar {{ bulanIni() }}: {{ belumBayar.filter(t => !telatTagihan.find(tt => tt.id === t.id)).map(t => t.kamar).join(', ') }}
+    </div>
+    <div v-if="kontrakAlert.filter(p => !kontrakUrgent.find(u => u.id === p.id)).length > 0" class="alert alert-amber" style="animation:slideInLeft .47s ease both">
+      📅 <strong>{{ kontrakAlert.filter(p => !kontrakUrgent.find(u => u.id === p.id)).length }} kontrak</strong>
+      habis dalam 30 hari: {{ kontrakAlert.filter(p => !kontrakUrgent.find(u => u.id === p.id)).map(p => `${p.nama} (${p.kamar})`).join(', ') }}
+    </div>
+    <div v-if="!hasAlerts && filteredPenghuni.length > 0" class="alert alert-green" style="animation:slideInLeft .4s ease both">
+      ✅ Semua beres! Tidak ada tagihan telat atau kontrak bermasalah.
     </div>
 
     <!-- Metrics -->

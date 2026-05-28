@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { usePenghuniStore }   from '../stores/penghuni'
 import { useKamarStore }      from '../stores/kamar'
 import { usePropertiesStore } from '../stores/properties'
@@ -43,6 +43,15 @@ const showModal  = ref(false)
 const editId     = ref<string | null>(null)
 const form       = ref<Partial<Penghuni>>({})
 const modalTitle = computed(() => editId.value ? 'Edit Penghuni' : 'Tambah Penghuni')
+
+// Auto-suggest kontrak_selesai = masuk + 12 months when masuk changes
+watch(() => form.value.masuk, (newMasuk) => {
+  if (newMasuk && !form.value.kontrak_selesai) {
+    const d = new Date(newMasuk)
+    d.setFullYear(d.getFullYear() + 1)
+    form.value.kontrak_selesai = d.toISOString().split('T')[0]
+  }
+})
 
 function openAdd() {
   if (app.currentPropertyId === 'all' && properties.items.length === 0) {

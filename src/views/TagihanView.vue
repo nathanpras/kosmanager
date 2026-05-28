@@ -22,9 +22,9 @@ const kamar       = useKamarStore()
 const properties  = usePropertiesStore()
 const app         = useAppStore()
 const log         = useLogStore()
+const settings    = useSettingsStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
-const settings    = useSettingsStore()
 const { generateReminderURL } = useWAReminder()
 
 const months      = computed(() => monthsBack(6))
@@ -123,6 +123,15 @@ function onPenghuniChange() {
 }
 async function saveAdd() {
   if (!addForm.value.penghuni || !addForm.value.jumlah) { toast('Penghuni dan jumlah wajib diisi', 'error'); return }
+  // Auto-set jatuh_tempo from bulan + settings
+  if (!addForm.value.jatuh_tempo && addForm.value.bulan) {
+    const [mName, yStr] = addForm.value.bulan.split(' ')
+    const mIdx = MONTHS_FULL.indexOf(mName)
+    if (mIdx >= 0) {
+      const dueDay = settings.data.tgl_jatuh_tempo ?? 10
+      addForm.value.jatuh_tempo = new Date(parseInt(yStr), mIdx, dueDay).toISOString().split('T')[0]
+    }
+  }
   try {
     await tagihan.add(addForm.value as Omit<Tagihan, 'id'>)
     toast('Tagihan ditambahkan', 'success'); showAdd.value = false

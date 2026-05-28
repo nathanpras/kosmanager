@@ -111,6 +111,7 @@ export interface AppSettings {
   rek?: string
   namarek?: string
   wa_template?: string
+  tgl_jatuh_tempo?: number
 }
 
 export interface TagihanStatus {

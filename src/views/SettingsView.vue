@@ -123,6 +123,11 @@ const appVersion = '2.0.0'
           <div class="fg"><label>Bank</label><input v-model="settingsForm.bank" placeholder="BCA" /></div>
           <div class="fg"><label>No Rekening</label><input v-model="settingsForm.rek" placeholder="1234567890" /></div>
           <div class="fg"><label>Nama Rekening</label><input v-model="settingsForm.namarek" placeholder="Budi Santoso" /></div>
+          <div class="fg">
+            <label>Tanggal Jatuh Tempo</label>
+            <input v-model.number="settingsForm.tgl_jatuh_tempo" type="number" min="1" max="28" placeholder="10" />
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">Tanggal jatuh tempo tagihan tiap bulan (default: 10)</div>
+          </div>
           <div class="fg full"><label>Template Pesan WA Reminder</label>
             <textarea v-model="settingsForm.wa_template" rows="3"
               placeholder="Halo {nama}, tagihan kos bulan {bulan} sebesar {jumlah} belum dibayar. Mohon segera dilunasi. Terima kasih 🙏"></textarea>

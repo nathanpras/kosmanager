@@ -59,27 +59,51 @@ async function onPinVerified(pin: string) {
   }
 }
 
+function calcJatuhTempo(bulan: string, dueDay: number): string {
+  const [mName, yStr] = bulan.split(' ')
+  const mIdx = MONTHS_FULL.indexOf(mName)
+  return new Date(parseInt(yStr), mIdx, dueDay).toISOString().split('T')[0]
+}
+
 async function autoGenerateNextMonth() {
   const d = new Date()
-  const nextIdx  = (d.getMonth() + 1) % 12
-  const nextYear = nextIdx === 0 ? d.getFullYear() + 1 : d.getFullYear()
-  const nextBulan  = `${MONTHS_FULL[nextIdx]} ${nextYear}`
-  const firstOfNext = new Date(nextYear, nextIdx, 1).toISOString().split('T')[0]
-
-  const existing = new Set(
-    tagihan.items.filter(t => t.bulan === nextBulan).map(t => `${t.kamar}|${t.property_id}`)
-  )
-  const toCreate = penghuni.items.filter(p =>
-    (!p.kontrak_selesai || p.kontrak_selesai >= firstOfNext) &&
-    !existing.has(`${p.kamar}|${p.property_id}`)
+  const nextIdx   = (d.getMonth() + 1) % 12
+  const nextYear  = nextIdx === 0 ? d.getFullYear() + 1 : d.getFullYear()
+  const nextBulan = `${MONTHS_FULL[nextIdx]} ${nextYear}`
+  const dueDay    = settings.data.tgl_jatuh_tempo ?? 10
+  const jatuh_tempo  = new Date(nextYear, nextIdx, dueDay).toISOString().split('T')[0]
+  const firstOfNext  = new Date(nextYear, nextIdx, 1).toISOString().split('T')[0]
+  const existing  = new Set(tagihan.items.filter(t => t.bulan === nextBulan).map(t => `${t.kamar}|${t.property_id}`))
+  const toCreate  = penghuni.items.filter(p =>
+    (!p.kontrak_selesai || p.kontrak_selesai >= firstOfNext) && !existing.has(`${p.kamar}|${p.property_id}`)
   )
   for (const p of toCreate) {
     const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
-    await tagihan.add({
-      penghuni: p.nama, kamar: p.kamar, bulan: nextBulan,
-      jumlah: k?.harga ?? 0, status: 'belum',
-      property_id: p.property_id, createdAt: new Date().toISOString()
-    })
+    await tagihan.add({ penghuni: p.nama, kamar: p.kamar, bulan: nextBulan, jatuh_tempo,
+      jumlah: k?.harga ?? 0, status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString() })
+  }
+}
+
+async function autoSetJatuhTempo() {
+  const dueDay   = settings.data.tgl_jatuh_tempo ?? 10
+  const toUpdate = tagihan.items.filter(t => !t.jatuh_tempo && t.status !== 'lunas' && t.bulan)
+  for (const t of toUpdate) {
+    const jatuh_tempo = calcJatuhTempo(t.bulan, dueDay)
+    await tagihan.update(t.id, { jatuh_tempo })
+  }
+}
+
+async function autoSyncRoomStatus() {
+  const todayStr = new Date().toISOString().split('T')[0]
+  for (const p of penghuni.items) {
+    const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
+    if (!k || k.status === 'kosong' || k.status === 'booked') continue
+    const hasOverdue = tagihan.items.some(t =>
+      t.kamar === p.kamar && t.property_id === p.property_id &&
+      (t.status === 'belum' || t.status === 'kurang') && t.jatuh_tempo && t.jatuh_tempo < todayStr
+    )
+    if (hasOverdue && k.status !== 'telat')   await kamar.update(k.id, { status: 'telat' })
+    else if (!hasOverdue && k.status === 'telat') await kamar.update(k.id, { status: 'terisi' })
   }
 }
 
@@ -92,7 +116,12 @@ async function loadData() {
   app.initProperty()
   app.isReady = true
   showApp.value = true
-  autoGenerateNextMonth().catch(() => {})
+  // Auto-routines run sequentially so each can use results of the previous
+  ;(async () => {
+    await autoGenerateNextMonth()
+    await autoSetJatuhTempo()
+    await autoSyncRoomStatus()
+  })().catch(() => {})
 }
 
 onMounted(async () => {
