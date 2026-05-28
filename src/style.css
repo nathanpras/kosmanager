@@ -33,7 +33,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text)
 .bn-item.active{color:var(--green)}
 .bn-item .bni{font-size:21px;line-height:1}
 .bn-bdg{position:absolute;top:5px;right:calc(50% - 20px);background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:14px;text-align:center;display:none}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surf);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:all .15s;white-space:nowrap;line-height:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surf);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:all .15s;white-space:nowrap;line-height:1;touch-action:manipulation}
 .btn:hover{background:var(--surf2)}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--green);color:#fff;border-color:var(--green)}
@@ -117,7 +117,8 @@ textarea{resize:vertical;min-height:80px}
 .empty-state .ei{font-size:36px;margin-bottom:10px}
 .empty-state p{font-size:13px;font-weight:500}
 .mobile-list{display:none;flex-direction:column;gap:10px}
-.mc{background:var(--surf);border:1px solid var(--border);border-radius:var(--rl);padding:14px;box-shadow:var(--sh)}
+.mc{background:var(--surf);border:1px solid var(--border);border-radius:var(--rl);padding:14px;box-shadow:var(--sh);transition:box-shadow .15s ease,transform .1s ease}
+.mc:active{transform:scale(.99);opacity:.92}
 .mc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .mc-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
 .mc-rows{display:flex;flex-direction:column;gap:7px}
@@ -325,10 +326,10 @@ textarea{resize:vertical;min-height:80px}
 .kat-header-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--green2);color:var(--green3)}
 .kat-header-line{flex:1;height:1px;background:var(--border)}
 
-/* Colored table rows — only first cell gets the accent stripe */
-.tr-lunas td:first-child{border-left:3px solid var(--green)}
-.tr-belum td:first-child{border-left:3px solid var(--red)}
-.tr-kurang td:first-child{border-left:3px solid var(--amber)}
+/* Colored table rows — subtle background tint, no border lines */
+.tr-lunas{background:rgba(0,112,192,.05)}
+.tr-belum{background:rgba(220,74,74,.04)}
+.tr-kurang{background:rgba(179,134,0,.04)}
 
 /* Floor/group header */
 .floor-header{display:flex;align-items:center;gap:10px;padding:6px 0 10px;margin-top:4px}

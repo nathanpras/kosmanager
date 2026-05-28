@@ -11,7 +11,7 @@ import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useWAReminder, DEFAULT_TEMPLATE } from '../composables/useWAReminder'
 import { useSettingsStore }    from '../stores/settings'
-import { fmt, fmtTgl }         from '../utils/format'
+import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { today, bulanIni, monthsBack } from '../utils/date'
 import type { Tagihan, TagihanStatus } from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
@@ -29,6 +29,15 @@ const { generateReminderURL } = useWAReminder()
 
 const months      = computed(() => monthsBack(6))
 const activeBulan = ref(bulanIni())
+
+function nextBulanStr(bulan: string): string {
+  const [mName, yStr] = bulan.split(' ')
+  const idx  = MONTHS_FULL.indexOf(mName)
+  const next = (idx + 1) % 12
+  return `${MONTHS_FULL[next]} ${next === 0 ? parseInt(yStr) + 1 : yStr}`
+}
+const nextBulan  = computed(() => nextBulanStr(bulanIni()))
+const allMonths  = computed(() => months.value.includes(nextBulan.value) ? months.value : [nextBulan.value, ...months.value])
 
 const filtered  = computed(() => filterByProperty(tagihan.items))
 const byMonth   = computed(() => filtered.value.filter(t => t.bulan === activeBulan.value))
@@ -131,6 +140,38 @@ async function doDelete() {
   } catch { toast('Gagal menghapus tagihan', 'error') }
 }
 
+// Generate next month's tagihan for all active penghuni
+const generating = ref(false)
+async function generateNextMonth() {
+  if (generating.value) return
+  const nb = nextBulan.value
+  const existing = new Set(filtered.value.filter(t => t.bulan === nb).map(t => `${t.kamar}|${t.property_id}`))
+  const [mName, yStr] = nb.split(' ')
+  const mIdx = MONTHS_FULL.indexOf(mName)
+  const firstOfMonth = new Date(parseInt(yStr), mIdx, 1).toISOString().split('T')[0]
+  const activePenghuni = filterByProperty(penghuni.items).filter(p =>
+    !p.kontrak_selesai || p.kontrak_selesai >= firstOfMonth
+  )
+  const toCreate = activePenghuni.filter(p => !existing.has(`${p.kamar}|${p.property_id}`))
+  if (toCreate.length === 0) {
+    toast(`Tagihan ${nb} sudah ada`, '')
+    activeBulan.value = nb
+    return
+  }
+  generating.value = true
+  try {
+    for (const p of toCreate) {
+      const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
+      await tagihan.add({ penghuni: p.nama, kamar: p.kamar, bulan: nb, jumlah: k?.harga ?? 0, status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString() })
+    }
+    const propId = app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId
+    await log.add(`Generate ${toCreate.length} tagihan ${nb}`, 'green', propId)
+    toast(`${toCreate.length} tagihan ${nb} berhasil dibuat`, 'success')
+    activeBulan.value = nb
+  } catch { toast('Gagal generate tagihan', 'error') }
+  finally { generating.value = false }
+}
+
 // Reminder
 const showReminder  = ref(false)
 const reminderBulan = ref('')
@@ -154,19 +195,22 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
     <!-- Pill month tabs -->
     <div class="tabs-pill" style="margin-bottom:4px">
       <button
-        v-for="(m, i) in months"
+        v-for="(m, i) in allMonths"
         :key="m"
         class="tab-pill anim-pill"
-        :class="{ active: activeBulan === m }"
+        :class="{ active: activeBulan === m, 'tab-future': m === nextBulan && !months.includes(m) }"
         :style="{ '--i': i }"
         @click="activeBulan = m"
-      >{{ m }}</button>
+      >{{ m === nextBulan && !months.includes(m) ? '✦ ' + m : m }}</button>
     </div>
 
     <!-- Action row -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-primary" @click="openAddTagihan">+ Tambah Tagihan</button>
-      <button class="action-btn primary" @click="openReminder(activeBulan)">📱 Kirim Reminder</button>
+      <button class="action-btn" style="background:var(--amber2);color:var(--amber);border:1px solid rgba(179,134,0,.25);touch-action:manipulation" :disabled="generating" @click="generateNextMonth">
+        {{ generating ? '⏳ Generating...' : '⚡ Generate ' + nextBulan }}
+      </button>
+      <button class="action-btn primary" @click="openReminder(activeBulan)">📱 Reminder</button>
     </div>
 
     <!-- Month summary card -->
@@ -331,4 +375,6 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
 .ms-title { font-size: 15px; font-weight: 700; }
 .ms-sub   { font-size: 12px; color: var(--text3); margin-top: 2px; }
 .ms-pct   { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
+:deep(.tab-future) { border-style: dashed; color: var(--amber); border-color: rgba(179,134,0,.4); }
+:deep(.tab-future.active) { background: linear-gradient(135deg, var(--amber), var(--accent)); border-style: solid; border-color: transparent; color: #fff; }
 </style>
