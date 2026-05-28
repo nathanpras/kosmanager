@@ -148,7 +148,7 @@ function openWA(p: Penghuni) {
       <div v-for="(p, i) in filtered" :key="p.id" class="mc anim-card" :style="{ '--n': i }">
         <div class="mc-top" style="align-items:center">
           <div style="display:flex;align-items:center;gap:10px">
-            <div class="avatar avatar-md" :style="{ background: `linear-gradient(135deg, ${avatarBg(i)}, ${avatarBg(i)}CC)`, animation: `avatarIn .4s cubic-bezier(.34,1.3,.64,1) ${i * .05}s both` }">
+            <div class="avatar avatar-md anim-avatar" :style="{ background: `linear-gradient(135deg, ${avatarBg(i)}, ${avatarBg(i)}CC)`, animationDelay: `${i * 40}ms` }">
               {{ getInitials(p.nama) }}
             </div>
             <div>

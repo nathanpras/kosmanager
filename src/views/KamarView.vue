@@ -157,9 +157,9 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
         <div
           v-for="(k, bi) in group.items"
           :key="k.id"
-          class="room-box"
+          class="room-box anim-card"
           :class="statusCls[k.status] ?? 'empty'"
-          :style="{ animationDelay: bi * 0.04 + 's', animation: 'scaleIn .35s cubic-bezier(.34,1.3,.64,1) both' }"
+          :style="{ '--n': bi }"
           @click="openDetail(k)"
         >
           <div style="display:flex;justify-content:center;margin-bottom:3px">

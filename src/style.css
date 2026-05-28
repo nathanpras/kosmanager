@@ -26,7 +26,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text)
 .topbar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-top:env(safe-area-inset-top,0px)}
 .page-title{font-size:17px;font-weight:700;letter-spacing:-.3px}
 .date-pill{font-size:11px;color:var(--text2);background:var(--surf2);padding:3px 10px;border-radius:20px;display:inline-block;margin-top:3px}
-.content{flex:1;overflow-y:auto;padding:20px 24px;-webkit-overflow-scrolling:touch;background:var(--bg)}
+.content{flex:1;overflow-y:auto;padding:20px 24px;-webkit-overflow-scrolling:touch;background:var(--bg);scroll-behavior:smooth}
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--border);z-index:100;box-shadow:0 -2px 16px rgba(0,0,0,.08)}
 .bn-items{display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
 .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 2px;cursor:pointer;color:var(--text3);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;user-select:none;position:relative}
@@ -241,24 +241,30 @@ textarea{resize:vertical;min-height:80px}
 .kos-confirm-ok{background:var(--green);color:#fff}
 .kos-confirm-ok.danger{background:var(--red)}
 
-/* ── NEW ANIMATION KEYFRAMES ── */
-@keyframes metricPop{0%{opacity:0;transform:translateY(16px) scale(.94)}60%{transform:translateY(-3px) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes floatUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideInLeft{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
-@keyframes scaleIn{0%{opacity:0;transform:scale(.92)}70%{transform:scale(1.02)}100%{opacity:1;transform:scale(1)}}
-@keyframes tableRowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+/* ── SMOOTH ANIMATION SYSTEM ── */
+/* All easing uses natural deceleration — no bounce on list/data elements */
+@keyframes cardReveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes metricReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes rowReveal{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pillReveal{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes avatarReveal{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
 @keyframes barFill{from{width:0!important}to{}}
-@keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,112,192,0)}50%{box-shadow:0 0 12px 3px rgba(0,112,192,.18)}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,112,192,0)}50%{box-shadow:0 0 8px 2px rgba(0,112,192,.14)}}
 @keyframes shimmerSlide{0%{background-position:-600px 0}100%{background-position:600px 0}}
-@keyframes avatarIn{0%{opacity:0;transform:scale(0) rotate(-15deg)}70%{transform:scale(1.1) rotate(3deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
-@keyframes pillSlide{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes progressWave{0%,100%{opacity:.7}50%{opacity:1}}
 
-/* Stagger helpers */
-.anim-card{animation:floatUp .38s cubic-bezier(.34,1.2,.64,1) both;animation-delay:calc(var(--n,0)*.06s)}
-.anim-metric{animation:metricPop .44s cubic-bezier(.34,1.3,.64,1) both;animation-delay:calc(var(--n,0)*.07s)}
-.anim-row{animation:tableRowIn .32s ease both;animation-delay:calc(var(--n,0)*.05s)}
-.anim-pill{animation:pillSlide .3s cubic-bezier(.34,1.3,.64,1) both;animation-delay:calc(var(--i,0)*.04s)}
+/* Stagger helpers — decel easing, short durations, tight stagger */
+.anim-card{animation:cardReveal 260ms cubic-bezier(0.25,0.46,0.45,0.94) both;animation-delay:calc(var(--n,0)*38ms);will-change:transform,opacity}
+.anim-metric{animation:metricReveal 300ms cubic-bezier(0.25,0.46,0.45,0.94) both;animation-delay:calc(var(--n,0)*52ms);will-change:transform,opacity}
+.anim-row{animation:rowReveal 190ms cubic-bezier(0.25,0.46,0.45,0.94) both;animation-delay:calc(var(--n,0)*25ms);will-change:transform,opacity}
+.anim-pill{animation:pillReveal 180ms cubic-bezier(0.25,0.46,0.45,0.94) both;animation-delay:calc(var(--i,0)*22ms);will-change:transform,opacity}
+.anim-avatar{animation:avatarReveal 260ms cubic-bezier(0.34,1.05,0.64,1) both;will-change:transform,opacity}
+
+@media(prefers-reduced-motion:reduce){
+  .anim-card,.anim-metric,.anim-row,.anim-pill,.anim-avatar{animation:none!important}
+  *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
 
 /* Status dots */
 .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -270,9 +276,9 @@ textarea{resize:vertical;min-height:80px}
 /* Pill tabs */
 .tabs-pill{display:flex;gap:8px;padding:0 0 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .tabs-pill::-webkit-scrollbar{display:none}
-.tab-pill{padding:8px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);border:2px solid var(--border2);border-radius:30px;white-space:nowrap;transition:all .22s cubic-bezier(.34,1.3,.64,1);background:var(--surf);flex-shrink:0;font-family:inherit}
+.tab-pill{padding:8px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);border:2px solid var(--border2);border-radius:30px;white-space:nowrap;transition:all .18s cubic-bezier(0.25,0.46,0.45,0.94);background:var(--surf);flex-shrink:0;font-family:inherit}
 .tab-pill:hover{border-color:var(--green);color:var(--green);transform:translateY(-1px)}
-.tab-pill.active{background:linear-gradient(135deg,var(--green),var(--green3));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(0,112,192,.35);transform:translateY(-2px) scale(1.03)}
+.tab-pill.active{background:linear-gradient(135deg,var(--green),var(--green3));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(0,112,192,.35);transform:translateY(-1px)}
 
 /* Month select */
 .month-select-wrap{position:relative;display:inline-flex;align-items:center}
@@ -290,7 +296,7 @@ textarea{resize:vertical;min-height:80px}
 .kpi-card.green::before{background:linear-gradient(90deg,var(--green),var(--blue))}
 
 /* Action buttons */
-.action-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 13px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .18s cubic-bezier(.34,1.3,.64,1);font-family:inherit;white-space:nowrap}
+.action-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 13px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:inherit;white-space:nowrap}
 .action-btn:active{transform:scale(.94)}
 .action-btn.primary{background:linear-gradient(135deg,var(--green),var(--green3));color:#fff;box-shadow:0 2px 8px rgba(0,112,192,.3)}
 .action-btn.primary:hover{box-shadow:0 4px 14px rgba(0,112,192,.4);transform:translateY(-1px)}
@@ -319,10 +325,10 @@ textarea{resize:vertical;min-height:80px}
 .kat-header-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--green2);color:var(--green3)}
 .kat-header-line{flex:1;height:1px;background:var(--border)}
 
-/* Colored table rows */
-.tr-lunas td{border-left:3px solid var(--green)}
-.tr-belum td{border-left:3px solid var(--red)}
-.tr-kurang td{border-left:3px solid var(--amber)}
+/* Colored table rows — only first cell gets the accent stripe */
+.tr-lunas td:first-child{border-left:3px solid var(--green)}
+.tr-belum td:first-child{border-left:3px solid var(--red)}
+.tr-kurang td:first-child{border-left:3px solid var(--amber)}
 
 /* Floor/group header */
 .floor-header{display:flex;align-items:center;gap:10px;padding:6px 0 10px;margin-top:4px}
