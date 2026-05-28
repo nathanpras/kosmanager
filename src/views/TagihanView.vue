@@ -39,8 +39,21 @@ function nextBulanStr(bulan: string): string {
 const nextBulan  = computed(() => nextBulanStr(bulanIni()))
 const allMonths  = computed(() => months.value.includes(nextBulan.value) ? months.value : [nextBulan.value, ...months.value])
 
+function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
+  const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
+  return [...items].sort((a, b) => {
+    const aRoom = kamar.items.find(k => k.nomor === a.kamar && k.property_id === a.property_id)
+    const bRoom = kamar.items.find(k => k.nomor === b.kamar && k.property_id === b.property_id)
+    const aIdx = katList.indexOf(aRoom?.kategori ?? 'Lainnya')
+    const bIdx = katList.indexOf(bRoom?.kategori ?? 'Lainnya')
+    if ((aIdx === -1 ? 999 : aIdx) !== (bIdx === -1 ? 999 : bIdx))
+      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
+    return a.kamar.localeCompare(b.kamar, undefined, { numeric: true })
+  })
+}
+
 const filtered  = computed(() => filterByProperty(tagihan.items))
-const byMonth   = computed(() => filtered.value.filter(t => t.bulan === activeBulan.value))
+const byMonth   = computed(() => sortByKamar(filtered.value.filter(t => t.bulan === activeBulan.value)))
 
 const lunasCnt  = computed(() => byMonth.value.filter(t => t.status === 'lunas').length)
 const terkumpul = computed(() => byMonth.value.reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? t.jumlah : 0)), 0))
@@ -61,13 +74,6 @@ const statusMap = computed(() => {
   filtered.value.forEach(t => m.set(t.id, tagStatusInfo(t)))
   return m
 })
-
-function trClass(t: Tagihan) {
-  const s = statusMap.value.get(t.id)?.status
-  if (s === 'lunas') return 'tr-lunas'
-  if (s === 'kurang') return 'tr-kurang'
-  return 'tr-belum'
-}
 
 // Pay modal
 const showPay  = ref(false)
@@ -149,38 +155,6 @@ async function doDelete() {
   } catch { toast('Gagal menghapus tagihan', 'error') }
 }
 
-// Generate next month's tagihan for all active penghuni
-const generating = ref(false)
-async function generateNextMonth() {
-  if (generating.value) return
-  const nb = nextBulan.value
-  const existing = new Set(filtered.value.filter(t => t.bulan === nb).map(t => `${t.kamar}|${t.property_id}`))
-  const [mName, yStr] = nb.split(' ')
-  const mIdx = MONTHS_FULL.indexOf(mName)
-  const firstOfMonth = new Date(parseInt(yStr), mIdx, 1).toISOString().split('T')[0]
-  const activePenghuni = filterByProperty(penghuni.items).filter(p =>
-    !p.kontrak_selesai || p.kontrak_selesai >= firstOfMonth
-  )
-  const toCreate = activePenghuni.filter(p => !existing.has(`${p.kamar}|${p.property_id}`))
-  if (toCreate.length === 0) {
-    toast(`Tagihan ${nb} sudah ada`, '')
-    activeBulan.value = nb
-    return
-  }
-  generating.value = true
-  try {
-    for (const p of toCreate) {
-      const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
-      await tagihan.add({ penghuni: p.nama, kamar: p.kamar, bulan: nb, jumlah: k?.harga ?? 0, status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString() })
-    }
-    const propId = app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId
-    await log.add(`Generate ${toCreate.length} tagihan ${nb}`, 'green', propId)
-    toast(`${toCreate.length} tagihan ${nb} berhasil dibuat`, 'success')
-    activeBulan.value = nb
-  } catch { toast('Gagal generate tagihan', 'error') }
-  finally { generating.value = false }
-}
-
 // Reminder
 const showReminder  = ref(false)
 const reminderBulan = ref('')
@@ -197,6 +171,7 @@ const unpaidForReminder = computed(() => {
   return results
 })
 function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder.value = true }
+function kirimWA(url: string) { window.open(url, '_blank') }
 </script>
 
 <template>
@@ -216,9 +191,6 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
     <!-- Action row -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-primary" @click="openAddTagihan">+ Tambah Tagihan</button>
-      <button class="action-btn" style="background:var(--amber2);color:var(--amber);border:1px solid rgba(179,134,0,.25);touch-action:manipulation" :disabled="generating" @click="generateNextMonth">
-        {{ generating ? '⏳ Generating...' : '⚡ Generate ' + nextBulan }}
-      </button>
       <button class="action-btn primary" @click="openReminder(activeBulan)">📱 Reminder</button>
     </div>
 
@@ -244,7 +216,7 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
           <tr v-if="byMonth.length === 0">
             <td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Belum ada tagihan {{ activeBulan }}</td>
           </tr>
-          <tr v-for="(t, i) in byMonth" :key="t.id" :class="trClass(t)" class="anim-row" :style="{ '--n': i }">
+          <tr v-for="(t, i) in byMonth" :key="t.id" class="anim-row" :style="{ '--n': i }">
             <td><strong>{{ t.penghuni }}</strong></td>
             <td><span class="badge bg" style="font-size:11px">{{ t.kamar }}</span></td>
             <td style="font-weight:600">{{ fmt(t.jumlah) }}</td>
@@ -354,7 +326,7 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
             <div class="mc-rows" style="margin-bottom:8px">
               <div class="mc-row"><span class="mc-label">HP</span><span class="mc-val">{{ item.penghuni.no_hp }}</span></div>
             </div>
-            <a :href="item.url" target="_blank" rel="noopener" class="action-btn wa" style="width:100%;justify-content:center;display:flex;text-decoration:none">📱 Kirim WA</a>
+            <button class="action-btn wa" style="width:100%;justify-content:center" @click="kirimWA(item.url)">📱 Kirim WA</button>
           </div>
         </div>
         <div class="modal-foot"><button class="btn btn-ghost" @click="showReminder = false">Tutup</button></div>

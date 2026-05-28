@@ -20,9 +20,20 @@ const log        = useLogStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
 
-const filtered = computed(() =>
-  filterByProperty(penghuni.items).sort((a, b) => a.nama.localeCompare(b.nama))
-)
+function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
+  const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
+  return [...items].sort((a, b) => {
+    const aRoom = kamar.items.find(k => k.nomor === a.kamar && k.property_id === a.property_id)
+    const bRoom = kamar.items.find(k => k.nomor === b.kamar && k.property_id === b.property_id)
+    const aIdx = katList.indexOf(aRoom?.kategori ?? 'Lainnya')
+    const bIdx = katList.indexOf(bRoom?.kategori ?? 'Lainnya')
+    if ((aIdx === -1 ? 999 : aIdx) !== (bIdx === -1 ? 999 : bIdx))
+      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
+    return a.kamar.localeCompare(b.kamar, undefined, { numeric: true })
+  })
+}
+
+const filtered = computed(() => sortByKamar(filterByProperty(penghuni.items)))
 
 // Avatar
 const AVATAR_COLORS = ['#0070C0','#004E86','#B38600','#DC4A4A','#3B7BF5','#7C3AED','#059669','#D97706']

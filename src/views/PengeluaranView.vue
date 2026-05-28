@@ -6,8 +6,8 @@ import { useAppStore }         from '../stores/app'
 import { useLogStore }         from '../stores/log'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
-import { fmt, fmtTgl }         from '../utils/format'
-import { today }               from '../utils/date'
+import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
+import { today, bulanIni }         from '../utils/date'
 import type { Pengeluaran }    from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
@@ -18,7 +18,31 @@ const log         = useLogStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
 
-const filtered = computed(() => filterByProperty(pengeluaran.items))
+const allFiltered = computed(() => filterByProperty(pengeluaran.items))
+
+// Month filter
+const activeMonth = ref(bulanIni())
+const availableMonths = computed(() => {
+  const s = new Set<string>()
+  allFiltered.value.forEach(p => {
+    if (!p.tgl) return
+    const d = new Date(p.tgl)
+    s.add(`${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`)
+  })
+  const arr = [...s].sort().reverse()
+  if (!arr.includes(bulanIni())) arr.unshift(bulanIni())
+  return arr
+})
+function tglMatchesBulan(tgl: string | undefined, bln: string) {
+  if (!tgl) return false
+  const d = new Date(tgl)
+  return `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}` === bln
+}
+const filtered = computed(() =>
+  activeMonth.value === 'all'
+    ? allFiltered.value
+    : allFiltered.value.filter(p => tglMatchesBulan(p.tgl, activeMonth.value))
+)
 const total    = computed(() => filtered.value.reduce((s, p) => s + (p.jumlah || 0), 0))
 
 const DEFAULT_CATEGORIES = ['Listrik', 'Air', 'Internet', 'Kebersihan', 'Perbaikan', 'Lainnya']
@@ -84,9 +108,25 @@ async function doDelete() {
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <button class="btn btn-primary" @click="openAdd">+ Tambah Pengeluaran</button>
       <div class="total-badge">Total: <strong style="color:var(--red)">{{ fmt(total) }}</strong></div>
+    </div>
+
+    <!-- Period filter -->
+    <div class="tabs-pill" style="margin-bottom:14px">
+      <button
+        class="tab-pill"
+        :class="{ active: activeMonth === 'all' }"
+        @click="activeMonth = 'all'"
+      >📊 Semua Waktu</button>
+      <button
+        v-for="m in availableMonths"
+        :key="m"
+        class="tab-pill"
+        :class="{ active: activeMonth === m }"
+        @click="activeMonth = m"
+      >{{ m }}</button>
     </div>
 
     <!-- Category breakdown -->

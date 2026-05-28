@@ -66,6 +66,7 @@ function calcJatuhTempo(bulan: string, dueDay: number): string {
 }
 
 async function autoGenerateNextMonth() {
+  if (new Date().getDate() < 15) return  // only generate after the 15th
   const d = new Date()
   const nextIdx   = (d.getMonth() + 1) % 12
   const nextYear  = nextIdx === 0 ? d.getFullYear() + 1 : d.getFullYear()

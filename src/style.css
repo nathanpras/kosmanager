@@ -326,10 +326,7 @@ textarea{resize:vertical;min-height:80px}
 .kat-header-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--green2);color:var(--green3)}
 .kat-header-line{flex:1;height:1px;background:var(--border)}
 
-/* Colored table rows — subtle background tint, no border lines */
-.tr-lunas{background:rgba(0,112,192,.05)}
-.tr-belum{background:rgba(220,74,74,.04)}
-.tr-kurang{background:rgba(179,134,0,.04)}
+/* Status is shown via badges — no row tinting needed */
 
 /* Floor/group header */
 .floor-header{display:flex;align-items:center;gap:10px;padding:6px 0 10px;margin-top:4px}
