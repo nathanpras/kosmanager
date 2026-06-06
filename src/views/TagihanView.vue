@@ -9,7 +9,7 @@ import { useAppStore }         from '../stores/app'
 import { useLogStore }         from '../stores/log'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
-import { useWAReminder, DEFAULT_TEMPLATE } from '../composables/useWAReminder'
+import { useWAReminder, DEFAULT_TEMPLATE, isValidPhone } from '../composables/useWAReminder'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { today, bulanIni, monthsBack } from '../utils/date'
@@ -158,20 +158,26 @@ async function doDelete() {
 // Reminder
 const showReminder  = ref(false)
 const reminderBulan = ref('')
-const unpaidForReminder = computed(() => {
-  if (!reminderBulan.value) return []
+
+type ReminderItem = { tagihan: Tagihan; penghuni: typeof penghuni.items[0]; url: string; sisa: number }
+const unpaidForReminder = computed<{ valid: ReminderItem[]; noPhone: ReminderItem[] }>(() => {
+  if (!reminderBulan.value) return { valid: [], noPhone: [] }
   const template = settings.data.wa_template || DEFAULT_TEMPLATE
-  const results: Array<{ tagihan: Tagihan; penghuni: typeof penghuni.items[0]; url: string }> = []
-  filterByProperty(tagihan.items)
+  const valid: ReminderItem[] = []
+  const noPhone: ReminderItem[] = []
+  sortByKamar(filterByProperty(tagihan.items))
     .filter(t => t.bulan === reminderBulan.value && (t.status === 'belum' || t.status === 'kurang'))
     .forEach(t => {
       const p = penghuni.items.find(p => p.kamar === t.kamar && p.property_id === t.property_id)
-      if (p) results.push({ tagihan: t, penghuni: p, url: generateReminderURL(p, t, template) })
+      if (!p) return
+      const sisa = tagStatusInfo(t).sisa
+      const item: ReminderItem = { tagihan: t, penghuni: p, sisa, url: generateReminderURL(p, t, template, sisa) }
+      if (isValidPhone(p.no_hp)) valid.push(item)
+      else noPhone.push(item)
     })
-  return results
+  return { valid, noPhone }
 })
 function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder.value = true }
-function kirimWA(url: string) { window.open(url, '_blank') }
 </script>
 
 <template>
@@ -313,20 +319,39 @@ function kirimWA(url: string) { window.open(url, '_blank') }
     <div class="overlay" :class="{ open: showReminder }" @click.self="showReminder = false">
       <div class="modal">
         <div class="modal-handle"></div>
-        <div class="modal-head"><h2>Reminder {{ reminderBulan }}</h2><button class="close-btn" @click="showReminder = false">✕</button></div>
+        <div class="modal-head">
+          <div>
+            <h2>Reminder {{ reminderBulan }}</h2>
+            <div v-if="unpaidForReminder.valid.length > 0 || unpaidForReminder.noPhone.length > 0" style="font-size:12px;color:var(--text3);margin-top:2px">
+              {{ unpaidForReminder.valid.length + unpaidForReminder.noPhone.length }} penghuni belum lunas
+            </div>
+          </div>
+          <button class="close-btn" @click="showReminder = false">✕</button>
+        </div>
         <div class="modal-body">
-          <div v-if="unpaidForReminder.length === 0" class="empty-state">
+          <div v-if="unpaidForReminder.valid.length === 0 && unpaidForReminder.noPhone.length === 0" class="empty-state">
             <div class="ei">✅</div><p>Semua sudah lunas bulan ini!</p>
           </div>
-          <div v-for="item in unpaidForReminder" :key="item.tagihan.id" class="mc" style="margin-bottom:10px">
+          <div v-for="item in unpaidForReminder.valid" :key="item.tagihan.id" class="mc" style="margin-bottom:10px">
             <div class="mc-top">
-              <span class="mc-name">{{ item.tagihan.kamar }} · {{ item.penghuni.nama }}</span>
-              <span class="mc-val" style="color:var(--red);font-weight:700">{{ fmt(item.tagihan.jumlah) }}</span>
+              <span class="mc-name">
+                <span class="badge bg" style="font-size:11px;margin-right:6px">{{ item.tagihan.kamar }}</span>
+                {{ item.penghuni.nama }}
+              </span>
+              <span class="badge" :class="item.tagihan.status === 'kurang' ? 'ba' : 'br'" style="font-size:11px">
+                {{ item.tagihan.status === 'kurang' ? '⚠ Kurang' : 'Belum Bayar' }}
+              </span>
             </div>
-            <div class="mc-rows" style="margin-bottom:8px">
+            <div class="mc-rows" style="margin:6px 0 8px">
+              <div class="mc-row"><span class="mc-label">Sisa</span><span class="mc-val" style="color:var(--red);font-weight:700">{{ fmt(item.sisa) }}</span></div>
+              <div v-if="item.tagihan.status === 'kurang'" class="mc-row"><span class="mc-label">Tagihan</span><span class="mc-val">{{ fmt(item.tagihan.jumlah) }}</span></div>
               <div class="mc-row"><span class="mc-label">HP</span><span class="mc-val">{{ item.penghuni.no_hp }}</span></div>
             </div>
-            <button class="action-btn wa" style="width:100%;justify-content:center" @click="kirimWA(item.url)">📱 Kirim WA</button>
+            <a :href="item.url" target="_blank" rel="noopener" class="action-btn wa" style="width:100%;justify-content:center;display:flex;text-decoration:none">📱 Kirim WA</a>
+          </div>
+          <div v-if="unpaidForReminder.noPhone.length > 0" style="margin-top:12px;padding:10px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--rs);font-size:12px;color:var(--text3)">
+            <strong style="color:var(--amber)">⚠ Tanpa nomor HP:</strong>
+            {{ unpaidForReminder.noPhone.map(i => `${i.tagihan.kamar} · ${i.penghuni.nama}`).join(', ') }}
           </div>
         </div>
         <div class="modal-foot"><button class="btn btn-ghost" @click="showReminder = false">Tutup</button></div>
