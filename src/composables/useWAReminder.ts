@@ -38,7 +38,7 @@ export function generateReminderURL(
   sisa?: number,
 ): string {
   const msg = generateReminderMessage(penghuni, tagihan, template, sisa)
-  const phone = normalizePhone(penghuni.no_hp)
+  const phone = normalizePhone(penghuni.hp)
   return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
 }
 

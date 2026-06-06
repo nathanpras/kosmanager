@@ -4,7 +4,7 @@ import type { Penghuni, Tagihan } from '../../types'
 
 const penghuni: Penghuni = {
   id: 'p1', nama: 'Budi Santoso', kamar: 'A1',
-  no_hp: '628123456789', masuk: '2026-01-01', property_id: 'prop1',
+  hp: '628123456789', masuk: '2026-01-01', property_id: 'prop1',
 }
 
 const tagihan: Tagihan = {

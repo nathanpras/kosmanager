@@ -19,7 +19,7 @@ export interface Penghuni {
   id: string
   nama: string
   kamar: string
-  no_hp: string
+  hp: string
   masuk: string
   kontrak_selesai?: string
   property_id: string

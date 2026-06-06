@@ -171,7 +171,7 @@ const unpaidForReminder = computed<{ valid: ReminderItem[]; noPhone: ReminderIte
       if (!p) return
       const sisa = tagStatusInfo(t).sisa
       const item: ReminderItem = { tagihan: t, penghuni: p, sisa, url: generateReminderURL(p, t, template, sisa) }
-      if (isValidPhone(p.no_hp)) valid.push(item)
+      if (isValidPhone(p.hp)) valid.push(item)
       else noPhone.push(item)
     })
   return { valid, noPhone }
@@ -344,7 +344,7 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
             <div class="mc-rows" style="margin:6px 0 8px">
               <div class="mc-row"><span class="mc-label">Sisa</span><span class="mc-val" style="color:var(--red);font-weight:700">{{ fmt(item.sisa) }}</span></div>
               <div v-if="item.tagihan.status === 'kurang'" class="mc-row"><span class="mc-label">Tagihan</span><span class="mc-val">{{ fmt(item.tagihan.jumlah) }}</span></div>
-              <div class="mc-row"><span class="mc-label">HP</span><span class="mc-val">{{ item.penghuni.no_hp }}</span></div>
+              <div class="mc-row"><span class="mc-label">HP</span><span class="mc-val">{{ item.penghuni.hp }}</span></div>
             </div>
             <a :href="item.url" target="_blank" rel="noopener" class="action-btn wa" style="width:100%;justify-content:center;display:flex;text-decoration:none">📱 Kirim WA</a>
           </div>

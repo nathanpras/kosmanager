@@ -75,7 +75,7 @@ function openAdd() {
 function openEdit(p: Penghuni) { editId.value = p.id; form.value = { ...p }; showModal.value = true }
 
 async function save() {
-  if (!form.value.nama || !form.value.kamar || !form.value.no_hp) { toast('Nama, kamar, dan no HP wajib diisi', 'error'); return }
+  if (!form.value.nama || !form.value.kamar || !form.value.hp) { toast('Nama, kamar, dan no HP wajib diisi', 'error'); return }
   try {
     if (editId.value) {
       const original = penghuni.items.find(p => p.id === editId.value)
@@ -115,7 +115,7 @@ async function doEvict() {
 }
 
 function openWA(p: Penghuni) {
-  const num = p.no_hp.replace(/\D/g, '').replace(/^0/, '62')
+  const num = p.hp.replace(/\D/g, '').replace(/^0/, '62')
   window.open(`https://wa.me/${num}`, '_blank')
 }
 </script>
@@ -146,7 +146,7 @@ function openWA(p: Penghuni) {
             </td>
             <td><strong>{{ p.nama }}</strong></td>
             <td><span class="badge bg" style="font-size:11px">{{ p.kamar }}</span></td>
-            <td style="color:var(--text2)">{{ p.no_hp }}</td>
+            <td style="color:var(--text2)">{{ p.hp }}</td>
             <td style="color:var(--text2)">{{ fmtTgl(p.masuk) }}</td>
             <td style="color:var(--text2)">{{ fmtTgl(p.kontrak_selesai ?? '') }}</td>
             <td><span class="badge" :class="statusPenghuni(p).cls">{{ statusPenghuni(p).label }}</span></td>
@@ -179,7 +179,7 @@ function openWA(p: Penghuni) {
           <span class="badge" :class="statusPenghuni(p).cls">{{ statusPenghuni(p).label }}</span>
         </div>
         <div class="mc-rows" style="margin-top:10px">
-          <div class="mc-row"><span class="mc-label">No HP</span><span class="mc-val">{{ p.no_hp }}</span></div>
+          <div class="mc-row"><span class="mc-label">No HP</span><span class="mc-val">{{ p.hp }}</span></div>
           <div class="mc-row"><span class="mc-label">Masuk</span><span class="mc-val">{{ fmtTgl(p.masuk) }}</span></div>
           <div v-if="p.kontrak_selesai" class="mc-row"><span class="mc-label">Kontrak s/d</span><span class="mc-val">{{ fmtTgl(p.kontrak_selesai) }}</span></div>
         </div>
@@ -205,7 +205,7 @@ function openWA(p: Penghuni) {
                 <option v-for="k in kamar.items.filter(k => k.status === 'kosong' || (editId && k.nomor === form.kamar))" :key="k.id" :value="k.nomor">{{ k.nomor }} ({{ k.tipe }})</option>
               </select>
             </div>
-            <div class="fg"><label>No HP / WA</label><input v-model="form.no_hp" placeholder="08xxxxxxxxxx" /></div>
+            <div class="fg"><label>No HP / WA</label><input v-model="form.hp" placeholder="08xxxxxxxxxx" /></div>
             <div class="fg"><label>Tanggal Masuk</label><input v-model="form.masuk" type="date" /></div>
             <div class="fg"><label>Kontrak Selesai</label><input v-model="form.kontrak_selesai" type="date" /></div>
             <div class="fg"><label>Jenis Kelamin</label>
