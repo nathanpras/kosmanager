@@ -48,7 +48,7 @@ function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[
     const bIdx = katList.indexOf(bRoom?.kategori ?? 'Lainnya')
     if ((aIdx === -1 ? 999 : aIdx) !== (bIdx === -1 ? 999 : bIdx))
       return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
-    return a.kamar.localeCompare(b.kamar, undefined, { numeric: true })
+    return (a.kamar ?? '').localeCompare(b.kamar ?? '', undefined, { numeric: true })
   })
 }
 
@@ -165,8 +165,7 @@ const unpaidForReminder = computed<{ valid: ReminderItem[]; noPhone: ReminderIte
   const template = settings.data.wa_template || DEFAULT_TEMPLATE
   const valid: ReminderItem[] = []
   const noPhone: ReminderItem[] = []
-  sortByKamar(filterByProperty(tagihan.items))
-    .filter(t => t.bulan === reminderBulan.value && (t.status === 'belum' || t.status === 'kurang'))
+  sortByKamar(filterByProperty(tagihan.items).filter(t => t.bulan === reminderBulan.value && (t.status === 'belum' || t.status === 'kurang')))
     .forEach(t => {
       const p = penghuni.items.find(p => p.kamar === t.kamar && p.property_id === t.property_id)
       if (!p) return
