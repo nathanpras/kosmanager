@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { db, collection, getDocs, doc, addDoc, updateDoc, deleteDoc } from '../firebase'
+import { db, collection, getDocs, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from '../firebase'
 import type { Kamar } from '../types'
 
 export const useKamarStore = defineStore('kamar', () => {
@@ -9,6 +9,19 @@ export const useKamarStore = defineStore('kamar', () => {
   async function load() {
     const snap = await getDocs(collection(db, 'kamar'))
     items.value = snap.docs.map(d => ({ id: d.id, ...d.data() } as Kamar))
+  }
+
+  let unsub: (() => void) | null = null
+  function subscribe(): Promise<void> {
+    return new Promise((resolve) => {
+      if (unsub) { resolve(); return }
+      let first = true
+      const done = () => { if (first) { first = false; resolve() } }
+      unsub = onSnapshot(collection(db, 'kamar'),
+        (snap) => { items.value = snap.docs.map(d => ({ id: d.id, ...d.data() } as Kamar)); done() },
+        () => done(),
+      )
+    })
   }
 
   async function add(data: Omit<Kamar, 'id'>): Promise<string> {
@@ -27,5 +40,5 @@ export const useKamarStore = defineStore('kamar', () => {
     await load()
   }
 
-  return { items, load, add, update, remove }
+  return { items, load, subscribe, add, update, remove }
 })

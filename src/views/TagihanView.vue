@@ -144,6 +144,46 @@ async function saveAdd() {
   } catch { toast('Gagal menambahkan tagihan', 'error') }
 }
 
+// Generate tagihan untuk bulan yang sedang dilihat (semua penghuni aktif di properti aktif)
+const confirmGen = ref(false)
+const genPreview = computed(() => {
+  const bulan = activeBulan.value
+  const [mName, yStr] = bulan.split(' ')
+  const mIdx = MONTHS_FULL.indexOf(mName)
+  const firstOfMonth = mIdx >= 0 ? new Date(parseInt(yStr), mIdx, 1).toISOString().split('T')[0] : ''
+  const existing = new Set(tagihan.items.filter(t => t.bulan === bulan).map(t => `${t.kamar}|${t.property_id}`))
+  return filterByProperty(penghuni.items).filter(p =>
+    (!p.kontrak_selesai || p.kontrak_selesai >= firstOfMonth) && !existing.has(`${p.kamar}|${p.property_id}`)
+  )
+})
+function askGenerate() {
+  if (genPreview.value.length === 0) { toast(`Semua penghuni sudah punya tagihan ${activeBulan.value}`); return }
+  confirmGen.value = true
+}
+async function doGenerate() {
+  confirmGen.value = false
+  const bulan = activeBulan.value
+  const [mName, yStr] = bulan.split(' ')
+  const mIdx = MONTHS_FULL.indexOf(mName)
+  const dueDay = settings.data.tgl_jatuh_tempo ?? 10
+  const jatuh_tempo = mIdx >= 0 ? new Date(parseInt(yStr), mIdx, dueDay).toISOString().split('T')[0] : ''
+  const toCreate = genPreview.value
+  let created = 0
+  try {
+    for (const p of toCreate) {
+      const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
+      await tagihan.add({
+        penghuni: p.nama, kamar: p.kamar, bulan, jatuh_tempo,
+        jumlah: k?.harga ?? 0, status: 'belum', property_id: p.property_id,
+        createdAt: new Date().toISOString(),
+      })
+      created++
+    }
+    await log.add(`Generate ${created} tagihan ${bulan}`, 'blue', app.currentPropertyId === 'all' ? '' : app.currentPropertyId)
+    toast(`${created} tagihan ${bulan} dibuat`, 'success')
+  } catch { toast('Gagal generate tagihan', 'error') }
+}
+
 const confirmDelete = ref(false)
 const deleteTarget  = ref<Tagihan | null>(null)
 function askDelete(t: Tagihan) { deleteTarget.value = t; confirmDelete.value = true }
@@ -196,6 +236,9 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
     <!-- Action row -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-primary" @click="openAddTagihan">+ Tambah Tagihan</button>
+      <button class="action-btn primary" @click="askGenerate" :title="`Buat tagihan ${activeBulan} untuk semua penghuni aktif`">
+        ⚡ Generate <span v-if="genPreview.length > 0" class="gen-count">{{ genPreview.length }}</span>
+      </button>
       <button class="action-btn primary" @click="openReminder(activeBulan)">📱 Reminder</button>
     </div>
 
@@ -358,6 +401,13 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
     </div>
 
     <ConfirmDialog
+      :open="confirmGen" icon="⚡"
+      :msg="`Buat ${genPreview.length} tagihan baru untuk ${activeBulan}? Penghuni yang sudah punya tagihan dilewati.`"
+      ok-label="Generate"
+      @confirm="doGenerate" @cancel="confirmGen = false"
+    />
+
+    <ConfirmDialog
       :open="confirmDelete" icon="🗑"
       :msg="`Hapus tagihan ${deleteTarget?.penghuni} bulan ${deleteTarget?.bulan}?`"
       ok-label="Hapus" :danger="true"
@@ -382,4 +432,17 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
 .ms-pct   { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
 :deep(.tab-future) { border-style: dashed; color: var(--amber); border-color: rgba(179,134,0,.4); }
 :deep(.tab-future.active) { background: linear-gradient(135deg, var(--amber), var(--accent)); border-style: solid; border-color: transparent; color: #fff; }
+.gen-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,.25);
+  border-radius: 9px;
+}
 </style>

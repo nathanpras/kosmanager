@@ -137,6 +137,42 @@ const statusMap = computed(() => {
 })
 
 const isAllView = computed(() => app.currentPropertyId === 'all' && properties.items.length > 1)
+
+// ── SMART INSIGHT ──
+const hasInsight = computed(() => filteredTagihan.value.length > 0)
+
+// Total tunggakan per penghuni (semua bulan yang belum lunas)
+const insightTunggakan = computed(() => {
+  const m = new Map<string, number>()
+  filteredTagihan.value.forEach(t => {
+    if (t.status === 'lunas') return
+    const sisa = tagStatusInfo(t).sisa
+    if (sisa > 0) m.set(t.penghuni, (m.get(t.penghuni) ?? 0) + sisa)
+  })
+  return [...m.entries()].map(([nama, sisa]) => ({ nama, sisa })).sort((a, b) => b.sisa - a.sisa)
+})
+const totalTunggakan = computed(() => insightTunggakan.value.reduce((s, x) => s + x.sisa, 0))
+
+// Penghuni "langganan telat": >=2 tagihan dibayar lewat jatuh tempo atau masih nunggak melewati jatuh tempo
+const insightSeringTelat = computed(() => {
+  const m = new Map<string, number>()
+  filteredTagihan.value.forEach(t => {
+    const jt = t.jatuh_tempo
+    if (!jt) return
+    const bayarTelat   = !!(t.tgl && t.tgl > jt)
+    const masihNunggak = (t.status === 'belum' || t.status === 'kurang') && jt < today()
+    if (bayarTelat || masihNunggak) m.set(t.penghuni, (m.get(t.penghuni) ?? 0) + 1)
+  })
+  return [...m.entries()].map(([nama, n]) => ({ nama, n })).filter(x => x.n >= 2).sort((a, b) => b.n - a.n)
+})
+
+// Kolektibilitas bulan ini (% terkumpul dari total ditagihkan)
+const insightKolekt = computed(() => {
+  const tg = filteredTagihan.value.filter(t => t.bulan === bulanIni())
+  const billed    = tg.reduce((s, t) => s + (Number(t.jumlah) || 0), 0)
+  const collected = tg.reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? Number(t.jumlah) || 0 : 0)), 0)
+  return { billed, collected, sisa: billed - collected, pct: billed > 0 ? Math.round(collected / billed * 100) : 0 }
+})
 </script>
 
 <template>
@@ -249,6 +285,40 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
     </div>
     <div v-if="!hasAlerts && filteredPenghuni.length > 0" class="alert alert-green" style="animation:slideInLeft .4s ease both">
       ✅ Semua beres! Tidak ada tagihan telat atau kontrak bermasalah.
+    </div>
+
+    <!-- Smart insight -->
+    <div v-if="hasInsight" class="insight-card anim-card" style="--n:0">
+      <div class="insight-hd">💡 Insight</div>
+      <div class="insight-grid">
+        <div class="insight-item">
+          <div class="insight-lbl">Kolektibilitas {{ bulanIni() }}</div>
+          <div class="insight-val" :style="{ color: insightKolekt.pct >= 80 ? 'var(--green)' : insightKolekt.pct >= 50 ? 'var(--amber)' : 'var(--red)' }">{{ insightKolekt.pct }}%</div>
+          <div class="insight-sub">{{ fmt(insightKolekt.collected) }} / {{ fmt(insightKolekt.billed) }}</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-lbl">Total Tunggakan</div>
+          <div class="insight-val" style="color:var(--red)">{{ fmt(totalTunggakan) }}</div>
+          <div class="insight-sub">{{ insightTunggakan.length }} penghuni belum lunas</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-lbl">Langganan Telat</div>
+          <div class="insight-val" :style="{ color: insightSeringTelat.length > 0 ? 'var(--amber)' : 'var(--green)' }">{{ insightSeringTelat.length }}</div>
+          <div class="insight-sub">penghuni telat ≥2×</div>
+        </div>
+      </div>
+      <div v-if="insightTunggakan.length > 0" class="insight-row">
+        <span class="insight-row-lbl">🔻 Penunggak terbesar</span>
+        <div class="insight-chips">
+          <span v-for="x in insightTunggakan.slice(0, 3)" :key="x.nama" class="insight-chip">{{ x.nama }} · {{ fmt(x.sisa) }}</span>
+        </div>
+      </div>
+      <div v-if="insightSeringTelat.length > 0" class="insight-row">
+        <span class="insight-row-lbl">⏰ Sering telat</span>
+        <div class="insight-chips">
+          <span v-for="x in insightSeringTelat.slice(0, 3)" :key="x.nama" class="insight-chip amber">{{ x.nama }} ({{ x.n }}×)</span>
+        </div>
+      </div>
     </div>
 
     <!-- Metrics -->
@@ -399,5 +469,50 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
 .prop-row:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0,112,192,.12);
+}
+
+/* Smart insight card */
+.insight-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--rl);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--blue, #0070c0);
+}
+.insight-hd { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.insight-item {
+  background: var(--surf2);
+  border-radius: var(--rs, 10px);
+  padding: 10px 12px;
+}
+.insight-lbl { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.insight-val { font-size: 19px; font-weight: 800; letter-spacing: -.5px; }
+.insight-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.insight-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.insight-row-lbl { font-size: 12px; color: var(--text2); font-weight: 600; }
+.insight-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.insight-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--red2);
+  color: var(--red);
+}
+.insight-chip.amber { background: var(--amber2, rgba(179,134,0,.12)); color: var(--amber); }
+@media (max-width: 560px) {
+  .insight-grid { grid-template-columns: 1fr; }
 }
 </style>

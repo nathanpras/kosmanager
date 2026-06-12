@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// ============================================================================
+// KosManager — Firestore Security Rules
+// ----------------------------------------------------------------------------
+// Aplikasi ini TIDAK memakai login user, tapi memakai Anonymous Authentication
+// (lihat src/firebase.ts -> signInAnonymously). Rule di bawah mensyaratkan
+// SETIAP request sudah ter-autentikasi (anonim sekalipun), sehingga bot/scanner
+// yang menemukan project ini di internet TIDAK bisa baca/tulis tanpa lewat
+// proses sign-in SDK terlebih dahulu.
+//
+// CARA DEPLOY (pilih salah satu):
+//   A. Firebase Console > Firestore Database > Rules > tempel isi file ini > Publish
+//   B. CLI:  firebase deploy --only firestore:rules
+//
+// SEBELUM publish, WAJIB aktifkan dulu:
+//   Firebase Console > Authentication > Sign-in method > Anonymous > Enable
+// Kalau tidak, semua akses akan tertolak dan app gagal memuat data.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Daftar collection yang dipakai aplikasi.
+    // Akses hanya untuk request yang sudah sign-in (anonim diperbolehkan).
+    match /kamar/{id}        { allow read, write: if signedIn(); }
+    match /penghuni/{id}     { allow read, write: if signedIn(); }
+    match /tagihan/{id}      { allow read, write: if signedIn(); }
+    match /pengeluaran/{id}  { allow read, write: if signedIn(); }
+    match /maintenance/{id}  { allow read, write: if signedIn(); }
+    match /properties/{id}   { allow read, write: if signedIn(); }
+    match /kategori/{id}     { allow read, write: if signedIn(); }
+    match /tipe_kamar/{id}   { allow read, write: if signedIn(); }
+    match /log/{id}          { allow read, write: if signedIn(); }
+    match /settings/{id}     { allow read, write: if signedIn(); }
+
+    // Tolak akses ke collection lain yang tidak dikenal.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

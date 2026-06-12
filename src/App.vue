@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { MONTHS_FULL }         from './utils/format'
+import { authReady }          from './firebase'
 import { useAppStore }         from './stores/app'
 import { useKamarStore }       from './stores/kamar'
 import { usePenghuniStore }    from './stores/penghuni'
@@ -109,10 +110,12 @@ async function autoSyncRoomStatus() {
 }
 
 async function loadData() {
+  // Real-time: subscribe() memasang listener onSnapshot dan resolve saat data pertama tiba.
+  // Perubahan dari device lain otomatis tampil tanpa reload. settings = dokumen tunggal -> load biasa.
   await Promise.all([
-    kamar.load(), penghuni.load(), tagihan.load(),
-    pengeluaran.load(), maintenance.load(), properties.load(),
-    settings.load(), log.load(),
+    kamar.subscribe(), penghuni.subscribe(), tagihan.subscribe(),
+    pengeluaran.subscribe(), maintenance.subscribe(), properties.subscribe(),
+    settings.load(), log.subscribe(),
   ])
   app.initProperty()
   app.isReady = true
@@ -128,6 +131,7 @@ async function loadData() {
 onMounted(async () => {
   app.initTheme()
   try {
+    await authReady  // pastikan anonymous sign-in selesai sebelum akses Firestore
     const savedPin = await settings.getPin()
     pinMode.value = savedPin ? 'enter' : 'setup'
     showPin.value = true
