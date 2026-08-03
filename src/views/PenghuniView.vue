@@ -2,23 +2,29 @@
 import { ref, computed, watch } from 'vue'
 import { usePenghuniStore }   from '../stores/penghuni'
 import { useKamarStore }      from '../stores/kamar'
+import { useTagihanStore }    from '../stores/tagihan'
 import { usePropertiesStore } from '../stores/properties'
 import { useAppStore }        from '../stores/app'
 import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
+import { useOccupancy }       from '../composables/useOccupancy'
+import { useTagihanCalc }     from '../composables/useTagihanCalc'
 import { fmtTgl }             from '../utils/format'
-import { today }              from '../utils/date'
+import { today, bulanFromTgl } from '../utils/date'
 import type { Penghuni }      from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
 const penghuni   = usePenghuniStore()
 const kamar      = useKamarStore()
+const tagihan    = useTagihanStore()
 const properties = usePropertiesStore()
 const app        = useAppStore()
 const log        = useLogStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
+const { kamarMasihTerisi } = useOccupancy()
+const { tagihanUntukKamar } = useTagihanCalc()
 
 function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
   const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
@@ -48,6 +54,27 @@ function statusPenghuni(p: Penghuni) {
   if (days < 0) return { cls: 'br', label: 'Kontrak Habis' }
   if (days <= 30) return { cls: 'ba', label: `Habis ${days}h` }
   return { cls: 'bg', label: 'Aktif' }
+}
+
+function findKamar(nomor: string, property_id: string) {
+  return kamar.items.find(k => k.nomor === nomor && k.property_id === property_id)
+}
+
+/**
+ * Tagihan bulan masuk dibuat di sini karena autoGenerateNextMonth hanya mengurus
+ * bulan depan — tanpa ini bulan masuk selalu bolong dan harus diinput manual.
+ */
+async function buatTagihanBulanMasuk(p: Penghuni) {
+  const bln = bulanFromTgl(p.masuk)
+  if (!bln) return
+  const sudahAda = tagihan.items.some(
+    t => t.kamar === p.kamar && t.property_id === p.property_id && t.bulan === bln,
+  )
+  if (sudahAda) return
+  await tagihan.add({
+    ...tagihanUntukKamar(p.kamar, p.property_id, bln, { prorata: true }),
+    status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString(),
+  })
 }
 
 const showModal  = ref(false)
@@ -81,17 +108,21 @@ async function save() {
       const original = penghuni.items.find(p => p.id === editId.value)
       await penghuni.update(editId.value, form.value)
       if (original && original.kamar !== form.value.kamar) {
-        const oldRoom = kamar.items.find(k => k.nomor === original.kamar && k.property_id === original.property_id)
-        if (oldRoom) await kamar.update(oldRoom.id, { status: 'kosong' })
-        const newRoom = kamar.items.find(k => k.nomor === form.value.kamar)
-        if (newRoom) await kamar.update(newRoom.id, { status: 'terisi' })
+        // Kamar lama hanya dikosongkan bila tidak ada roommate yang tertinggal.
+        if (!kamarMasihTerisi(original.kamar, original.property_id, original.id)) {
+          const oldRoom = findKamar(original.kamar, original.property_id)
+          if (oldRoom) await kamar.update(oldRoom.id, { status: 'kosong' })
+        }
+        const newRoom = findKamar(form.value.kamar!, form.value.property_id!)
+        if (newRoom && newRoom.status === 'kosong') await kamar.update(newRoom.id, { status: 'terisi' })
       }
       toast('Penghuni diperbarui', 'success')
     } else {
       await penghuni.add(form.value as Omit<Penghuni, 'id'>)
-      const k = kamar.items.find(k => k.nomor === form.value.kamar)
-      if (k) await kamar.update(k.id, { status: 'terisi' })
+      const k = findKamar(form.value.kamar!, form.value.property_id!)
+      if (k && k.status === 'kosong') await kamar.update(k.id, { status: 'terisi' })
       await log.add(`${form.value.nama} masuk kamar ${form.value.kamar}`, 'green', form.value.property_id ?? '')
+      await buatTagihanBulanMasuk(form.value as Penghuni)
       toast('Penghuni ditambahkan', 'success')
     }
     showModal.value = false
@@ -105,8 +136,11 @@ async function doEvict() {
   if (!evictTarget.value) return
   try {
     const p = evictTarget.value
-    const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
-    if (k) await kamar.update(k.id, { status: 'kosong' })
+    // Kamar baru kosong kalau orang ini penghuni terakhirnya.
+    if (!kamarMasihTerisi(p.kamar, p.property_id, p.id)) {
+      const k = findKamar(p.kamar, p.property_id)
+      if (k) await kamar.update(k.id, { status: 'kosong' })
+    }
     await penghuni.remove(p.id)
     await log.add(`${p.nama} keluar dari kamar ${p.kamar}`, 'red', p.property_id)
     toast(`${p.nama} dikeluarkan`, 'success')

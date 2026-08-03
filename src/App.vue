@@ -11,6 +11,8 @@ import { usePropertiesStore }  from './stores/properties'
 import { useSettingsStore }    from './stores/settings'
 import { useLogStore }         from './stores/log'
 import { useViewportInsets }   from './composables/useViewportInsets'
+import { useTagihanCalc }      from './composables/useTagihanCalc'
+import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
 
 import AppSidebar   from './components/layout/AppSidebar.vue'
 import AppTopBar    from './components/layout/AppTopBar.vue'
@@ -29,6 +31,7 @@ const settings    = useSettingsStore()
 const log         = useLogStore()
 
 useViewportInsets()
+const { tagihanUntukKamar } = useTagihanCalc()
 
 const w = window
 
@@ -74,22 +77,30 @@ async function autoGenerateNextMonth() {
   const nextIdx   = (d.getMonth() + 1) % 12
   const nextYear  = nextIdx === 0 ? d.getFullYear() + 1 : d.getFullYear()
   const nextBulan = `${MONTHS_FULL[nextIdx]} ${nextYear}`
-  const dueDay    = settings.data.tgl_jatuh_tempo ?? 10
-  const jatuh_tempo  = new Date(nextYear, nextIdx, dueDay).toISOString().split('T')[0]
   const firstOfNext  = new Date(nextYear, nextIdx, 1).toISOString().split('T')[0]
   const existing  = new Set(tagihan.items.filter(t => t.bulan === nextBulan).map(t => `${t.kamar}|${t.property_id}`))
   const toCreate  = penghuni.items.filter(p =>
     (!p.kontrak_selesai || p.kontrak_selesai >= firstOfNext) && !existing.has(`${p.kamar}|${p.property_id}`)
   )
+  // Satu tagihan per kamar, bukan per orang: tarif melekat pada kamar dan
+  // penghuni kedua menambah nominal, bukan menambah tagihan.
+  const sudahDibuat = new Set<string>()
   for (const p of toCreate) {
-    const k = kamar.items.find(k => k.nomor === p.kamar && k.property_id === p.property_id)
-    await tagihan.add({ penghuni: p.nama, kamar: p.kamar, bulan: nextBulan, jatuh_tempo,
-      jumlah: k?.harga ?? 0, status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString() })
+    const key = `${p.kamar}|${p.property_id}`
+    if (sudahDibuat.has(key)) continue
+    sudahDibuat.add(key)
+    await tagihan.add({
+      // prorata aman dinyalakan: hitungTagihan hanya memotong bila tanggal masuk
+      // memang jatuh di bulan itu, jadi penghuni yang didaftarkan lebih awal
+      // untuk bulan depan tetap ditagih pro rata.
+      ...tagihanUntukKamar(p.kamar, p.property_id, nextBulan, { prorata: true }),
+      status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString(),
+    })
   }
 }
 
 async function autoSetJatuhTempo() {
-  const dueDay   = settings.data.tgl_jatuh_tempo ?? 10
+  const dueDay   = settings.data.tgl_jatuh_tempo ?? DEFAULT_TGL_JATUH_TEMPO
   const toUpdate = tagihan.items.filter(t => !t.jatuh_tempo && t.status !== 'lunas' && t.bulan)
   for (const t of toUpdate) {
     const jatuh_tempo = calcJatuhTempo(t.bulan, dueDay)

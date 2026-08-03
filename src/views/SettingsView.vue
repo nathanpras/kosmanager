@@ -125,8 +125,13 @@ const appVersion = '2.0.0'
           <div class="fg"><label>Nama Rekening</label><input v-model="settingsForm.namarek" placeholder="Budi Santoso" /></div>
           <div class="fg">
             <label>Tanggal Jatuh Tempo</label>
-            <input v-model.number="settingsForm.tgl_jatuh_tempo" type="number" min="1" max="28" placeholder="10" />
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">Tanggal jatuh tempo tagihan tiap bulan (default: 10)</div>
+            <input v-model.number="settingsForm.tgl_jatuh_tempo" type="number" min="1" max="28" placeholder="1" />
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">Tanggal jatuh tempo tagihan tiap bulan (default: 1)</div>
+          </div>
+          <div class="fg">
+            <label>Tambahan per Penghuni</label>
+            <input v-model.number="settingsForm.nominal_tambahan" type="number" min="0" step="50000" placeholder="300000" />
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">Ditambahkan per orang di atas penghuni pertama (default: 300.000). Bisa ditimpa per kamar.</div>
           </div>
           <div class="fg full"><label>Template Pesan WA Reminder</label>
             <textarea v-model="settingsForm.wa_template" rows="3"

@@ -112,6 +112,8 @@ export interface AppSettings {
   namarek?: string
   wa_template?: string
   tgl_jatuh_tempo?: number
+  /** Tambahan per orang di atas penghuni pertama. Ditimpa Kamar.nominal_tambahan. */
+  nominal_tambahan?: number
 }
 
 export interface TagihanStatus {

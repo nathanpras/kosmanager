@@ -10,6 +10,8 @@ import { useLogStore }         from '../stores/log'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useWAReminder, DEFAULT_TEMPLATE } from '../composables/useWAReminder'
+import { useTagihanCalc }      from '../composables/useTagihanCalc'
+import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { today, bulanIni, monthsBack } from '../utils/date'
@@ -26,6 +28,7 @@ const settings    = useSettingsStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
 const { generateReminderURL } = useWAReminder()
+const { tagihanUntukKamar } = useTagihanCalc()
 
 const months      = computed(() => monthsBack(6))
 const activeBulan = ref(bulanIni())
@@ -121,11 +124,14 @@ function openAddTagihan() {
 }
 function onPenghuniChange() {
   const p = penghuni.items.find(x => x.nama === addForm.value.penghuni)
-  if (p) {
-    addForm.value.kamar = p.kamar
-    const k = kamar.items.find(x => x.nomor === p.kamar)
-    if (k) addForm.value.jumlah = k.harga
-  }
+  if (!p) return
+  addForm.value.kamar = p.kamar
+  // Lewat tagihanUntukKamar supaya tambahan penghuni kedua ikut terhitung, dan
+  // kamar dicari dengan property_id — pencarian lama bisa mengambil kamar
+  // bernomor sama milik properti lain.
+  const hasil = tagihanUntukKamar(p.kamar, p.property_id, addForm.value.bulan ?? bulanIni())
+  addForm.value.jumlah = hasil.jumlah
+  addForm.value.jatuh_tempo = hasil.jatuh_tempo
 }
 async function saveAdd() {
   if (!addForm.value.penghuni || !addForm.value.jumlah) { toast('Penghuni dan jumlah wajib diisi', 'error'); return }
@@ -134,7 +140,7 @@ async function saveAdd() {
     const [mName, yStr] = addForm.value.bulan.split(' ')
     const mIdx = MONTHS_FULL.indexOf(mName)
     if (mIdx >= 0) {
-      const dueDay = settings.data.tgl_jatuh_tempo ?? 10
+      const dueDay = settings.data.tgl_jatuh_tempo ?? DEFAULT_TGL_JATUH_TEMPO
       addForm.value.jatuh_tempo = new Date(parseInt(yStr), mIdx, dueDay).toISOString().split('T')[0]
     }
   }
