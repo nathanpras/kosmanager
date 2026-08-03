@@ -80,7 +80,10 @@ const tgBln   = computed(() => filteredTagihan.value.filter(t => t.bulan === bul
 const belumBayar = computed(() =>
   tgBln.value.filter(t => {
     if (t.status !== 'belum' && t.status !== 'kurang') return false
-    const k = filteredKamar.value.find(x => x.nomor === t.kamar)
+    // property_id wajib ikut dicocokkan: setelah migrasi penomoran, Waru 23 dan
+    // Citra 1 sama-sama punya kamar 101–107. Tanpa ini, mode "Semua Properti"
+    // akan mengambil kamar milik properti yang salah.
+    const k = filteredKamar.value.find(x => x.nomor === t.kamar && x.property_id === t.property_id)
     return !(k && k.status === 'booked')
   })
 )

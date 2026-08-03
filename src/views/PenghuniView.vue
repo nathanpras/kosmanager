@@ -56,6 +56,20 @@ function statusPenghuni(p: Penghuni) {
   return { cls: 'bg', label: 'Aktif' }
 }
 
+/**
+ * Kamar yang boleh dipilih untuk penghuni ini.
+ *
+ * Disaring per properti: setelah migrasi penomoran, Waru 23 dan Citra 1
+ * sama-sama punya kamar 101–107, sehingga daftar tanpa filter akan menampilkan
+ * dua "101" yang tidak bisa dibedakan dan bisa menaruh penghuni di gedung lain.
+ */
+const kamarPilihan = computed(() =>
+  kamar.items.filter(k =>
+    k.property_id === form.value.property_id &&
+    (k.status === 'kosong' || (editId.value && k.nomor === form.value.kamar)),
+  ),
+)
+
 function findKamar(nomor: string, property_id: string) {
   return kamar.items.find(k => k.nomor === nomor && k.property_id === property_id)
 }
@@ -236,7 +250,7 @@ function openWA(p: Penghuni) {
             <div class="fg"><label>Kamar</label>
               <select v-model="form.kamar">
                 <option value="">— Pilih Kamar —</option>
-                <option v-for="k in kamar.items.filter(k => k.status === 'kosong' || (editId && k.nomor === form.kamar))" :key="k.id" :value="k.nomor">{{ k.nomor }} ({{ k.tipe }})</option>
+                <option v-for="k in kamarPilihan" :key="k.id" :value="k.nomor">{{ k.nomor }} ({{ k.tipe }})</option>
               </select>
             </div>
             <div class="fg"><label>No HP / WA</label><input v-model="form.no_hp" placeholder="08xxxxxxxxxx" /></div>
