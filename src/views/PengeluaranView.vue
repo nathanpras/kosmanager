@@ -6,8 +6,9 @@ import { useAppStore }         from '../stores/app'
 import { useLogStore }         from '../stores/log'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
-import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
-import { today, bulanIni }         from '../utils/date'
+import { useMonths }           from '../composables/useMonths'
+import { fmt, fmtTgl }         from '../utils/format'
+import { today, bulanIni, bulanFromTgl } from '../utils/date'
 import type { Pengeluaran }    from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
@@ -22,21 +23,9 @@ const allFiltered = computed(() => filterByProperty(pengeluaran.items))
 
 // Month filter
 const activeMonth = ref(bulanIni())
-const availableMonths = computed(() => {
-  const s = new Set<string>()
-  allFiltered.value.forEach(p => {
-    if (!p.tgl) return
-    const d = new Date(p.tgl)
-    s.add(`${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`)
-  })
-  const arr = [...s].sort().reverse()
-  if (!arr.includes(bulanIni())) arr.unshift(bulanIni())
-  return arr
-})
+const { availableMonths } = useMonths()
 function tglMatchesBulan(tgl: string | undefined, bln: string) {
-  if (!tgl) return false
-  const d = new Date(tgl)
-  return `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}` === bln
+  return bulanFromTgl(tgl) === bln
 }
 const filtered = computed(() =>
   activeMonth.value === 'all'
@@ -89,6 +78,13 @@ async function save() {
       await pengeluaran.add(form.value as Omit<Pengeluaran, 'id'>)
       await log.add(`Pengeluaran ${form.value.deskripsi} ${fmt(form.value.jumlah ?? 0)}`, 'red', form.value.property_id ?? '')
       toast('Pengeluaran ditambahkan', 'success')
+    }
+    // Filter default ke bulan berjalan. Tanpa ini, menyimpan entri bertanggal
+    // bulan lain membuatnya langsung hilang dari layar dan terbaca sebagai
+    // "tersimpan tapi tidak muncul".
+    const blnEntri = bulanFromTgl(form.value.tgl)
+    if (blnEntri && activeMonth.value !== 'all' && activeMonth.value !== blnEntri) {
+      activeMonth.value = blnEntri
     }
     showModal.value = false
   } catch { toast('Gagal menyimpan pengeluaran', 'error') }

@@ -7,6 +7,7 @@ import { usePenghuniStore }    from '../stores/penghuni'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
+import { useMonths }           from '../composables/useMonths'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { monthsBack, bulanIni } from '../utils/date'
 import RevenueBarChart         from '../components/charts/RevenueBarChart.vue'
@@ -26,18 +27,7 @@ type LaporanMode = 'bulan_ini' | 'pilih_bulan' | 'all_time'
 const laporanMode  = ref<LaporanMode>('bulan_ini')
 const laporanBulan = ref(bulanIni())
 
-const allBulanOpts = computed(() => {
-  const s = new Set<string>()
-  filterByProperty(tagihan.items).forEach(t => { if (t.bulan) s.add(t.bulan) })
-  filterByProperty(pengeluaran.items).forEach(p => {
-    if (!p.tgl) return
-    const d = new Date(p.tgl)
-    s.add(`${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`)
-  })
-  const arr = [...s].sort().reverse()
-  if (!arr.includes(bulanIni())) arr.unshift(bulanIni())
-  return arr
-})
+const { availableMonths: allBulanOpts } = useMonths()
 const selectedPeriod = computed(() =>
   laporanMode.value === 'all_time' ? 'Semua Waktu'
   : laporanMode.value === 'bulan_ini' ? bulanIni()

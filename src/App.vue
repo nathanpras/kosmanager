@@ -10,6 +10,7 @@ import { useMaintenanceStore } from './stores/maintenance'
 import { usePropertiesStore }  from './stores/properties'
 import { useSettingsStore }    from './stores/settings'
 import { useLogStore }         from './stores/log'
+import { useViewportInsets }   from './composables/useViewportInsets'
 
 import AppSidebar   from './components/layout/AppSidebar.vue'
 import AppTopBar    from './components/layout/AppTopBar.vue'
@@ -26,6 +27,8 @@ const maintenance = useMaintenanceStore()
 const properties  = usePropertiesStore()
 const settings    = useSettingsStore()
 const log         = useLogStore()
+
+useViewportInsets()
 
 const w = window
 

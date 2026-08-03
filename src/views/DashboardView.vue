@@ -7,6 +7,7 @@ import { usePengeluaranStore } from '../stores/pengeluaran'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
+import { useMonths }           from '../composables/useMonths'
 import { fmt, fmtTgl }         from '../utils/format'
 import { bulanIni, today }     from '../utils/date'
 import type { TagihanStatus }  from '../types'
@@ -30,18 +31,7 @@ const filteredTagihan  = computed(() => filterByProperty(tagihan.items))
 const filteredExp      = computed(() => filterByProperty(pengeluaran.items))
 
 // All available months (for picker)
-const allBulan = computed(() => {
-  const months = new Set<string>()
-  filteredTagihan.value.forEach(t => { if (t.bulan) months.add(t.bulan) })
-  filteredExp.value.forEach(p => {
-    if (!p.tgl) return
-    const d = new Date(p.tgl)
-    months.add(['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getUTCMonth()] + ' ' + d.getUTCFullYear())
-  })
-  const arr = [...months].sort().reverse()
-  if (!arr.includes(bulanIni())) arr.unshift(bulanIni())
-  return arr
-})
+const { availableMonths: allBulan } = useMonths()
 
 const selectedBulan = computed(() =>
   dashMode.value === 'bulan_ini' ? bulanIni() : dashBulan.value
