@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useSettingsStore }    from '../stores/settings'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useToast }            from '../composables/useToast'
 import type { Property, AppSettings }       from '../types'
+import { useMigrasiKamar }     from '../composables/useMigrasiKamar'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
 const settings   = useSettingsStore()
@@ -12,7 +13,48 @@ const properties = usePropertiesStore()
 const app        = useAppStore()
 const { show: toast } = useToast()
 
-const activeTab = ref<'umum' | 'properti' | 'kategori' | 'tipe'>('umum')
+const activeTab = ref<'umum' | 'properti' | 'kategori' | 'tipe' | 'migrasi'>('umum')
+
+// --- Migrasi penomoran kamar (B1 → 101, dst) ---
+const { rencana, sedangJalan, progres, pratinjau, unduhBackup, terapkan } = useMigrasiKamar()
+const migrasiProp = ref('')
+const sudahBackup = ref(false)
+const confirmMigrasi = ref(false)
+
+function lihatRencana() {
+  if (!migrasiProp.value) { toast('Pilih properti dulu', 'error'); return }
+  sudahBackup.value = false
+  const r = pratinjau(migrasiProp.value)
+  if (!r.ubah.length && !r.takDikenal.length) toast('Tidak ada yang perlu diubah', 'success')
+}
+
+function ambilBackup() {
+  unduhBackup(migrasiProp.value)
+  sudahBackup.value = true
+  toast('Backup diunduh', 'success')
+}
+
+const ringkasPerKoleksi = computed(() => {
+  const m: Record<string, number> = {}
+  for (const u of rencana.value?.ubah ?? []) m[u.koleksi] = (m[u.koleksi] ?? 0) + 1
+  return m
+})
+
+const ubahKamarSaja = computed(() =>
+  (rencana.value?.ubah ?? []).filter(u => u.koleksi === 'kamar'),
+)
+
+async function jalankanMigrasi() {
+  confirmMigrasi.value = false
+  if (!rencana.value) return
+  try {
+    const n = await terapkan(rencana.value)
+    toast(`${n} data diperbarui`, 'success')
+    pratinjau(migrasiProp.value)
+  } catch {
+    toast('Migrasi gagal — jalankan ulang untuk melanjutkan', 'error')
+  }
+}
 
 // General settings
 const settingsForm = ref<AppSettings>({ ...settings.data })
@@ -110,6 +152,7 @@ const appVersion = '2.0.0'
       <button class="tab-btn" :class="{ active: activeTab === 'properti' }" @click="activeTab = 'properti'">🏠 Properti</button>
       <button class="tab-btn" :class="{ active: activeTab === 'kategori' }" @click="activeTab = 'kategori'">🏷️ Kategori</button>
       <button class="tab-btn" :class="{ active: activeTab === 'tipe' }" @click="activeTab = 'tipe'">🛏️ Tipe Kamar</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'migrasi' }" @click="activeTab = 'migrasi'">🔢 Migrasi Nomor</button>
     </div>
 
     <!-- Umum tab -->
@@ -207,6 +250,100 @@ const appVersion = '2.0.0'
       </div>
     </div>
 
+    <!-- Migrasi penomoran kamar -->
+    <div v-else-if="activeTab === 'migrasi'">
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Ganti Penomoran Kamar</div></div>
+        <div style="padding:0 16px 16px">
+          <div class="alert" style="background:var(--amber2);color:var(--amber)">
+            <span>⚠️</span>
+            <div>
+              Mengubah nomor kamar di <strong>empat koleksi sekaligus</strong> — kamar, penghuni,
+              tagihan, dan maintenance — karena nomor kamar disimpan sebagai teks, bukan id.
+              Riwayat tagihan lama ikut berubah. <strong>Unduh backup dulu.</strong>
+            </div>
+          </div>
+
+          <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px">
+            Pemetaan: <strong>B1–B7 → 101–107</strong>, <strong>A1–A9 → 201–209</strong>,
+            <strong>C1–C5 → 301–305</strong>, <strong>D1 → 401</strong>.
+            Kamar yang nomornya sudah berupa angka dilewati, jadi aman dijalankan ulang.
+          </div>
+
+          <div class="fg" style="margin-bottom:12px">
+            <label>Properti</label>
+            <select v-model="migrasiProp">
+              <option value="">— pilih properti —</option>
+              <option v-for="p in properties.items" :key="p.id" :value="p.id">{{ p.nama }}</option>
+            </select>
+          </div>
+
+          <button class="btn btn-ghost" :disabled="sedangJalan" @click="lihatRencana">
+            🔍 Lihat Rencana
+          </button>
+        </div>
+      </div>
+
+      <div v-if="rencana" class="card" style="margin-top:14px">
+        <div class="card-hd"><div class="card-title">Rencana Perubahan</div></div>
+        <div style="padding:0 16px 16px">
+          <div v-if="rencana.bentrok.length" class="alert" style="background:var(--red2);color:var(--red)">
+            <span>⛔</span>
+            <div>
+              <strong>Nomor tujuan sudah dipakai.</strong> Tidak ada yang diubah untuk kamar ini —
+              selesaikan dulu secara manual.
+              <div v-for="b in rencana.bentrok" :key="b.dari">{{ b.dari }} → {{ b.ke }}</div>
+            </div>
+          </div>
+
+          <div v-if="rencana.takDikenal.length" class="alert" style="background:var(--amber2);color:var(--amber)">
+            <span>❓</span>
+            <div>
+              <strong>{{ rencana.takDikenal.length }} data tidak dikenali polanya</strong> dan akan
+              dilewati, bukan ditebak:
+              <div v-for="t in rencana.takDikenal.slice(0, 12)" :key="t.koleksi + t.id">
+                {{ t.koleksi }}: "{{ t.nomor }}"
+              </div>
+              <div v-if="rencana.takDikenal.length > 12">… dan {{ rencana.takDikenal.length - 12 }} lagi</div>
+            </div>
+          </div>
+
+          <div v-if="rencana.ubah.length === 0" class="empty-state" style="padding:20px">
+            <div class="ei">✅</div><p>Tidak ada yang perlu diubah</p>
+          </div>
+
+          <template v-else>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
+              Total <strong>{{ rencana.ubah.length }}</strong> dokumen —
+              <span v-for="(n, k) in ringkasPerKoleksi" :key="k">{{ k }}: {{ n }} &nbsp;</span>
+            </div>
+
+            <div style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:10px">
+              <div v-for="u in ubahKamarSaja" :key="u.id"
+                   style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px">
+                <span style="color:var(--text2);min-width:44px">{{ u.dari }}</span>
+                <span style="color:var(--text3)">→</span>
+                <strong>{{ u.ke }}</strong>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+              <button class="btn btn-ghost" :disabled="sedangJalan" @click="ambilBackup">
+                💾 Unduh Backup
+              </button>
+              <button class="btn btn-primary" :disabled="!sudahBackup || sedangJalan"
+                      @click="confirmMigrasi = true">
+                {{ sedangJalan ? `Menjalankan… ${progres}/${rencana.ubah.length}` : '▶️ Jalankan Migrasi' }}
+              </button>
+            </div>
+            <div v-if="!sudahBackup" style="font-size:11px;color:var(--text3);margin-top:6px">
+              Tombol jalankan aktif setelah backup diunduh.
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
     <!-- Property Add/Edit Modal -->
     <div class="overlay" :class="{ open: showPropModal }" @click.self="showPropModal = false">
       <div class="modal">
@@ -231,6 +368,17 @@ const appVersion = '2.0.0'
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="confirmMigrasi"
+      icon="🔢"
+      :msg="`Ganti nomor ${ubahKamarSaja.length} kamar?`"
+      :sub="`${rencana?.ubah.length ?? 0} dokumen di 4 koleksi akan diperbarui. Riwayat tagihan lama ikut berubah.`"
+      ok-label="Jalankan"
+      :danger="true"
+      @confirm="jalankanMigrasi"
+      @cancel="confirmMigrasi = false"
+    />
 
     <ConfirmDialog
       :open="confirmDelProp"

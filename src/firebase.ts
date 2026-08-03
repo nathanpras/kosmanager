@@ -12,6 +12,7 @@ import {
   query,
   orderBy,
   deleteField,
+  writeBatch,
 } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -29,5 +30,5 @@ export const db = getFirestore(app)
 
 export {
   collection, getDocs, doc, addDoc, updateDoc,
-  deleteDoc, setDoc, getDoc, query, orderBy, deleteField,
+  deleteDoc, setDoc, getDoc, query, orderBy, deleteField, writeBatch,
 }

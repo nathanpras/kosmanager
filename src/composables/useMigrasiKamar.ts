@@ -1,0 +1,85 @@
+import { ref } from 'vue'
+import { db, doc, writeBatch } from '../firebase'
+import { useKamarStore } from '../stores/kamar'
+import { usePenghuniStore } from '../stores/penghuni'
+import { useTagihanStore } from '../stores/tagihan'
+import { useMaintenanceStore } from '../stores/maintenance'
+import { susunRencana } from '../utils/nomorKamar'
+import type { RencanaMigrasi } from '../utils/nomorKamar'
+
+// Firestore membatasi 500 operasi per batch.
+const UKURAN_BATCH = 450
+
+export function useMigrasiKamar() {
+  const kamar = useKamarStore()
+  const penghuni = usePenghuniStore()
+  const tagihan = useTagihanStore()
+  const maintenance = useMaintenanceStore()
+
+  const rencana = ref<RencanaMigrasi | null>(null)
+  const sedangJalan = ref(false)
+  const progres = ref(0)
+
+  function pratinjau(property_id: string): RencanaMigrasi {
+    const r = susunRencana(property_id, {
+      kamar: kamar.items,
+      penghuni: penghuni.items,
+      tagihan: tagihan.items,
+      maintenance: maintenance.items,
+    })
+    rencana.value = r
+    return r
+  }
+
+  /**
+   * Cadangan seluruh data yang tersentuh, diunduh sebagai JSON sebelum menulis.
+   * Nomor kamar tersimpan sebagai string di empat koleksi, jadi migrasi yang
+   * salah tidak bisa dibatalkan tanpa salinan ini.
+   */
+  function unduhBackup(property_id: string) {
+    const isi = {
+      dibuat: new Date().toISOString(),
+      property_id,
+      kamar: kamar.items.filter(x => x.property_id === property_id),
+      penghuni: penghuni.items.filter(x => x.property_id === property_id),
+      tagihan: tagihan.items.filter(x => x.property_id === property_id),
+      maintenance: maintenance.items.filter(x => x.property_id === property_id),
+    }
+    const blob = new Blob([JSON.stringify(isi, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kosmanager-backup-${property_id}-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  /**
+   * Menerapkan rencana. Ditulis per batch: setiap batch atomik, dan rencananya
+   * idempoten sehingga menjalankan ulang setelah kegagalan di tengah akan
+   * membereskan sisanya, bukan menggandakan perubahan.
+   */
+  async function terapkan(r: RencanaMigrasi): Promise<number> {
+    if (!r.ubah.length) return 0
+    sedangJalan.value = true
+    progres.value = 0
+    try {
+      for (let i = 0; i < r.ubah.length; i += UKURAN_BATCH) {
+        const potongan = r.ubah.slice(i, i + UKURAN_BATCH)
+        const batch = writeBatch(db)
+        for (const u of potongan) {
+          const field = u.koleksi === 'kamar' ? 'nomor' : 'kamar'
+          batch.update(doc(db, u.koleksi, u.id), { [field]: u.ke })
+        }
+        await batch.commit()
+        progres.value = Math.min(r.ubah.length, i + potongan.length)
+      }
+      await Promise.all([kamar.load(), penghuni.load(), tagihan.load(), maintenance.load()])
+      return r.ubah.length
+    } finally {
+      sedangJalan.value = false
+    }
+  }
+
+  return { rencana, sedangJalan, progres, pratinjau, unduhBackup, terapkan }
+}
