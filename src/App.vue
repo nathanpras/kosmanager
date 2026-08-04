@@ -13,6 +13,7 @@ import { useLogStore }         from './stores/log'
 import { useViewportInsets }   from './composables/useViewportInsets'
 import { useTagihanCalc }      from './composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
+import { useBiometrik }        from './composables/useBiometrik'
 
 import AppSidebar   from './components/layout/AppSidebar.vue'
 import AppTopBar    from './components/layout/AppTopBar.vue'
@@ -32,6 +33,7 @@ const log         = useLogStore()
 
 useViewportInsets()
 const { tagihanUntukKamar } = useTagihanCalc()
+const biometrik = useBiometrik()
 
 const w = window
 
@@ -139,12 +141,27 @@ async function loadData() {
   })().catch(() => {})
 }
 
+const biometrikSiap = ref(false)
+
+async function bukaBiometrik() {
+  if (await biometrik.buka()) {
+    showPin.value = false
+    await loadData()
+  }
+  // Gagal atau dibatalkan: layar PIN tetap terbuka sebagai jalan masuk cadangan.
+}
+
 onMounted(async () => {
   app.initTheme()
   try {
     const savedPin = await settings.getPin()
     pinMode.value = savedPin ? 'enter' : 'setup'
     showPin.value = true
+
+    biometrikSiap.value = biometrik.terdaftar() && await biometrik.didukung()
+    // Langsung tawarkan Face ID begitu layar terbuka — kalau ditolak, keypad
+    // PIN sudah tampil di belakangnya.
+    if (biometrikSiap.value && pinMode.value === 'enter') bukaBiometrik()
   } catch (e: unknown) {
     loadError.value = e instanceof Error ? e.message : String(e)
   }
@@ -171,7 +188,9 @@ onMounted(async () => {
     v-else-if="showPin"
     ref="pinRef"
     :mode="pinMode"
+    :biometrik="biometrikSiap && pinMode === 'enter'"
     @verified="onPinVerified"
+    @biometrik="bukaBiometrik"
   />
 
   <div v-else-if="showApp" class="shell">

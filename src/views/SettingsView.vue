@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useBiometrik }        from '../composables/useBiometrik'
 import { useSettingsStore }    from '../stores/settings'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
@@ -140,6 +141,31 @@ async function removeKategori(id: string) {
   }
 }
 
+// --- Biometrik ---
+const biometrik = useBiometrik()
+const bioDidukung = ref(false)
+const bioAktif = ref(false)
+
+onMounted(async () => {
+  bioDidukung.value = await biometrik.didukung()
+  bioAktif.value = biometrik.terdaftar()
+})
+
+async function aktifkanBio() {
+  if (await biometrik.daftar(settings.data.nama || 'Pemilik Kos')) {
+    bioAktif.value = true
+    toast('Biometrik diaktifkan', 'success')
+  } else {
+    toast('Gagal mendaftarkan biometrik', 'error')
+  }
+}
+
+function matikanBio() {
+  biometrik.lupakan()
+  bioAktif.value = false
+  toast('Biometrik dimatikan', 'success')
+}
+
 // App info
 const appVersion = '2.0.0'
 </script>
@@ -184,6 +210,30 @@ const appVersion = '2.0.0'
         </div>
         <div style="padding:0 16px 16px">
           <button class="btn btn-primary" @click="saveSettings">💾 Simpan Pengaturan</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-hd"><div class="card-title">Buka Aplikasi</div></div>
+        <div style="padding:0 16px 16px">
+          <div v-if="!bioDidukung" style="font-size:13px;color:var(--text2);line-height:1.6">
+            Perangkat ini tidak mendukung Face ID / sidik jari untuk web, atau halaman
+            tidak diakses lewat HTTPS. Masuk tetap memakai PIN.
+          </div>
+          <template v-else>
+            <div class="info-row">
+              <span class="info-label">Face ID / Sidik Jari</span>
+              <span class="badge" :class="bioAktif ? 'bg' : 'bgr'">{{ bioAktif ? 'Aktif' : 'Nonaktif' }}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text3);line-height:1.6;margin:8px 0 12px">
+              Mempercepat masuk supaya tidak perlu mengetik PIN. <strong>Bukan lapisan keamanan
+              tambahan</strong> — tidak ada server yang memverifikasi, jadi tingkat pengamanannya
+              sama dengan PIN sekarang. PIN tetap ada sebagai cadangan, dan tetap diperlukan
+              di perangkat lain.
+            </div>
+            <button v-if="!bioAktif" class="btn btn-primary" @click="aktifkanBio">👤 Aktifkan</button>
+            <button v-else class="btn btn-ghost" @click="matikanBio">Matikan di perangkat ini</button>
+          </template>
         </div>
       </div>
       <div class="card" style="margin-top:12px">

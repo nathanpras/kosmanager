@@ -3,8 +3,10 @@ import { ref, computed } from 'vue'
 
 const props = defineProps<{
   mode: 'enter' | 'setup' | 'confirm' | 'change'
+  /** Tampilkan tombol biometrik — hanya saat membuka, bukan saat membuat PIN. */
+  biometrik?: boolean
 }>()
-const emit = defineEmits<{ verified: [pin: string] }>()
+const emit = defineEmits<{ verified: [pin: string]; biometrik: [] }>()
 
 const pin = ref('')
 const error = ref('')
@@ -61,5 +63,11 @@ defineExpose({ setError })
       <button class="pn-btn" @click="input(0)">0</button>
       <button class="pn-btn pn-ghost" @click="del">⌫</button>
     </div>
+    <!-- PIN tetap ada sebagai jalan masuk cadangan: biometrik bisa gagal, dan
+         perangkat baru belum punya kredensial terdaftar. -->
+    <button v-if="biometrik" class="btn btn-ghost" style="margin-top:28px;padding:12px 22px;font-size:14px"
+            @click="emit('biometrik')">
+      👤 Buka dengan Face ID / Sidik Jari
+    </button>
   </div>
 </template>

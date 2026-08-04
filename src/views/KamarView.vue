@@ -7,6 +7,7 @@ import { useAppStore }        from '../stores/app'
 import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
+import { lantaiDari }         from '../utils/nomorKamar'
 import { fmt, fmtTgl }        from '../utils/format'
 import type { Kamar }         from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
@@ -32,6 +33,36 @@ const groups = computed(() => {
     map[kat].push(k)
   })
   return katList.filter(k => (map[k]?.length ?? 0) > 0).map(k => ({ name: k, items: map[k] }))
+})
+
+// Tampilan: daftar per kategori, atau denah per lantai.
+const tampilan = ref<'daftar' | 'denah'>('daftar')
+
+/**
+ * Kamar dikelompokkan per lantai untuk denah.
+ *
+ * Lantai diturunkan dari nomor kamarnya, jadi tidak ada data baru yang perlu
+ * diisi. Kamar yang nomornya tidak berpola dikumpulkan terpisah, bukan dipaksa
+ * masuk salah satu lantai.
+ */
+const perLantai = computed(() => {
+  const map = new Map<number | null, Kamar[]>()
+  for (const k of filtered.value) {
+    const l = lantaiDari(k.nomor)
+    if (!map.has(l)) map.set(l, [])
+    map.get(l)!.push(k)
+  }
+  for (const arr of map.values()) {
+    arr.sort((a, b) => a.nomor.localeCompare(b.nomor, undefined, { numeric: true }))
+  }
+  return [...map.entries()]
+    .sort((a, b) => (a[0] ?? 99) - (b[0] ?? 99))
+    .map(([lantai, items]) => ({
+      lantai,
+      label: lantai === null ? 'Tanpa Lantai' : `Lantai ${lantai}`,
+      items,
+      terisi: items.filter(k => k.status !== 'kosong').length,
+    }))
 })
 
 // Stats
@@ -145,7 +176,44 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
       </div>
     </div>
 
+    <!-- Pilihan tampilan -->
+    <div class="tabs" style="margin:14px 0 16px">
+      <button class="tab-btn" :class="{ active: tampilan === 'daftar' }" @click="tampilan = 'daftar'">📋 Per Kategori</button>
+      <button class="tab-btn" :class="{ active: tampilan === 'denah' }" @click="tampilan = 'denah'">🏢 Denah per Lantai</button>
+    </div>
+
+    <!-- Denah per lantai -->
+    <template v-if="tampilan === 'denah'">
+      <div v-for="l in perLantai" :key="String(l.lantai)" style="margin-bottom:20px">
+        <div class="kat-header">
+          <span class="kat-header-text">{{ l.label }}</span>
+          <span class="kat-header-badge">{{ l.terisi }}/{{ l.items.length }}</span>
+          <span class="kat-header-line"></span>
+          <span style="font-size:11px;color:var(--text3)">
+            {{ l.items.length > 0 ? Math.round(l.terisi / l.items.length * 100) : 0 }}%
+          </span>
+        </div>
+        <div class="room-grid">
+          <div
+            v-for="(k, bi) in l.items"
+            :key="k.id"
+            class="room-box anim-card"
+            :class="statusCls[k.status] ?? 'empty'"
+            :style="{ '--n': bi }"
+            @click="openDetail(k)"
+          >
+            <div style="display:flex;justify-content:center;margin-bottom:3px">
+              <span class="status-dot" :class="dotClass(k.status)"></span>
+            </div>
+            <div class="room-num">{{ k.nomor }}</div>
+            <div class="room-type">{{ k.tipe }}</div>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <!-- Groups -->
+    <template v-else>
     <div v-for="group in groups" :key="group.name" style="margin-bottom:20px">
       <div class="kat-header">
         <span class="kat-header-text">{{ group.name }}</span>
@@ -171,6 +239,7 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
         </div>
       </div>
     </div>
+    </template>
 
     <div v-if="filtered.length === 0" class="empty-state">
       <div class="ei">🚪</div><p>Belum ada kamar. Tambah kamar pertama!</p>

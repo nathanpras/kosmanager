@@ -1,5 +1,35 @@
 import { describe, it, expect } from 'vitest'
-import { nomorBaru, sudahBergayaBaru, susunRencana } from '../../utils/nomorKamar'
+import { nomorBaru, sudahBergayaBaru, susunRencana, lantaiDari } from '../../utils/nomorKamar'
+
+describe('lantaiDari', () => {
+  it('reads the floor from a new-style number', () => {
+    expect(lantaiDari('101')).toBe(1)
+    expect(lantaiDari('209')).toBe(2)
+    expect(lantaiDari('304')).toBe(3)
+    expect(lantaiDari('401')).toBe(4)
+  })
+
+  // Denah harus benar sebelum migrasi dijalankan, bukan hanya sesudahnya.
+  it('reads the floor from an old-style number too', () => {
+    expect(lantaiDari('B1')).toBe(1)
+    expect(lantaiDari('A9')).toBe(2)
+    expect(lantaiDari('C4')).toBe(3)
+    expect(lantaiDari('D1')).toBe(4)
+  })
+
+  it('agrees with the migration mapping', () => {
+    for (const lama of ['B1', 'B7', 'A1', 'A9', 'C1', 'C4', 'D1']) {
+      expect(lantaiDari(lama)).toBe(lantaiDari(nomorBaru(lama)!))
+    }
+  })
+
+  it('returns null for numbers that follow no pattern', () => {
+    expect(lantaiDari('Kamar Depan')).toBeNull()
+    expect(lantaiDari('')).toBeNull()
+    expect(lantaiDari('9999')).toBeNull()
+    expect(lantaiDari('E1')).toBeNull()
+  })
+})
 
 describe('nomorBaru', () => {
   it('maps every block to its floor, exactly as specified', () => {

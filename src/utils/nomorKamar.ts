@@ -26,6 +26,25 @@ export function sudahBergayaBaru(nomor: string): boolean {
   return /^\d{3}$/.test((nomor ?? '').trim())
 }
 
+/**
+ * Lantai sebuah kamar, untuk tampilan denah.
+ *
+ * Bekerja pada dua gaya penomoran sekaligus: nomor baru mengambil digit ratusan
+ * (`101` → 1), nomor lama memakai huruf bloknya (`B1` → 1). Jadi denah tetap
+ * benar sebelum maupun sesudah migrasi dijalankan.
+ *
+ * `null` bila nomornya tidak mengikuti pola apa pun — dikelompokkan terpisah,
+ * bukan dipaksa masuk lantai tertentu.
+ */
+export function lantaiDari(nomor: string): number | null {
+  const bersih = (nomor ?? '').trim()
+  const angka = /^(\d)(\d{2})$/.exec(bersih)
+  if (angka) return parseInt(angka[1], 10)
+  const huruf = /^([A-Za-z])\s*\d{1,2}$/.exec(bersih)
+  if (huruf) return PETA_LANTAI[huruf[1].toUpperCase()] ?? null
+  return null
+}
+
 export interface BarisRencana {
   koleksi: 'kamar' | 'penghuni' | 'tagihan' | 'maintenance'
   id: string
