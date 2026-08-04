@@ -6,7 +6,7 @@ import type { Penghuni } from '../../types'
 
 function huni(over: Partial<Penghuni> & { id: string }): Penghuni {
   return {
-    nama: `Orang ${over.id}`, kamar: '101', no_hp: '08123', masuk: '2026-01-01',
+    nama: `Orang ${over.id}`, kamar: '101', hp: '08123456789', masuk: '2026-01-01',
     property_id: 'p1', ...over,
   }
 }

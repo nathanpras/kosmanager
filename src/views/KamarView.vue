@@ -312,7 +312,7 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
             <div class="card-title" style="margin-bottom:8px">Penghuni</div>
             <div v-for="p in penghuni.items.filter(p => p.kamar === detailKamar!.nomor && p.property_id === detailKamar!.property_id)" :key="p.id">
               <div class="info-row"><span class="info-label">Nama</span><span class="info-val">{{ p.nama }}</span></div>
-              <div class="info-row"><span class="info-label">No HP</span><span class="info-val">{{ p.no_hp }}</span></div>
+              <div class="info-row"><span class="info-label">No HP</span><span class="info-val">{{ p.hp }}</span></div>
               <div class="info-row"><span class="info-label">Kontrak s/d</span><span class="info-val">{{ fmtTgl(p.kontrak_selesai ?? '') }}</span></div>
             </div>
           </div>

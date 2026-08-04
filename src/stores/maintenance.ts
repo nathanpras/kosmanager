@@ -1,16 +1,31 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { db, collection, getDocs, doc, addDoc, updateDoc, deleteDoc } from '../firebase'
+import { db, collection, getDocs, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from '../firebase'
 import type { Maintenance } from '../types'
 
 export const useMaintenanceStore = defineStore('maintenance', () => {
   const items = ref<Maintenance[]>([])
 
+  function sortItems(arr: Maintenance[]) {
+    return arr.sort((a, b) => (b.tgl ?? '').localeCompare(a.tgl ?? ''))
+  }
+
   async function load() {
     const snap = await getDocs(collection(db, 'maintenance'))
-    items.value = snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as Maintenance))
-      .sort((a, b) => (b.tgl ?? '').localeCompare(a.tgl ?? ''))
+    items.value = sortItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as Maintenance)))
+  }
+
+  let unsub: (() => void) | null = null
+  function subscribe(): Promise<void> {
+    return new Promise((resolve) => {
+      if (unsub) { resolve(); return }
+      let first = true
+      const done = () => { if (first) { first = false; resolve() } }
+      unsub = onSnapshot(collection(db, 'maintenance'),
+        (snap) => { items.value = sortItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as Maintenance))); done() },
+        () => done(),
+      )
+    })
   }
 
   async function add(data: Omit<Maintenance, 'id'>): Promise<string> {
@@ -29,5 +44,5 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     await load()
   }
 
-  return { items, load, add, update, remove }
+  return { items, load, subscribe, add, update, remove }
 })

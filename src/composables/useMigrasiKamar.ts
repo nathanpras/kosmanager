@@ -74,7 +74,8 @@ export function useMigrasiKamar() {
         await batch.commit()
         progres.value = Math.min(r.ubah.length, i + potongan.length)
       }
-      await Promise.all([kamar.load(), penghuni.load(), tagihan.load(), maintenance.load()])
+      // Tidak perlu memuat ulang: store dipasangi listener onSnapshot lewat
+      // subscribe(), jadi hasil batch langsung terpantul kembali dengan sendirinya.
       return r.ubah.length
     } finally {
       sedangJalan.value = false

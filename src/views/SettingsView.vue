@@ -204,8 +204,8 @@ const appVersion = '2.0.0'
           </div>
           <div class="fg full"><label>Template Pesan WA Reminder</label>
             <textarea v-model="settingsForm.wa_template" rows="3"
-              placeholder="Halo {nama}, tagihan kos bulan {bulan} sebesar {jumlah} belum dibayar. Mohon segera dilunasi. Terima kasih 🙏"></textarea>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">Variabel: {nama} {bulan} {jumlah}</div>
+              placeholder="Halo {nama}, tagihan kos kamar {kamar} bulan {bulan} sebesar {sisa} belum dilunasi (jatuh tempo {jatuh_tempo}). Mohon segera dilunasi. Terima kasih 🙏"></textarea>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">Variabel: {nama} {kamar} {bulan} {jumlah} {sisa} {jatuh_tempo}</div>
           </div>
         </div>
         <div style="padding:0 16px 16px">

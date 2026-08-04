@@ -8,6 +8,7 @@ import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useOccupancy }        from '../composables/useOccupancy'
+import { normalizePhone, isValidPhone } from '../composables/useWAReminder'
 import { fmt, fmtTgl }         from '../utils/format'
 import { today }               from '../utils/date'
 import { JENIS_KELUHAN, NAMA_JENIS, jenisIkon, jenisWarna, labelDurasi } from '../utils/keluhan'
@@ -134,11 +135,11 @@ function penghuniKeluhan(m: Maintenance) {
 function balasWA(m: Maintenance) {
   const p = penghuniKeluhan(m)
   if (!p) { toast('Penghuni kamar ini tidak ditemukan', 'error'); return }
+  if (!isValidPhone(p.hp)) { toast(`Nomor HP ${p.nama} tidak valid`, 'error'); return }
   const pesan =
     `Halo ${p.nama}, soal laporan ${m.jenis ?? 'kendala'} di kamar ${m.kamar} ` +
     `(${m.deskripsi}) — `
-  const nomor = p.no_hp.replace(/\D/g, '').replace(/^0/, '62')
-  window.open(`https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`, '_blank')
+  window.open(`https://wa.me/${normalizePhone(p.hp)}?text=${encodeURIComponent(pesan)}`, '_blank')
 }
 
 /** Biaya perbaikan ikut tercatat sebagai pengeluaran supaya saldo tetap benar. */
