@@ -68,6 +68,14 @@ export interface Maintenance {
   property_id: string
   catatan?: string
   foto?: string
+  /** Jenis keluhan (AC, Listrik, Air, ...). Lihat utils/keluhan.ts */
+  jenis?: string
+  /** Nama penghuni yang melapor. Dipakai untuk balas via WhatsApp. */
+  pelapor?: string
+  /** Tanggal keluhan ditutup. Diisi otomatis saat status jadi 'selesai'. */
+  tgl_selesai?: string
+  /** Biaya perbaikan. Bisa dicatat sekalian sebagai pengeluaran. */
+  biaya?: number
 }
 
 export interface LogEntry {

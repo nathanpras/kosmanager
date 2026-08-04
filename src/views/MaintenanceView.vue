@@ -2,21 +2,26 @@
 import { ref, computed } from 'vue'
 import { useMaintenanceStore } from '../stores/maintenance'
 import { useKamarStore }       from '../stores/kamar'
+import { usePengeluaranStore } from '../stores/pengeluaran'
 import { useLogStore }         from '../stores/log'
 import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
-import { fmtTgl }              from '../utils/format'
+import { useOccupancy }        from '../composables/useOccupancy'
+import { fmt, fmtTgl }         from '../utils/format'
 import { today }               from '../utils/date'
+import { JENIS_KELUHAN, NAMA_JENIS, jenisIkon, jenisWarna, labelDurasi } from '../utils/keluhan'
 import type { Maintenance }    from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
 const maintenance = useMaintenanceStore()
 const kamar       = useKamarStore()
+const pengeluaran = usePengeluaranStore()
 const log         = useLogStore()
 const app         = useAppStore()
 const { filterByProperty } = useProperty()
 const { show: toast }      = useToast()
+const { penghuniDiKamar }  = useOccupancy()
 
 const filtered    = computed(() => filterByProperty(maintenance.items))
 const open        = computed(() => filtered.value.filter(m => m.status === 'open'))
@@ -36,6 +41,7 @@ function openAdd() {
   form.value = {
     status: 'open',
     prioritas: 'medium',
+    jenis: NAMA_JENIS[0],
     tgl: today(),
     property_id: app.currentPropertyId === 'all'
       ? (kamar.items[0]?.property_id ?? '')
@@ -48,6 +54,12 @@ function openEdit(m: Maintenance) {
   editId.value = m.id
   form.value = { ...m }
   showModal.value = true
+}
+
+/** Pelapor diisi dari penghuni kamar itu — hampir selalu dialah yang melapor. */
+function onKamarChange() {
+  if (form.value.pelapor || !form.value.kamar || !form.value.property_id) return
+  form.value.pelapor = penghuniDiKamar(form.value.kamar, form.value.property_id)[0]?.nama ?? ''
 }
 
 async function save() {
@@ -93,13 +105,56 @@ function closeDetail() {
 
 async function updateStatus(m: Maintenance, status: Maintenance['status']) {
   try {
-    await maintenance.update(m.id, { status })
+    // Tanggal selesai diisi otomatis supaya lama penanganan terhitung tanpa
+    // perlu diingat manual; dikosongkan lagi kalau keluhan dibuka kembali.
+    const patch: Partial<Maintenance> = { status }
+    if (status === 'selesai') patch.tgl_selesai = m.tgl_selesai ?? today()
+    else if (m.tgl_selesai) patch.tgl_selesai = ''
+
+    await maintenance.update(m.id, patch)
     await log.add(`Maintenance kamar ${m.kamar} → ${status}`, 'blue', m.property_id)
     toast('Status diperbarui', 'success')
     const fresh = maintenance.items.find(item => item.id === m.id)
-    if (fresh && detailItem.value?.id === m.id) detailItem.value = { ...fresh, status }
+    if (fresh && detailItem.value?.id === m.id) detailItem.value = { ...fresh, ...patch }
   } catch {
     toast('Gagal memperbarui status', 'error')
+  }
+}
+
+/**
+ * Keluhan ditanggapi lewat chat, jadi tombol ini yang dipakai paling sering.
+ * Nomor diambil dari penghuni kamar bersangkutan — pelapor dicocokkan per nama
+ * bila ada, kalau tidak jatuh ke penghuni terlama di kamar itu.
+ */
+function penghuniKeluhan(m: Maintenance) {
+  const diKamar = penghuniDiKamar(m.kamar, m.property_id)
+  return diKamar.find(p => p.nama === m.pelapor) ?? diKamar[0] ?? null
+}
+
+function balasWA(m: Maintenance) {
+  const p = penghuniKeluhan(m)
+  if (!p) { toast('Penghuni kamar ini tidak ditemukan', 'error'); return }
+  const pesan =
+    `Halo ${p.nama}, soal laporan ${m.jenis ?? 'kendala'} di kamar ${m.kamar} ` +
+    `(${m.deskripsi}) — `
+  const nomor = p.no_hp.replace(/\D/g, '').replace(/^0/, '62')
+  window.open(`https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`, '_blank')
+}
+
+/** Biaya perbaikan ikut tercatat sebagai pengeluaran supaya saldo tetap benar. */
+async function catatBiaya(m: Maintenance) {
+  if (!m.biaya) { toast('Isi biaya dulu', 'error'); return }
+  try {
+    await pengeluaran.add({
+      deskripsi: `Perbaikan kamar ${m.kamar} — ${m.deskripsi}`,
+      jumlah: Number(m.biaya),
+      kategori: 'Perbaikan',
+      tgl: m.tgl_selesai || m.tgl || today(),
+      property_id: m.property_id,
+    })
+    toast('Biaya dicatat sebagai pengeluaran', 'success')
+  } catch {
+    toast('Gagal mencatat biaya', 'error')
   }
 }
 
@@ -181,12 +236,21 @@ const statusLabel: Record<string, string> = {
           class="card" style="cursor:pointer;margin-bottom:10px"
           @click="openDetail(m)"
         >
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:8px">
             <div style="font-weight:700;font-size:14px">Kamar {{ m.kamar }}</div>
             <span class="badge" :class="priorityBadge[m.prioritas]?.cls ?? 'bgr'">{{ priorityBadge[m.prioritas]?.label ?? m.prioritas }}</span>
           </div>
+          <div v-if="m.jenis" class="badge" :style="{ background: jenisWarna(m.jenis) + '18', color: jenisWarna(m.jenis), marginBottom: '6px' }">
+            {{ jenisIkon(m.jenis) }} {{ m.jenis }}
+          </div>
           <div style="font-size:13px;color:var(--text2)">{{ m.deskripsi }}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:6px">{{ fmtTgl(m.tgl) }}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">
+            {{ fmtTgl(m.tgl) }}
+            <span v-if="m.pelapor"> · {{ m.pelapor }}</span>
+            <span v-if="labelDurasi(m)"> · selesai {{ labelDurasi(m) }}</span>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:8px;padding:6px 10px;font-size:12px"
+                  @click.stop="balasWA(m)">💬 Balas WA</button>
         </div>
       </div>
 
@@ -201,12 +265,21 @@ const statusLabel: Record<string, string> = {
           class="card" style="cursor:pointer;margin-bottom:10px"
           @click="openDetail(m)"
         >
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:8px">
             <div style="font-weight:700;font-size:14px">Kamar {{ m.kamar }}</div>
             <span class="badge" :class="priorityBadge[m.prioritas]?.cls ?? 'bgr'">{{ priorityBadge[m.prioritas]?.label ?? m.prioritas }}</span>
           </div>
+          <div v-if="m.jenis" class="badge" :style="{ background: jenisWarna(m.jenis) + '18', color: jenisWarna(m.jenis), marginBottom: '6px' }">
+            {{ jenisIkon(m.jenis) }} {{ m.jenis }}
+          </div>
           <div style="font-size:13px;color:var(--text2)">{{ m.deskripsi }}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:6px">{{ fmtTgl(m.tgl) }}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">
+            {{ fmtTgl(m.tgl) }}
+            <span v-if="m.pelapor"> · {{ m.pelapor }}</span>
+            <span v-if="labelDurasi(m)"> · selesai {{ labelDurasi(m) }}</span>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:8px;padding:6px 10px;font-size:12px"
+                  @click.stop="balasWA(m)">💬 Balas WA</button>
         </div>
       </div>
 
@@ -221,12 +294,21 @@ const statusLabel: Record<string, string> = {
           class="card" style="cursor:pointer;margin-bottom:10px;opacity:0.75"
           @click="openDetail(m)"
         >
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:8px">
             <div style="font-weight:700;font-size:14px">Kamar {{ m.kamar }}</div>
             <span class="badge" :class="priorityBadge[m.prioritas]?.cls ?? 'bgr'">{{ priorityBadge[m.prioritas]?.label ?? m.prioritas }}</span>
           </div>
+          <div v-if="m.jenis" class="badge" :style="{ background: jenisWarna(m.jenis) + '18', color: jenisWarna(m.jenis), marginBottom: '6px' }">
+            {{ jenisIkon(m.jenis) }} {{ m.jenis }}
+          </div>
           <div style="font-size:13px;color:var(--text2)">{{ m.deskripsi }}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:6px">{{ fmtTgl(m.tgl) }}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">
+            {{ fmtTgl(m.tgl) }}
+            <span v-if="m.pelapor"> · {{ m.pelapor }}</span>
+            <span v-if="labelDurasi(m)"> · selesai {{ labelDurasi(m) }}</span>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:8px;padding:6px 10px;font-size:12px"
+                  @click.stop="balasWA(m)">💬 Balas WA</button>
         </div>
       </div>
     </div>
@@ -261,10 +343,20 @@ const statusLabel: Record<string, string> = {
           <div class="form-grid">
             <div class="fg">
               <label>Kamar</label>
-              <select v-model="form.kamar">
+              <select v-model="form.kamar" @change="onKamarChange">
                 <option value="">— Pilih Kamar —</option>
                 <option v-for="k in kamarList" :key="k" :value="k">{{ k }}</option>
               </select>
+            </div>
+            <div class="fg">
+              <label>Jenis Keluhan</label>
+              <select v-model="form.jenis">
+                <option v-for="j in JENIS_KELUHAN" :key="j.nama" :value="j.nama">{{ j.ikon }} {{ j.nama }}</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Pelapor</label>
+              <input v-model="form.pelapor" placeholder="terisi otomatis dari penghuni kamar" />
             </div>
             <div class="fg">
               <label>Prioritas</label>
@@ -289,6 +381,14 @@ const statusLabel: Record<string, string> = {
                 <option value="in_progress">In Progress</option>
                 <option value="selesai">Selesai</option>
               </select>
+            </div>
+            <div class="fg">
+              <label>Tanggal Selesai</label>
+              <input type="date" v-model="form.tgl_selesai" />
+            </div>
+            <div class="fg">
+              <label>Biaya Perbaikan</label>
+              <input type="number" min="0" step="10000" v-model.number="form.biaya" placeholder="0" />
             </div>
           </div>
         </div>
@@ -315,12 +415,33 @@ const statusLabel: Record<string, string> = {
               <span class="badge" :class="priorityBadge[detailItem.prioritas]?.cls">{{ priorityBadge[detailItem.prioritas]?.label }}</span>
             </span>
           </div>
+          <div v-if="detailItem.jenis" class="info-row">
+            <span class="info-label">Jenis</span>
+            <span class="info-val">{{ jenisIkon(detailItem.jenis) }} {{ detailItem.jenis }}</span>
+          </div>
+          <div v-if="detailItem.pelapor" class="info-row">
+            <span class="info-label">Pelapor</span><span class="info-val">{{ detailItem.pelapor }}</span>
+          </div>
           <div class="info-row"><span class="info-label">Tanggal</span><span class="info-val">{{ fmtTgl(detailItem.tgl) }}</span></div>
+          <div v-if="detailItem.tgl_selesai" class="info-row">
+            <span class="info-label">Selesai</span>
+            <span class="info-val">{{ fmtTgl(detailItem.tgl_selesai) }} <span style="color:var(--text3)">({{ labelDurasi(detailItem) }})</span></span>
+          </div>
           <div class="info-row">
             <span class="info-label">Status</span>
             <span class="info-val">
               <span class="badge" :class="statusBadgeCls[detailItem.status]">{{ statusLabel[detailItem.status] }}</span>
             </span>
+          </div>
+          <div v-if="detailItem.biaya" class="info-row">
+            <span class="info-label">Biaya</span><span class="info-val">{{ fmt(detailItem.biaya) }}</span>
+          </div>
+          <hr class="divider">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-sm btn-ghost" @click="balasWA(detailItem)">💬 Balas WA</button>
+            <button v-if="detailItem.biaya" class="btn btn-sm btn-ghost" @click="catatBiaya(detailItem)">
+              💸 Catat Biaya sebagai Pengeluaran
+            </button>
           </div>
           <hr class="divider">
           <div class="fg" style="margin-bottom:10px">
