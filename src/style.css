@@ -1,5 +1,25 @@
-:root{--bg:#F5F5F5;--surf:#FFFFFF;--surf2:#E9E9E9;--border:#E0E0E0;--border2:#CCCCCC;--text:#333333;--text2:#737373;--text3:#AEAEAE;--green:#0070C0;--green2:#E6F2FF;--green3:#004E86;--red:#DC4A4A;--red2:#FEF0F0;--amber:#B38600;--amber2:#FFF8E6;--accent:#FFC000;--blue:#3B7BF5;--blue2:#EEF3FE;--r:12px;--rl:16px;--sh:0 1px 4px rgba(0,0,0,.05),0 0 0 1px rgba(0,0,0,.04);--shm:0 4px 16px rgba(0,0,0,.08),0 0 0 1px rgba(0,0,0,.04);--shl:0 12px 40px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.06);--glow-primary:0 0 0 3px rgba(0,112,192,.2);--glow-accent:0 0 0 3px rgba(255,192,0,.25);--glow-red:0 0 0 3px rgba(220,74,74,.2);--sab:env(safe-area-inset-bottom,0px);--kb:0px}
-[data-theme="dark"]{--bg:#0F0F10;--surf:#1A1A1C;--surf2:#242427;--border:#2E2E32;--border2:#3A3A3F;--text:#F2F1F5;--text2:#9B99A6;--text3:#5C5A66;--green:#4DA8E6;--green2:#0A2035;--green3:#7EC8F5;--red:#E05555;--red2:#2A1515;--amber:#C09020;--amber2:#2A2010;--accent:#FFC000;--blue:#5B8EF5;--blue2:#101A35;--sh:0 1px 4px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.04);--shm:0 4px 16px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);--shl:0 12px 40px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06)}
+:root{--bg:#F5F5F5;--surf:#FFFFFF;--surf2:#E9E9E9;--border:#E0E0E0;--border2:#CCCCCC;--text:#333333;--text2:#737373;--text3:#AEAEAE;--green:#0070C0;--green2:#E6F2FF;--green3:#004E86;--red:#DC4A4A;--red2:#FEF0F0;--amber:#B38600;--amber2:#FFF8E6;--accent:#FFC000;--blue:#3B7BF5;--blue2:#EEF3FE;--r:12px;--rl:16px;/* Bayangan berlapis: satu lapis rapat untuk mendudukkan elemen, satu lapis
+   lebar dan lembut untuk kedalaman. Bayangan satu lapis terbaca "murah" karena
+   cahaya nyata tidak pernah menghasilkan tepi setajam itu. */
+--sh:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06),0 0 0 1px rgba(16,24,40,.04);
+--shm:0 2px 4px rgba(16,24,40,.04),0 8px 20px -4px rgba(16,24,40,.10),0 0 0 1px rgba(16,24,40,.04);
+--shl:0 4px 8px rgba(16,24,40,.04),0 24px 48px -12px rgba(16,24,40,.18),0 0 0 1px rgba(16,24,40,.05);--glow-primary:0 0 0 3px rgba(0,112,192,.2);--glow-accent:0 0 0 3px rgba(255,192,0,.25);--glow-red:0 0 0 3px rgba(220,74,74,.2);--sab:env(safe-area-inset-bottom,0px);--kb:0px;
+/* Gerak: satu irama untuk seluruh aplikasi. Keluar lebih cepat daripada masuk
+   supaya terasa responsif, dan easing pegas untuk sentuhan yang terasa hidup. */
+--ease-out:cubic-bezier(.22,1,.36,1);--ease-spring:cubic-bezier(.34,1.4,.64,1);
+--dur-fast:140ms;--dur:220ms;--dur-slow:320ms}
+
+/* Angka rupiah memakai lebar digit seragam.
+   Tanpa ini, lebar tiap angka berbeda sehingga nominal bergeser-geser saat
+   nilainya berubah — paling terlihat pada kartu metrik yang ikut filter bulan. */
+.m-val,.ks-val,.info-val,.mc-val,.occ-pct,.kat-val,.total-badge,.m-sub,.gen-count{
+  font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1
+}
+[data-theme="dark"]{--bg:#0F0F10;--surf:#1A1A1C;--surf2:#242427;--border:#2E2E32;--border2:#3A3A3F;--text:#F2F1F5;--text2:#9B99A6;--text3:#5C5A66;--green:#4DA8E6;--green2:#0A2035;--green3:#7EC8F5;--red:#E05555;--red2:#2A1515;--amber:#C09020;--amber2:#2A2010;--accent:#FFC000;--blue:#5B8EF5;--blue2:#101A35;/* Mode gelap: bayangan hampir tak terlihat di latar gelap, jadi kedalaman
+   dibawa oleh garis tepi terang — bukan sekadar membalik nilai mode terang. */
+--sh:0 1px 3px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06);
+--shm:0 8px 20px -4px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.07);
+--shl:0 24px 48px -12px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.09)}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;padding:0}html{background:var(--surf)}body{background:var(--bg)}
 body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text);background:var(--bg);overflow:hidden}
@@ -283,6 +303,29 @@ textarea{resize:vertical;min-height:80px}
 /* Umpan balik sentuh pada kartu kamar — sebelumnya hanya .mc dan .btn yang punya. */
 .room-box:active{transform:scale(.97)}
 .nav-item:active,.bn-item:active{opacity:.7}
+
+/* Satu irama gerak untuk semua elemen yang bisa ditekan. Transisi lama memakai
+   `all` dengan durasi yang beda-beda; membatasi ke properti yang memang berubah
+   juga menghindari pemicu layout yang tidak perlu. */
+.btn,.room-box,.nav-item,.bn-item,.tab-btn,.mc,.metric,.ks-card{
+  transition:transform var(--dur-fast) var(--ease-spring),
+             box-shadow var(--dur) var(--ease-out),
+             background-color var(--dur-fast) var(--ease-out),
+             border-color var(--dur-fast) var(--ease-out),
+             opacity var(--dur-fast) var(--ease-out)
+}
+
+/* Kartu terangkat sedikit saat disentuh — kedalaman yang menegaskan
+   bahwa elemennya memang bisa ditekan. */
+.mc:active,.metric:active{box-shadow:var(--sh)}
+@media(hover:hover){
+  .mc:hover,.ks-card:hover{box-shadow:var(--shm)}
+  .room-box:hover{transform:translateY(-1px);box-shadow:var(--sh)}
+}
+
+/* Angka besar: tracking sedikit lebih rapat agar terbaca sebagai satu blok,
+   bukan deretan digit lepas. */
+.m-val,.ks-val{letter-spacing:-.6px;font-feature-settings:'tnum' 1,'ss01' 1}
 
 /* Status dots */
 .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0}

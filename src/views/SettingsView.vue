@@ -30,9 +30,13 @@ function lihatRencana() {
 }
 
 function ambilBackup() {
-  unduhBackup(migrasiProp.value)
-  sudahBackup.value = true
-  toast('Backup diunduh', 'success')
+  try {
+    unduhBackup(migrasiProp.value)
+    sudahBackup.value = true
+    toast('Backup diunduh', 'success')
+  } catch (e: unknown) {
+    errMigrasi.value = `Gagal mengunduh backup: ${e instanceof Error ? e.message : String(e)}`
+  }
 }
 
 const ringkasPerKoleksi = computed(() => {
@@ -45,15 +49,21 @@ const ubahKamarSaja = computed(() =>
   (rencana.value?.ubah ?? []).filter(u => u.koleksi === 'kamar'),
 )
 
+// Pesan error ditampilkan apa adanya di halaman, bukan ditelan jadi toast
+// generik: kalau migrasi gagal, sebabnya yang perlu terbaca.
+const errMigrasi = ref('')
+
 async function jalankanMigrasi() {
   confirmMigrasi.value = false
-  if (!rencana.value) return
+  errMigrasi.value = ''
+  if (!rencana.value) { errMigrasi.value = 'Rencana kosong — tekan "Lihat Rencana" dulu.'; return }
   try {
     const n = await terapkan(rencana.value)
     toast(`${n} data diperbarui`, 'success')
     pratinjau(migrasiProp.value)
-  } catch {
-    toast('Migrasi gagal — jalankan ulang untuk melanjutkan', 'error')
+  } catch (e: unknown) {
+    errMigrasi.value = e instanceof Error ? e.message : String(e)
+    toast('Migrasi gagal', 'error')
   }
 }
 
@@ -386,8 +396,21 @@ const appVersion = '2.0.0'
                 {{ sedangJalan ? `Menjalankan… ${progres}/${rencana.ubah.length}` : '▶️ Jalankan Migrasi' }}
               </button>
             </div>
-            <div v-if="!sudahBackup" style="font-size:11px;color:var(--text3);margin-top:6px">
-              Tombol jalankan aktif setelah backup diunduh.
+            <!-- Di iOS, mengunduh berkas dari halaman web sering tidak terjadi
+                 apa-apa secara kasat mata. Tanpa jalan keluar ini tombol jalankan
+                 terkunci selamanya di HP. -->
+            <label v-if="!sudahBackup"
+                   style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:12px;color:var(--text2);cursor:pointer">
+              <input type="checkbox" style="width:auto;margin-top:2px" @change="sudahBackup = true" />
+              <span>
+                <strong>Tombol jalankan masih terkunci.</strong> Tekan “Unduh Backup” di atas —
+                atau centang ini kalau kamu sudah punya salinan datanya sendiri.
+              </span>
+            </label>
+
+            <div v-if="errMigrasi"
+                 style="margin-top:12px;padding:10px 12px;border-radius:var(--r);background:var(--red2);color:var(--red);font-size:12px;line-height:1.6;word-break:break-word">
+              <strong>Gagal:</strong> {{ errMigrasi }}
             </div>
           </template>
         </div>
