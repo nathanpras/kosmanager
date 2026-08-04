@@ -89,6 +89,10 @@ export interface Property {
   bank_an?: string
   is_default?: boolean
   created_at: string
+  /** Saldo rekening pada tanggal saldo_awal_tgl. Titik awal perhitungan saldo berjalan. */
+  saldo_awal?: number
+  /** Tanggal saldo_awal dicatat (YYYY-MM-DD). Transaksi sejak tanggal ini dihitung. */
+  saldo_awal_tgl?: string
 }
 
 export interface Kategori {

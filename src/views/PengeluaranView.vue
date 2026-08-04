@@ -9,6 +9,7 @@ import { useToast }            from '../composables/useToast'
 import { useMonths }           from '../composables/useMonths'
 import { fmt, fmtTgl }         from '../utils/format'
 import { today, bulanIni, bulanFromTgl } from '../utils/date'
+import { KATEGORI_PENGELUARAN, NAMA_KATEGORI, katIkon, katWarna } from '../utils/kategoriPengeluaran'
 import type { Pengeluaran }    from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
@@ -34,17 +35,8 @@ const filtered = computed(() =>
 )
 const total    = computed(() => filtered.value.reduce((s, p) => s + (p.jumlah || 0), 0))
 
-const DEFAULT_CATEGORIES = ['Listrik', 'Air', 'Internet', 'Kebersihan', 'Perbaikan', 'Lainnya']
-const KAT_COLORS: Record<string, string> = {
-  Listrik: '#0070C0', Air: '#3B7BF5', Internet: '#7C3AED',
-  Kebersihan: '#059669', Perbaikan: '#DC4A4A', Lainnya: '#B38600'
-}
-const KAT_ICONS: Record<string, string> = {
-  Listrik: '💡', Air: '💧', Internet: '📡',
-  Kebersihan: '🧹', Perbaikan: '🔧', Lainnya: '📦'
-}
-function katColor(kat: string) { return KAT_COLORS[kat] || '#0070C0' }
-function katIcon(kat: string)  { return KAT_ICONS[kat]  || '📦' }
+const katColor = katWarna
+const katIcon  = katIkon
 
 // Category breakdown
 const katBreakdown = computed(() => {
@@ -63,7 +55,7 @@ const modalTitle = computed(() => editId.value ? 'Edit Pengeluaran' : 'Tambah Pe
 function openAdd() {
   if (app.currentPropertyId === 'all' && properties.items.length === 0) { toast('Tambah properti terlebih dahulu', 'error'); return }
   editId.value = null
-  form.value = { tgl: today(), kategori: DEFAULT_CATEGORIES[0], property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId }
+  form.value = { tgl: today(), kategori: NAMA_KATEGORI[0], property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId }
   showModal.value = true
 }
 function openEdit(p: Pengeluaran) { editId.value = p.id; form.value = { ...p }; showModal.value = true }
@@ -214,7 +206,7 @@ async function doDelete() {
             <div class="fg"><label>Jumlah (Rp)</label><input v-model.number="form.jumlah" type="number" placeholder="250000" /></div>
             <div class="fg"><label>Kategori</label>
               <select v-model="form.kategori">
-                <option v-for="c in DEFAULT_CATEGORIES" :key="c" :value="c">{{ c }}</option>
+                <option v-for="c in KATEGORI_PENGELUARAN" :key="c.nama" :value="c.nama">{{ c.ikon }} {{ c.nama }}</option>
               </select>
             </div>
             <div class="fg"><label>Tanggal</label><input v-model="form.tgl" type="date" /></div>

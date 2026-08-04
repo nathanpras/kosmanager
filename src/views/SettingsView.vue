@@ -360,6 +360,13 @@ const appVersion = '2.0.0'
             <div class="fg"><label>Bank</label><input v-model="propForm.bank_nama" placeholder="BCA" /></div>
             <div class="fg"><label>No Rekening</label><input v-model="propForm.bank_rekening" placeholder="1234567890" /></div>
             <div class="fg"><label>Nama Rekening</label><input v-model="propForm.bank_an" placeholder="Budi Santoso" /></div>
+            <div class="fg"><label>Saldo Awal</label><input v-model.number="propForm.saldo_awal" type="number" step="100000" placeholder="0" /></div>
+            <div class="fg"><label>Saldo Awal per Tanggal</label><input v-model="propForm.saldo_awal_tgl" type="date" /></div>
+            <div class="fg full" style="font-size:11px;color:var(--text3);margin-top:-4px">
+              Isi saldo rekening pada tanggal tersebut. Saldo berjalan di Dashboard dihitung dari titik itu:
+              saldo awal + pembayaran masuk − pengeluaran. Angkanya hanya seakurat data yang dicatat di aplikasi,
+              bukan saldo bank sungguhan.
+            </div>
           </div>
         </div>
         <div class="modal-foot">

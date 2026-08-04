@@ -8,6 +8,7 @@ import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useMonths }           from '../composables/useMonths'
+import { useSaldo }            from '../composables/useSaldo'
 import { fmt, fmtTgl }         from '../utils/format'
 import { bulanIni, today }     from '../utils/date'
 import type { TagihanStatus }  from '../types'
@@ -32,6 +33,9 @@ const filteredExp      = computed(() => filterByProperty(pengeluaran.items))
 
 // All available months (for picker)
 const { availableMonths: allBulan } = useMonths()
+
+// Saldo tidak ikut filter bulan: ini posisi uang sekarang, bukan angka periode.
+const { saldo } = useSaldo()
 
 const selectedBulan = computed(() =>
   dashMode.value === 'bulan_ini' ? bulanIni() : dashBulan.value
@@ -266,6 +270,12 @@ const isAllView = computed(() => app.currentPropertyId === 'all' && properties.i
         <div class="m-lbl">Keuntungan <span class="period-badge">{{ periodLabel }}</span></div>
         <div class="m-val" :class="net >= 0 ? 'green' : 'red'" style="font-size:18px">{{ fmt(net) }}</div>
         <div class="m-sub">{{ net >= 0 ? '📈 Surplus' : '📉 Defisit' }}</div>
+      </div>
+      <div class="metric anim-metric" :class="saldo.saldo >= 0 ? 'mb' : 'mr'" style="--n:5">
+        <div class="m-lbl">Saldo Berjalan</div>
+        <div class="m-val" :class="saldo.saldo >= 0 ? 'blue' : 'red'" style="font-size:18px">{{ fmt(saldo.saldo) }}</div>
+        <div class="m-sub" v-if="saldo.belumDiatur">⚠️ Saldo awal belum diatur — ini arus kas, bukan saldo rekening</div>
+        <div class="m-sub" v-else>Awal {{ fmt(saldo.saldoAwal) }} · masuk {{ fmt(saldo.masuk) }} · keluar {{ fmt(saldo.keluar) }}</div>
       </div>
     </div>
 
