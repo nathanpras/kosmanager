@@ -200,7 +200,11 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
             class="room-box anim-card"
             :class="statusCls[k.status] ?? 'empty'"
             :style="{ '--n': bi }"
+            role="button"
+            tabindex="0"
             @click="openDetail(k)"
+            @keydown.enter.prevent="openDetail(k)"
+            @keydown.space.prevent="openDetail(k)"
           >
             <div style="display:flex;justify-content:center;margin-bottom:3px">
               <span class="status-dot" :class="dotClass(k.status)"></span>
@@ -228,7 +232,11 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
           class="room-box anim-card"
           :class="statusCls[k.status] ?? 'empty'"
           :style="{ '--n': bi }"
+          role="button"
+          tabindex="0"
           @click="openDetail(k)"
+          @keydown.enter.prevent="openDetail(k)"
+          @keydown.space.prevent="openDetail(k)"
         >
           <div style="display:flex;justify-content:center;margin-bottom:3px">
             <span class="status-dot" :class="dotClass(k.status)"></span>

@@ -15,7 +15,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text)
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);transition:all .15s;margin-bottom:1px;user-select:none}
 .nav-item:hover{background:var(--surf2);color:var(--text)}
 .nav-item.active{background:var(--green2);color:var(--green3)}
-.nav-item .ni{font-size:16px;width:20px;text-align:center}
+.nav-item .ni{width:20px;display:flex;align-items:center;justify-content:center}
 .nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;min-width:18px;text-align:center;display:none}
 .sidebar-bot{padding:14px 16px;border-top:1px solid var(--border)}
 .sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite;margin-right:4px}
@@ -31,7 +31,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text)
 .bn-items{display:flex;padding-bottom:var(--sab,0px)}
 .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 2px;cursor:pointer;color:var(--text3);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;user-select:none;position:relative}
 .bn-item.active{color:var(--green)}
-.bn-item .bni{font-size:21px;line-height:1}
+.bn-item .bni{line-height:1;display:flex;align-items:center;justify-content:center;height:21px}
+/* Ikon aktif sedikit lebih tebal — pembeda yang terbaca tanpa mengubah tata letak. */
+.bn-item.active .app-icon,.nav-item.active .app-icon{stroke-width:2.15}
+.app-icon{display:block;flex-shrink:0}
 .bn-bdg{position:absolute;top:5px;right:calc(50% - 20px);background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:14px;text-align:center;display:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surf);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:all .15s;white-space:nowrap;line-height:1;touch-action:manipulation}
 .btn:hover{background:var(--surf2)}
@@ -266,6 +269,20 @@ textarea{resize:vertical;min-height:80px}
   .anim-card,.anim-metric,.anim-row,.anim-pill,.anim-avatar{animation:none!important}
   *{transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
+
+/* Fokus keyboard.
+   Input sudah punya cincin fokusnya sendiri; yang belum adalah elemen yang bisa
+   diklik tapi bukan input — tombol, kartu kamar, item navigasi. Dipakai
+   :focus-visible, bukan :focus, supaya cincinnya hanya muncul saat menavigasi
+   dengan keyboard dan tidak berkedip setiap kali disentuh di ponsel. */
+.btn:focus-visible,.room-box:focus-visible,.nav-item:focus-visible,
+.bn-item:focus-visible,.tab-btn:focus-visible,.pn-btn:focus-visible{
+  outline:2px solid var(--green);outline-offset:2px
+}
+
+/* Umpan balik sentuh pada kartu kamar — sebelumnya hanya .mc dan .btn yang punya. */
+.room-box:active{transform:scale(.97)}
+.nav-item:active,.bn-item:active{opacity:.7}
 
 /* Status dots */
 .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0}

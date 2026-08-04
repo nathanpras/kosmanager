@@ -4,6 +4,7 @@ import { useTagihanStore } from '../../stores/tagihan'
 import { computed } from 'vue'
 import { bulanIni } from '../../utils/date'
 import { useProperty } from '../../composables/useProperty'
+import AppIcon from '../shared/AppIcon.vue'
 
 defineEmits<{ changePin: [] }>()
 
@@ -18,15 +19,15 @@ const unreadCount = computed(() => {
 })
 
 const navItems = [
-  { name: 'dashboard', icon: '🏡', label: 'Dashboard' },
-  { name: 'kamar', icon: '🚪', label: 'Kamar' },
-  { name: 'penghuni', icon: '👤', label: 'Penghuni' },
-  { name: 'tagihan', icon: '🧾', label: 'Tagihan', badge: true },
-  { name: 'pengeluaran', icon: '💸', label: 'Pengeluaran' },
-  { name: 'laporan', icon: '📈', label: 'Laporan' },
-  { name: 'maintenance', icon: '🔧', label: 'Maintenance' },
-  { name: 'log', icon: '📝', label: 'Riwayat' },
-  { name: 'settings', icon: '⚙️', label: 'Pengaturan' },
+  { name: 'dashboard', label: 'Dashboard' },
+  { name: 'kamar', label: 'Kamar' },
+  { name: 'penghuni', label: 'Penghuni' },
+  { name: 'tagihan', label: 'Tagihan', badge: true },
+  { name: 'pengeluaran', label: 'Pengeluaran' },
+  { name: 'laporan', label: 'Laporan' },
+  { name: 'maintenance', label: 'Maintenance' },
+  { name: 'log', label: 'Riwayat' },
+  { name: 'settings', label: 'Pengaturan' },
 ]
 
 function go(name: string) { router.push({ name }) }
@@ -46,9 +47,14 @@ function go(name: string) { router.push({ name }) }
         :key="item.name"
         class="nav-item"
         :class="{ active: route.name === item.name }"
+        role="button"
+        tabindex="0"
+        :aria-current="route.name === item.name ? 'page' : undefined"
         @click="go(item.name)"
+        @keydown.enter.prevent="go(item.name)"
+        @keydown.space.prevent="go(item.name)"
       >
-        <div class="ni">{{ item.icon }}</div>
+        <div class="ni"><AppIcon :name="item.name" :size="18" /></div>
         {{ item.label }}
         <span v-if="item.badge && unreadCount > 0" class="nav-badge" style="display:inline-block">{{ unreadCount }}</span>
       </div>

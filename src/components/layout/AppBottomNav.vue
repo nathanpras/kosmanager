@@ -4,6 +4,7 @@ import { useTagihanStore } from '../../stores/tagihan'
 import { computed } from 'vue'
 import { bulanIni } from '../../utils/date'
 import { useProperty } from '../../composables/useProperty'
+import AppIcon from '../shared/AppIcon.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -16,12 +17,12 @@ const unreadCount = computed(() => {
 })
 
 const tabs = [
-  { name: 'dashboard', icon: '🏡', label: 'Home' },
-  { name: 'kamar', icon: '🚪', label: 'Kamar' },
-  { name: 'penghuni', icon: '👤', label: 'Penghuni' },
-  { name: 'tagihan', icon: '🧾', label: 'Tagihan', badge: true },
-  { name: 'laporan', icon: '📈', label: 'Laporan' },
-  { name: 'settings', icon: '⚙️', label: 'Setting' },
+  { name: 'dashboard', label: 'Home' },
+  { name: 'kamar', label: 'Kamar' },
+  { name: 'penghuni', label: 'Penghuni' },
+  { name: 'tagihan', label: 'Tagihan', badge: true },
+  { name: 'laporan', label: 'Laporan' },
+  { name: 'settings', label: 'Setting' },
 ]
 
 function go(name: string) { router.push({ name }) }
@@ -35,10 +36,15 @@ function go(name: string) { router.push({ name }) }
         :key="tab.name"
         class="bn-item"
         :class="{ active: route.name === tab.name }"
+        role="button"
+        tabindex="0"
+        :aria-current="route.name === tab.name ? 'page' : undefined"
         @click="go(tab.name)"
+        @keydown.enter.prevent="go(tab.name)"
+        @keydown.space.prevent="go(tab.name)"
       >
         <span v-if="tab.badge && unreadCount > 0" class="bn-bdg" style="display:inline-block">{{ unreadCount }}</span>
-        <div class="bni">{{ tab.icon }}</div>
+        <div class="bni"><AppIcon :name="tab.name" :size="21" /></div>
         {{ tab.label }}
       </div>
     </div>
