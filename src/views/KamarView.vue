@@ -98,9 +98,14 @@ function openAdd() {
   }
   editId.value = null
   form.value = { status: 'kosong', tipe: properties.tipeKamar[0]?.nama ?? 'Standard', property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId }
+  fotoRusak.value = false
   showModal.value = true
 }
-function openEdit(k: Kamar) { editId.value = k.id; form.value = { ...k }; showModal.value = true }
+// Pratinjau foto gagal dimuat — hampir selalu karena tautan Google Drive
+// disalin dalam bentuk "/view" yang tidak bisa disematkan sebagai gambar.
+const fotoRusak = ref(false)
+
+function openEdit(k: Kamar) { editId.value = k.id; form.value = { ...k }; fotoRusak.value = false; showModal.value = true }
 
 async function save() {
   if (!form.value.nomor || form.value.harga == null) { toast('Nomor dan harga wajib diisi', 'error'); return }
@@ -283,7 +288,27 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
                 <option v-for="k in properties.kategori" :key="k.id" :value="k.nama">{{ k.nama }}</option>
               </select>
             </div>
-            <div class="fg full"><label>Keterangan</label><textarea v-model="form.keterangan" placeholder="Fasilitas, catatan, dsb..."></textarea></div>
+            <div class="fg full">
+              <label>Foto Kamar (URL)</label>
+              <input v-model="form.foto" type="url" inputmode="url" placeholder="https://..." />
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.6">
+                Tampil di halaman publik untuk calon penghuni. Tempel tautan gambar
+                dari Google Drive (setel “siapa saja yang punya link”), Imgur, atau
+                hosting lain.
+              </div>
+              <img v-if="form.foto" :src="form.foto" alt="Pratinjau foto kamar"
+                   style="width:100%;height:140px;object-fit:cover;border-radius:var(--r);margin-top:8px;border:1px solid var(--border)"
+                   @error="fotoRusak = true" @load="fotoRusak = false" />
+              <div v-if="form.foto && fotoRusak"
+                   style="font-size:11px;color:var(--red);margin-top:6px;line-height:1.6">
+                Gambar tidak bisa dimuat. Tautan Google Drive harus berbentuk
+                <strong>https://drive.google.com/uc?export=view&amp;id=...</strong>,
+                bukan tautan “/view” yang biasa disalin dari tombol Bagikan.
+              </div>
+            </div>
+            <div class="fg full"><label>Keterangan</label><textarea v-model="form.keterangan" placeholder="Fasilitas, catatan, dsb..."></textarea>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px">Catatan internal — tidak ditampilkan ke publik.</div>
+            </div>
           </div>
         </div>
         <div class="modal-foot">
