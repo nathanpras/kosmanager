@@ -29,6 +29,11 @@ export function useSinkronPublik() {
 
     const baru = susunListing(p, kamar.items, {
       tambahanPenghuni: settings.data.nominal_tambahan ?? DEFAULT_NOMINAL_TAMBAHAN,
+      // Urutan kategori mengikuti yang ditetapkan pemilik, bukan urutan abjad —
+      // "Lantai 1 Depan" harus bisa muncul sebelum "Lantai 1".
+      kategoriUrut: [...properties.kategori]
+        .sort((a, b) => (a.urutan ?? 0) - (b.urutan ?? 0))
+        .map(k => k.nama),
     })
     const ref_ = doc(db, 'publik', property_id)
 

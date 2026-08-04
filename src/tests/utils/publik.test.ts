@@ -66,7 +66,7 @@ describe('susunListing — kebocoran data', () => {
 
   it('publishes only whitelisted top-level fields', () => {
     expect(Object.keys(listing).sort()).toEqual([
-      'alamat', 'denah', 'diperbarui', 'kamar', 'maps_url', 'nama',
+      'alamat', 'denah', 'diperbarui', 'kamar', 'kategori_urut', 'maps_url', 'nama',
       'tambahan_penghuni', 'total_kamar', 'total_kosong', 'wa',
     ])
   })
@@ -95,6 +95,32 @@ describe('susunListing — hitungan', () => {
     const l = susunListing(P, [kamar({ id: '1', nomor: '101', status: 'terisi' })])
     expect(l.kamar).toEqual([])
     expect(l.total_kosong).toBe(0)
+  })
+})
+
+describe('susunListing — kategori sebagai sumber lantai', () => {
+  // Kamar depan bernomor 401 tetapi berada di LANTAI 1. Menebak lantai dari
+  // digit ratusan menghasilkan "Lantai 4", padahal gedungnya tidak punya
+  // lantai 4. Kategori yang ditetapkan pemilik yang benar.
+  it('carries each room category into the floor map', () => {
+    const l = susunListing(P, [
+      kamar({ id: '1', nomor: '401', status: 'terisi', kategori: 'Lantai 1 Depan' }),
+      kamar({ id: '2', nomor: '101', kategori: 'Lantai 1' }),
+    ])
+    expect(l.denah.find(d => d.nomor === '401')?.kategori).toBe('Lantai 1 Depan')
+    expect(l.denah.find(d => d.nomor === '101')?.kategori).toBe('Lantai 1')
+  })
+
+  it('publishes the owner order, not alphabetical order', () => {
+    const l = susunListing(P, [kamar({ id: '1', nomor: '101' })], {
+      kategoriUrut: ['Lantai 1 Depan', 'Lantai 1', 'Lantai 2'],
+    })
+    expect(l.kategori_urut).toEqual(['Lantai 1 Depan', 'Lantai 1', 'Lantai 2'])
+  })
+
+  it('omits kategori when a room has none', () => {
+    const l = susunListing(P, [kamar({ id: '1', nomor: '101' })])
+    expect(l.denah[0]).not.toHaveProperty('kategori')
   })
 })
 

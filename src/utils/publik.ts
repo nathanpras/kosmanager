@@ -27,6 +27,8 @@ export interface KamarPublik {
 export interface PetakDenah {
   nomor: string
   kosong: boolean
+  /** Kategori kamar, yang di kos ini dipakai sebagai nama lantai. */
+  kategori?: string
 }
 
 export interface ListingPublik {
@@ -38,6 +40,14 @@ export interface ListingPublik {
   kamar: KamarPublik[]
   /** Semua kamar, tapi minimal — cukup untuk menggambar peta hunian. */
   denah: PetakDenah[]
+  /**
+   * Nama kategori sesuai urutan yang ditetapkan pemilik.
+   *
+   * Menentukan urutan kelompok di peta kamar. Tanpa ini halaman harus menebak
+   * lantai dari nomor kamar — dan tebakan itu salah untuk kamar depan, yang
+   * bernomor 4xx tetapi berada di lantai 1.
+   */
+  kategori_urut: string[]
   /** Tambahan per orang di atas penghuni pertama, supaya halaman tidak menebak. */
   tambahan_penghuni: number
   total_kamar: number
@@ -55,9 +65,9 @@ export function kamarKosong(semua: Kamar[], property_id: string): Kamar[] {
 export function susunListing(
   properti: Property,
   semuaKamar: Kamar[],
-  opts: { tambahanPenghuni?: number; diperbarui?: string } = {},
+  opts: { tambahanPenghuni?: number; kategoriUrut?: string[]; diperbarui?: string } = {},
 ): ListingPublik {
-  const { tambahanPenghuni = 0, diperbarui = new Date().toISOString() } = opts
+  const { tambahanPenghuni = 0, kategoriUrut = [], diperbarui = new Date().toISOString() } = opts
   const milik = semuaKamar
     .filter(k => k.property_id === properti.id)
     .sort((a, b) => a.nomor.localeCompare(b.nomor, undefined, { numeric: true }))
@@ -80,7 +90,12 @@ export function susunListing(
       if (k.deposit) out.deposit = Number(k.deposit)
       return out
     }),
-    denah: milik.map(k => ({ nomor: k.nomor, kosong: k.status === 'kosong' })),
+    denah: milik.map(k => {
+      const petak: PetakDenah = { nomor: k.nomor, kosong: k.status === 'kosong' }
+      if (k.kategori) petak.kategori = k.kategori
+      return petak
+    }),
+    kategori_urut: [...kategoriUrut],
     tambahan_penghuni: Number(tambahanPenghuni) || 0,
     total_kamar: milik.length,
     total_kosong: kosong.length,
