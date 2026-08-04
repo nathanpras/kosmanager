@@ -15,6 +15,7 @@ import { useViewportInsets }   from './composables/useViewportInsets'
 import { useTagihanCalc }      from './composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
 import { useBiometrik }        from './composables/useBiometrik'
+import { useSinkronPublik }    from './composables/useSinkronPublik'
 
 import AppSidebar   from './components/layout/AppSidebar.vue'
 import AppTopBar    from './components/layout/AppTopBar.vue'
@@ -35,6 +36,7 @@ const log         = useLogStore()
 useViewportInsets()
 const { tagihanUntukKamar } = useTagihanCalc()
 const biometrik = useBiometrik()
+const { sinkronSemua } = useSinkronPublik()
 
 const w = window
 
@@ -141,6 +143,9 @@ async function loadData() {
     await autoGenerateNextMonth()
     await autoSetJatuhTempo()
     await autoSyncRoomStatus()
+    // Terakhir, setelah status kamar dimutakhirkan — kalau lebih awal, halaman
+    // publik akan menerbitkan daftar kamar kosong yang sudah basi.
+    await sinkronSemua()
   })().catch(() => {})
 }
 

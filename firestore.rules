@@ -38,6 +38,20 @@ service cloud.firestore {
     match /log/{id}          { allow read, write: if signedIn(); }
     match /settings/{id}     { allow read, write: if signedIn(); }
 
+    // ------------------------------------------------------------------
+    // SATU-SATUNYA collection yang boleh dibaca TANPA login.
+    // Dibaca halaman publik raffleskos23 supaya calon penghuni bisa melihat
+    // kamar kosong tanpa akun.
+    //
+    // Isinya hanya: nomor kamar, tipe, harga, foto, alamat, nomor WA, maps.
+    // Dibangun lewat daftar putih di src/utils/publik.ts — bukan menyalin
+    // dokumen lalu menghapus field, sehingga field baru tidak bisa ikut bocor.
+    //
+    // JANGAN menaruh apa pun dari penghuni, tagihan, atau rekening bank di sini.
+    // Tulis tetap butuh login.
+    // ------------------------------------------------------------------
+    match /publik/{id} { allow read: if true; allow write: if signedIn(); }
+
     // Tolak akses ke collection lain yang tidak dikenal.
     match /{document=**} {
       allow read, write: if false;
