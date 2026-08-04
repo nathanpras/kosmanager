@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBiometrik }        from '../composables/useBiometrik'
+import { useEkspor }           from '../composables/useEkspor'
 import { useSettingsStore }    from '../stores/settings'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
@@ -29,12 +30,14 @@ function lihatRencana() {
   if (!r.ubah.length && !r.takDikenal.length) toast('Tidak ada yang perlu diubah', 'success')
 }
 
-function ambilBackup() {
+async function ambilBackup() {
+  errMigrasi.value = ''
   try {
-    unduhBackup(migrasiProp.value)
+    const cara = await unduhBackup(migrasiProp.value)
     sudahBackup.value = true
-    toast('Backup diunduh', 'success')
+    toast(cara === 'share' ? 'Pilih tempat menyimpan' : 'Backup diunduh', 'success')
   } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === 'AbortError') return
     errMigrasi.value = `Gagal mengunduh backup: ${e instanceof Error ? e.message : String(e)}`
   }
 }
@@ -176,6 +179,27 @@ function matikanBio() {
   toast('Biometrik dimatikan', 'success')
 }
 
+// --- Cadangan & ekspor ---
+const ekspor = useEkspor()
+const baris = computed(() => ekspor.jumlahBaris())
+const sedangEkspor = ref('')
+const errEkspor = ref('')
+
+async function jalankanEkspor(nama: string, fn: () => Promise<string>) {
+  sedangEkspor.value = nama
+  errEkspor.value = ''
+  try {
+    const cara = await fn()
+    toast(cara === 'share' ? 'Pilih tempat menyimpan' : 'Tersimpan di folder Unduhan', 'success')
+  } catch (e: unknown) {
+    // Membatalkan lembar berbagi bukan kegagalan — jangan tampilkan sebagai error.
+    if (e instanceof DOMException && e.name === 'AbortError') return
+    errEkspor.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    sedangEkspor.value = ''
+  }
+}
+
 // App info
 const appVersion = '2.0.0'
 </script>
@@ -246,6 +270,48 @@ const appVersion = '2.0.0'
           </template>
         </div>
       </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-hd"><div class="card-title">Cadangan Data</div></div>
+        <div style="padding:0 16px 16px">
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">
+            Seluruh datamu ada di satu tempat tanpa salinan otomatis. Kalau terhapus,
+            tidak bisa dipulihkan. <strong>Unduh cadangan secara berkala</strong> —
+            simpan ke iCloud, Google Drive, atau kirim ke WhatsApp sendiri.
+          </div>
+
+          <div class="info-row"><span class="info-label">Kamar</span><span class="info-val">{{ baris.kamar }}</span></div>
+          <div class="info-row"><span class="info-label">Penghuni</span><span class="info-val">{{ baris.penghuni }}</span></div>
+          <div class="info-row"><span class="info-label">Tagihan</span><span class="info-val">{{ baris.tagihan }}</span></div>
+          <div class="info-row"><span class="info-label">Pengeluaran</span><span class="info-val">{{ baris.pengeluaran }}</span></div>
+          <div class="info-row"><span class="info-label">Maintenance</span><span class="info-val">{{ baris.maintenance }}</span></div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+            <button class="btn btn-primary" :disabled="!!sedangEkspor"
+                    @click="jalankanEkspor('cadangan', ekspor.eksporCadangan)">
+              {{ sedangEkspor === 'cadangan' ? 'Menyiapkan…' : '💾 Cadangan Lengkap (JSON)' }}
+            </button>
+            <button class="btn btn-ghost" :disabled="!!sedangEkspor"
+                    @click="jalankanEkspor('tagihan', ekspor.eksporTagihanCsv)">
+              📊 Tagihan (CSV)
+            </button>
+            <button class="btn btn-ghost" :disabled="!!sedangEkspor"
+                    @click="jalankanEkspor('pengeluaran', ekspor.eksporPengeluaranCsv)">
+              📊 Pengeluaran (CSV)
+            </button>
+          </div>
+
+          <div v-if="errEkspor"
+               style="margin-top:12px;padding:10px 12px;border-radius:var(--r);background:var(--red2);color:var(--red);font-size:12px;line-height:1.6;word-break:break-word">
+            <strong>Gagal:</strong> {{ errEkspor }}
+          </div>
+
+          <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
+            JSON = cadangan utuh untuk memulihkan. CSV = untuk dibuka di Excel atau
+            diserahkan ke akuntan.
+          </div>
+        </div>
+      </div>
+
       <div class="card" style="margin-top:12px">
         <div class="card-hd"><div class="card-title">Informasi Aplikasi</div></div>
         <div style="padding:0 16px 16px">

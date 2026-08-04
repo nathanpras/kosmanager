@@ -5,6 +5,8 @@ import { usePenghuniStore } from '../stores/penghuni'
 import { useTagihanStore } from '../stores/tagihan'
 import { useMaintenanceStore } from '../stores/maintenance'
 import { susunRencana } from '../utils/nomorKamar'
+import { simpanBerkas } from '../utils/berkas'
+import { today } from '../utils/date'
 import type { RencanaMigrasi } from '../utils/nomorKamar'
 
 // Firestore membatasi 500 operasi per batch.
@@ -45,13 +47,12 @@ export function useMigrasiKamar() {
       tagihan: tagihan.items.filter(x => x.property_id === property_id),
       maintenance: maintenance.items.filter(x => x.property_id === property_id),
     }
-    const blob = new Blob([JSON.stringify(isi, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `kosmanager-backup-${property_id}-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    // Lewat simpanBerkas: `<a download>` langsung tidak berfungsi andal di iOS,
+    // dan itu yang membuat tombol jalankan migrasi terkunci di HP.
+    return simpanBerkas(
+      `kosmanager-backup-${property_id}-${today()}.json`,
+      JSON.stringify(isi, null, 2),
+    )
   }
 
   /**
