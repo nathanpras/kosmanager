@@ -18,8 +18,9 @@ export function useSaldo() {
   const properties = usePropertiesStore()
   const app = useAppStore()
 
-  const perProperti = computed<{ nama: string; ringkas: RingkasSaldo }[]>(() =>
+  const perProperti = computed<{ id: string; nama: string; ringkas: RingkasSaldo }[]>(() =>
     properties.items.map(p => ({
+      id: p.id,
       nama: p.nama,
       ringkas: hitungSaldo(p, tagihan.items, pengeluaran.items),
     })),

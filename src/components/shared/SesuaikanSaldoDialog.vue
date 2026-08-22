@@ -14,7 +14,7 @@ const emit = defineEmits<{ close: [] }>()
 const properties = usePropertiesStore()
 const log = useLogStore()
 const app = useAppStore()
-const { saldo } = useSaldo()
+const { perProperti } = useSaldo()
 const { show: toast } = useToast()
 
 const propId = ref('')
@@ -24,6 +24,16 @@ const menyimpan = ref(false)
 
 const properti = computed(() => properties.items.find(p => p.id === propId.value) ?? null)
 
+/**
+ * Saldo milik satu properti — bukan `useSaldo().saldo`, yang di mode "Semua
+ * Properti" adalah gabungan (`gabungSaldo`) semua properti. Memakai angka
+ * gabungan sebagai isian awal bisa membuat pengguna diam-diam menimpan saldo
+ * satu properti dengan total semua properti.
+ */
+function saldoProperti(id: string): number {
+  return perProperti.value.find(x => x.id === id)?.ringkas.saldo ?? 0
+}
+
 watch(() => props.open, (v) => {
   if (!v) return
   // Mode "Semua Properti" tidak punya satu rekening — Waru 23 dan Citra 1
@@ -32,8 +42,16 @@ watch(() => props.open, (v) => {
   propId.value = app.currentPropertyId !== 'all'
     ? app.currentPropertyId
     : (properties.items.length === 1 ? (properties.items[0]?.id ?? '') : '')
-  nominal.value = Math.round(saldo.value.saldo)
+  nominal.value = Math.round(saldoProperti(propId.value))
   tgl.value = today()
+})
+
+// Ganti properti (baik lewat dropdown maupun re-seed di atas) selalu menulis
+// ulang nominal dari saldo properti itu sendiri — supaya angka properti
+// sebelumnya (atau angka gabungan saat belum memilih) tidak pernah kebawa.
+watch(propId, (id) => {
+  if (!props.open) return
+  nominal.value = Math.round(saldoProperti(id))
 })
 
 async function simpan() {
