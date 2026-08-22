@@ -18,6 +18,7 @@ import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { today, bulanIni, monthsBack } from '../utils/date'
 import type { Tagihan, TagihanStatus } from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
+import BayarDiMukaDialog       from '../components/shared/BayarDiMukaDialog.vue'
 
 const tagihan     = useTagihanStore()
 const penghuni    = usePenghuniStore()
@@ -218,7 +219,8 @@ const unpaidForReminder = computed<{ valid: ReminderItem[]; noPhone: ReminderIte
   const template = settings.data.wa_template || DEFAULT_TEMPLATE
   const valid: ReminderItem[] = []
   const noPhone: ReminderItem[] = []
-  sortByKamar(filterByProperty(tagihan.items).filter(t => t.bulan === reminderBulan.value && (t.status === 'belum' || t.status === 'kurang')))
+  sortByKamar(filterByProperty(tagihan.items).filter(t => t.bulan === reminderBulan.value
+    && (t.status === 'belum' || t.status === 'kurang') && t.hangus !== true))
     .forEach(t => {
       const p = penghuni.items.find(p => p.kamar === t.kamar && p.property_id === t.property_id)
       if (!p) return
@@ -230,6 +232,11 @@ const unpaidForReminder = computed<{ valid: ReminderItem[]; noPhone: ReminderIte
   return { valid, noPhone }
 })
 function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder.value = true }
+
+// Bayar Beberapa Bulan (bayar di muka berdiskon)
+const showBayarDiMuka = ref(false)
+const lastBayarRef = ref<string | null>(null)
+function onBatchSaved(ref: string) { lastBayarRef.value = ref }
 </script>
 
 <template>
@@ -252,6 +259,7 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
       <button class="action-btn primary" @click="askGenerate" :title="`Buat tagihan ${activeBulan} untuk semua penghuni aktif`">
         ⚡ Generate <span v-if="genPreview.length > 0" class="gen-count">{{ genPreview.length }}</span>
       </button>
+      <button class="action-btn primary" @click="showBayarDiMuka = true">🗓 Bayar Beberapa Bulan</button>
       <button class="action-btn primary" @click="openReminder(activeBulan)">📱 Reminder</button>
     </div>
 
@@ -412,6 +420,12 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
         <div class="modal-foot"><button class="btn btn-ghost" @click="showReminder = false">Tutup</button></div>
       </div>
     </div>
+
+    <BayarDiMukaDialog
+      :open="showBayarDiMuka"
+      @close="showBayarDiMuka = false"
+      @saved="onBatchSaved"
+    />
 
     <ConfirmDialog
       :open="confirmGen" icon="⚡"
