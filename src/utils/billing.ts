@@ -1,4 +1,5 @@
 import { MONTHS_FULL } from './format'
+import { bulanKey } from './date'
 
 export const DEFAULT_NOMINAL_TAMBAHAN = 300_000
 export const DEFAULT_TGL_JATUH_TEMPO = 1
@@ -28,9 +29,9 @@ export function tarifBulanan(
   return dasar + extra * (Number(nominalTambahan) || 0)
 }
 
-/** Tanggal 1 bulan tersebut, format YYYY-MM-DD. */
-function tglAwalBulan(bulan: string, hari: number): string {
-  const [nama, tahun] = bulan.split(' ')
+/** Tanggal ke-`hari` pada label bulan tersebut, format YYYY-MM-DD. */
+export function tglDiBulan(bulan: string, hari: number): string {
+  const [nama, tahun] = (bulan ?? '').split(' ')
   const idx = MONTHS_FULL.indexOf(nama)
   return `${tahun}-${String(idx + 1).padStart(2, '0')}-${String(hari).padStart(2, '0')}`
 }
@@ -89,7 +90,7 @@ export function hitungTagihan(input: HitungTagihanInput): HasilTagihan {
   // Bulan biasa: tarif penuh, jatuh tempo mengikuti pengaturan.
   if (tglMasuk === null || totalHari === 0 || tglMasuk <= 1) {
     const hari = Math.min(Math.max(1, tglJatuhTempo), totalHari || 28)
-    return { jumlah: tarif, jatuh_tempo: tglAwalBulan(bulan, hari) }
+    return { jumlah: tarif, jatuh_tempo: tglDiBulan(bulan, hari) }
   }
 
   const hariDitagih = totalHari - tglMasuk + 1
@@ -99,4 +100,106 @@ export function hitungTagihan(input: HitungTagihanInput): HasilTagihan {
     is_prorated: true,
     prorated_hari: hariDitagih,
   }
+}
+
+export interface PenghuniBulan {
+  id: string
+  nama: string
+  masuk: string
+  /** Tanggal keluar, inklusif. Kosong berarti masih tinggal. */
+  tgl_keluar?: string
+}
+
+export interface RentangHuni {
+  dari: number
+  sampai: number
+  hari: number
+}
+
+export interface BagianTagihan {
+  penghuni_id: string
+  nama: string
+  dari: number
+  sampai: number
+  hari: number
+  jumlah: number
+  /** 'penanggung' bila ia menanggung harga kamar minimal satu hari. */
+  peran: 'penanggung' | 'tambahan'
+}
+
+/**
+ * Potongan rentang huni seseorang di dalam satu bulan, inklusif di kedua ujung.
+ * null bila ia tidak punya satu hari pun di bulan itu.
+ */
+export function rentangHuni(p: PenghuniBulan, bulan: string): RentangHuni | null {
+  const totalHari = hariDalamBulan(bulan)
+  if (totalHari === 0) return null
+  const kunci = bulanKey(bulan)
+  const awal = `${kunci}-01`
+  const akhir = `${kunci}-${String(totalHari).padStart(2, '0')}`
+
+  const mulai   = p.masuk && p.masuk > awal ? p.masuk : awal
+  const selesai = p.tgl_keluar && p.tgl_keluar < akhir ? p.tgl_keluar : akhir
+  // Perbandingan string ISO cukup: rentang yang jatuh di luar bulan ini
+  // menghasilkan mulai > selesai.
+  if (mulai > selesai) return null
+
+  const dari = parseInt(mulai.slice(8, 10), 10)
+  const sampai = parseInt(selesai.slice(8, 10), 10)
+  return { dari, sampai, hari: sampai - dari + 1 }
+}
+
+/**
+ * Membagi tagihan sebuah kamar dalam satu bulan menjadi bagian per penghuni.
+ *
+ * Untuk setiap hari, penghuni dengan tanggal masuk terlama di antara yang hadir
+ * hari itu menanggung harga kamar; setiap orang lain yang hadir menanggung satu
+ * nominal tambahan. Dengan begitu penghuni yang keluar atau masuk di tengah
+ * bulan hanya membayar hari yang benar-benar ia tempati, dan tambahan ikut
+ * diprorata — dua hal yang tidak bisa diungkapkan oleh satu tagihan per kamar.
+ *
+ * Nominal dihitung sekali dari total hari (`tarif * hari / totalHari`), bukan
+ * dengan menjumlahkan pembulatan harian, supaya tidak ada selisih rupiah yang
+ * menumpuk.
+ */
+export function hitungBagian(input: {
+  bulan: string
+  harga: number
+  nominalTambahan: number
+  penghuni: PenghuniBulan[]
+}): BagianTagihan[] {
+  const totalHari = hariDalamBulan(input.bulan)
+  if (totalHari === 0) return []
+  const harga = Number(input.harga) || 0
+  const tambahan = Number(input.nominalTambahan) || 0
+
+  const hadir = input.penghuni
+    .map(p => ({ p, r: rentangHuni(p, input.bulan) }))
+    .filter((x): x is { p: PenghuniBulan; r: RentangHuni } => x.r !== null)
+    // Terlama dulu. Tanggal masuk sama diurut id supaya hasilnya deterministik.
+    .sort((a, b) => (a.p.masuk ?? '').localeCompare(b.p.masuk ?? '') || a.p.id.localeCompare(b.p.id))
+
+  const hariPenanggung = hadir.map(() => 0)
+  const hariTambahan = hadir.map(() => 0)
+
+  for (let d = 1; d <= totalHari; d++) {
+    const adaHariIni: number[] = []
+    for (let i = 0; i < hadir.length; i++) {
+      if (hadir[i].r.dari <= d && d <= hadir[i].r.sampai) adaHariIni.push(i)
+    }
+    if (adaHariIni.length === 0) continue
+    hariPenanggung[adaHariIni[0]]++
+    for (const i of adaHariIni.slice(1)) hariTambahan[i]++
+  }
+
+  return hadir.map(({ p, r }, i) => ({
+    penghuni_id: p.id,
+    nama: p.nama,
+    dari: r.dari,
+    sampai: r.sampai,
+    hari: r.hari,
+    jumlah: Math.round(harga * hariPenanggung[i] / totalHari)
+      + Math.round(tambahan * hariTambahan[i] / totalHari),
+    peran: hariPenanggung[i] > 0 ? 'penanggung' as const : 'tambahan' as const,
+  }))
 }
