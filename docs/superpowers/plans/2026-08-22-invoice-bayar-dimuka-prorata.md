@@ -467,6 +467,7 @@ Buat `src/tests/composables/useTagihanCalc.test.ts`:
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useTagihanCalc } from '../../composables/useTagihanCalc'
+import type { DraftTagihan } from '../../composables/useTagihanCalc'
 import { usePenghuniStore } from '../../stores/penghuni'
 import { useKamarStore } from '../../stores/kamar'
 import { useSettingsStore } from '../../stores/settings'
@@ -950,6 +951,8 @@ function totalDibayar(p: Penghuni): number {
 }
 
 async function pulihkan(p: Penghuni) {
+  // Satu-satunya tempat kontrak_selesai ditulis: ia harus ikut dikosongkan,
+  // kalau tidak, tglKeluar() masih membacanya dan orangnya kembali ke arsip.
   await penghuni.update(p.id, { tgl_keluar: '', kontrak_selesai: '' })
   toast('Penghuni dipulihkan', 'success')
 }
@@ -1108,7 +1111,7 @@ import { useTagihanCalc } from '../../composables/useTagihanCalc'
 import { useProperty } from '../../composables/useProperty'
 import { useToast } from '../../composables/useToast'
 import { bulanBerurutan, bagiDiskon } from '../../utils/bayarDiMuka'
-import { bulanIni, today, bulanKey } from '../../utils/date'
+import { bulanIni, today } from '../../utils/date'
 import { fmt } from '../../utils/format'
 import { sudahKeluar } from '../../composables/useOccupancy'
 
@@ -1142,11 +1145,20 @@ const bentrok = computed(() => {
     && (t.penghuni_id === p.id || t.penghuni === p.nama)))
 })
 
-const baris = computed(() => {
+interface BarisBatch {
+  bulan: string
+  jumlah: number
+  /** Terisi bila tagihan bulan itu sudah ada dan tinggal dilunasi. */
+  id?: string
+  /** Terisi bila tagihannya belum ada dan harus dibuat. */
+  draft?: DraftTagihan
+}
+
+const baris = computed<BarisBatch[]>(() => {
   const p = terpilih.value
-  if (!p) return [] as { bulan: string; jumlah: number; id?: string }[]
+  if (!p) return []
   const bulan = bulanBerurutan(bulanMulai.value, jumlahBulan.value)
-  const dasar = bulan.map(b => {
+  const dasar: BarisBatch[] = bulan.map(b => {
     const lama = tagihan.items.find(t => t.bulan === b && t.property_id === p.property_id
       && (t.penghuni_id === p.id || t.penghuni === p.nama))
     if (lama) return { bulan: b, jumlah: Number(lama.jumlah) || 0, id: lama.id }
@@ -1534,6 +1546,8 @@ function bukaInvoice(t: Tagihan) {
   showInvoice.value = true
 }
 ```
+
+`bulanKey` dipakai untuk mengurutkan bulan batch — tambahkan ke impor dari `'../utils/date'` di `TagihanView.vue` bila belum ada.
 
 Sambungkan juga `onBatchSaved(ref)` dari Task 7 supaya langsung membuka invoice batch yang baru dibuat.
 
