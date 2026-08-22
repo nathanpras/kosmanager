@@ -84,7 +84,7 @@ async function buatTagihanBulanMasuk(p: Penghuni) {
     for (const k of kunciTagihan(t)) existing.add(k)
   }
   for (const draft of tagihanUntukKamar(p.kamar, p.property_id, bln)) {
-    if (kunciTagihan(draft).some(k => existing.has(k))) continue
+    if (kunciTagihan({ ...draft, property_id: p.property_id }).some(k => existing.has(k))) continue
     await tagihan.add({
       ...draft, status: 'belum', property_id: p.property_id,
       createdAt: new Date().toISOString(),
