@@ -32,20 +32,68 @@ const data = computed(() => {
 
 // Nomor invoice disimpan permanen saat pertama kali dibuka, supaya cetak ulang
 // menghasilkan nomor yang sama — invoice bernomor ganda bukan invoice.
-watch(() => props.open, async (v) => {
-  if (!v || daftar.value.length === 0) return
-  const sudah = daftar.value.find(t => t.invoice_no)?.invoice_no
-  if (sudah) { nomor.value = sudah; return }
-  const tgl = today()
-  const baru = nomorInvoiceBerikutnya(tagihan.items.map(t => t.invoice_no), tgl)
-  nomor.value = baru
-  for (const t of daftar.value) await tagihan.update(t.id, { invoice_no: baru, invoice_tgl: tgl })
-})
+//
+// Dipasang di [open, tagihanIds] sekaligus (bukan cuma `open`) supaya ganti
+// batch sementara dialognya sudah terbuka tetap memicu penomoran — kalau
+// cuma `open` yang diawasi, batch baru yang datang saat dialog masih
+// terbuka tidak pernah kebagian nomor.
+//
+// `assigning` mencegah dua proses tulis berjalan bersamaan: tiap `update()`
+// menulis ke Firestore lalu memuat ulang seluruh koleksi, jadi jendela
+// baloncatan-nya cukup lebar untuk ke-tutup-buka-lagi menabrak proses yang
+// masih berjalan dan menghasilkan nomor kedua untuk tagihan yang sama.
+const assigning = ref(false)
+watch(
+  [() => props.open, () => props.tagihanIds],
+  async ([open]) => {
+    if (!open || daftar.value.length === 0 || assigning.value) return
+    assigning.value = true
+    try {
+      const sudah = daftar.value.find(t => t.invoice_no)?.invoice_no
+      const tglAsal = daftar.value.find(t => t.invoice_tgl)?.invoice_tgl ?? today()
+      const nomorPakai = sudah ?? nomorInvoiceBerikutnya(tagihan.items.map(t => t.invoice_no), tglAsal)
+      nomor.value = nomorPakai
+      // Tulis ke tagihan yang belum kebagian nomor saja — ini juga menyembuhkan
+      // batch yang penulisannya sempat terputus di tengah jalan (sebagian sudah
+      // bernomor, sebagian belum), bukan cuma jalur "pertama kali dibuka".
+      for (const t of daftar.value) {
+        if (t.invoice_no) continue
+        await tagihan.update(t.id, { invoice_no: nomorPakai, invoice_tgl: tglAsal })
+      }
+    } finally {
+      assigning.value = false
+    }
+  },
+)
 
 function cetak() {
   document.body.classList.add('printing-invoice')
+
+  // @page tidak bisa dicakup ke class body — ia mengatur kotak halaman, bukan
+  // elemen — jadi kalau ditaruh statis di <style> komponen ini ia ikut ter-bundle
+  // ke CSS global dan diam-diam memaksa A4/15mm ke exportPDF() di LaporanView
+  // juga. Disuntik lewat elemen <style> sesaat sebelum print, dicabut lagi
+  // sesudahnya, supaya cuma berlaku selagi invoice ini yang dicetak.
+  const pageStyle = document.createElement('style')
+  pageStyle.textContent = '@page { size: A4; margin: 15mm }'
+  document.head.appendChild(pageStyle)
+
+  // Beres-beres lewat 'afterprint' (bukan cuma timeout) supaya tetap jalan
+  // walau dialog print-nya dibatalkan atau baru ditutup lama kemudian; timeout
+  // di bawah cuma jaring pengaman untuk browser yang tidak memicu event ini.
+  let selesai = false
+  function beresBeres() {
+    if (selesai) return
+    selesai = true
+    document.body.classList.remove('printing-invoice')
+    pageStyle.remove()
+    window.removeEventListener('afterprint', beresBeres)
+    clearTimeout(fallback)
+  }
+  window.addEventListener('afterprint', beresBeres)
+  const fallback = setTimeout(beresBeres, 2000)
+
   window.print()
-  setTimeout(() => document.body.classList.remove('printing-invoice'), 500)
 }
 </script>
 
@@ -55,7 +103,7 @@ function cetak() {
       <div class="modal-handle"></div>
       <div class="modal-head"><h2>Invoice</h2><button class="close-btn" @click="emit('close')">✕</button></div>
       <div class="modal-body">
-        <div class="invoice-page">
+        <div class="invoice-page invoice-print">
           <div class="inv-kop">
             <div class="inv-kop-nama">{{ data.namaKos }}</div>
             <div class="inv-kop-alamat">{{ data.alamat }}</div>
@@ -241,17 +289,31 @@ function cetak() {
 .inv-rekening-bank { font-weight: 700; color: var(--text); }
 
 @media print {
-  /* Cakupan sendiri supaya tidak bentrok dengan exportPDF() di LaporanView,
-     yang juga memanggil window.print(). */
-  :global(body.printing-invoice) :global(#app > *:not(.overlay)) { display: none !important; }
+  /* Penataan ulang chrome modal saja — elemen mana yang benar-benar tampil di
+     kertas ditentukan oleh aturan visibility non-scoped di bawah, bukan oleh
+     blok ini. .overlay/.modal dilonggarkan supaya .invoice-print (position:
+     absolute) tidak ikut terpotong overflow/posisi fixed punya modal. */
   :global(body.printing-invoice) .overlay { position: static; background: none; }
-  :global(body.printing-invoice) .modal { box-shadow: none; max-height: none; width: 100%; }
-  :global(body.printing-invoice) .modal-head,
-  :global(body.printing-invoice) .modal-foot { display: none !important; }
+  :global(body.printing-invoice) .modal { box-shadow: none; max-height: none; width: 100%; overflow: visible; }
   .invoice-page { width: 100%; padding: 0; color: #000; background: #fff; }
 }
 </style>
 
 <style>
-@page { size: A4; margin: 15mm }
+/* Non-scoped dengan sengaja: mekanisme "apa yang tampil di kertas" ini pakai
+   visibility, bukan display:none pada leluhur tertentu — visibility mewarisi
+   ke bawah lalu bisa dinyalakan lagi per elemen, jadi tetap bekerja walau
+   .invoice-print bersarang berapa pun level di bawah #app (mis. #app > .shell
+   > ... > .overlay > .modal > ... > .invoice-print). Semuanya dikunci di
+   balik body.printing-invoice, yang hanya ada selama cetak() berjalan, supaya
+   tidak menyentuh cetak Laporan (LaporanView.exportPDF() juga window.print()
+   tapi tidak pernah memasang class ini). */
+@media print {
+  body.printing-invoice * { visibility: hidden !important; }
+  body.printing-invoice .invoice-print,
+  body.printing-invoice .invoice-print * { visibility: visible !important; }
+  body.printing-invoice .invoice-print {
+    position: absolute; left: 0; top: 0; width: 100%;
+  }
+}
 </style>
