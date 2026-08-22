@@ -49,6 +49,23 @@ export interface Tagihan {
   createdAt: string
   is_prorated?: boolean
   prorated_hari?: number
+  /** ID penghuni penanggung tagihan ini. Kosong pada data lama. */
+  penghuni_id?: string
+  /** Jumlah hari yang ditagih, inklusif. */
+  hari?: number
+  /** Awal dan akhir masa yang ditagih (YYYY-MM-DD). */
+  dari?: string
+  sampai?: string
+  /** ID batch pembayaran di muka — sama untuk semua bulan dalam satu setoran. */
+  bayar_ref?: string
+  /** Total diskon batch, disalin ke tiap tagihan agar invoice bisa merakit subtotal. */
+  diskon_batch?: number
+  /** Bulan yang sudah dibayar di muka tapi penghuninya keluar duluan. */
+  hangus?: boolean
+  /** Selisih bila hasil hitung ulang lebih kecil dari yang sudah dibayar. */
+  kelebihan?: number
+  invoice_no?: string
+  invoice_tgl?: string
 }
 
 export interface Pengeluaran {
