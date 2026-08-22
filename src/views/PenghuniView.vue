@@ -8,10 +8,10 @@ import { useAppStore }        from '../stores/app'
 import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
-import { useOccupancy, tglKeluar } from '../composables/useOccupancy'
+import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupancy'
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
-import { fmtTgl }             from '../utils/format'
-import { today, bulanFromTgl } from '../utils/date'
+import { fmtTgl, fmt }        from '../utils/format'
+import { today, bulanFromTgl, bulanKey } from '../utils/date'
 import type { Penghuni }      from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
@@ -40,6 +40,33 @@ function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[
 }
 
 const filtered = computed(() => sortByKamar(filterByProperty(penghuni.items)))
+
+// Tab aktif/mantan — status mantan diturunkan dari tglKeluar(), tidak disimpan
+// sebagai flag terpisah.
+const tab = ref<'aktif' | 'mantan'>('aktif')
+const cariMantan = ref('')
+
+const aktif = computed(() => filtered.value.filter(p => !sudahKeluar(p)))
+const mantan = computed(() => {
+  const q = cariMantan.value.trim().toLowerCase()
+  return filtered.value
+    .filter(p => sudahKeluar(p))
+    .filter(p => !q || p.nama.toLowerCase().includes(q) || p.kamar.toLowerCase().includes(q))
+    .sort((a, b) => (tglKeluar(b) ?? '').localeCompare(tglKeluar(a) ?? ''))
+})
+
+function totalDibayar(p: Penghuni): number {
+  return tagihan.items
+    .filter(t => t.property_id === p.property_id && (t.penghuni_id === p.id || t.penghuni === p.nama))
+    .reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? Number(t.jumlah) || 0 : 0)), 0)
+}
+
+async function pulihkan(p: Penghuni) {
+  // Satu-satunya tempat kontrak_selesai ditulis: ia harus ikut dikosongkan,
+  // kalau tidak, tglKeluar() masih membacanya dan orangnya kembali ke arsip.
+  await penghuni.update(p.id, { tgl_keluar: '', kontrak_selesai: '' })
+  toast('Penghuni dipulihkan', 'success')
+}
 
 // Avatar
 const AVATAR_COLORS = ['#0070C0','#004E86','#B38600','#DC4A4A','#3B7BF5','#7C3AED','#059669','#D97706']
@@ -162,6 +189,76 @@ async function doEvict() {
   } catch { toast('Gagal mengeluarkan penghuni', 'error') }
 }
 
+const showKeluar   = ref(false)
+const keluarTarget = ref<Penghuni | null>(null)
+const keluarTgl    = ref(today())
+
+function askKeluar(p: Penghuni) {
+  keluarTarget.value = p
+  keluarTgl.value = today()
+  showKeluar.value = true
+}
+
+async function doKeluar() {
+  const p = keluarTarget.value
+  if (!p) return
+  showKeluar.value = false
+  const tgl = keluarTgl.value
+  const bulanKeluar = bulanFromTgl(tgl)
+  try {
+    await penghuni.update(p.id, { tgl_keluar: tgl })
+
+    // Kamar baru kosong kalau orang ini penghuni terakhirnya — dicek ulang
+    // setelah tgl_keluar tersimpan supaya kamarMasihTerisi membaca status baru.
+    if (!kamarMasihTerisi(p.kamar, p.property_id, p.id)) {
+      const k = findKamar(p.kamar, p.property_id)
+      if (k) await kamar.update(k.id, { status: 'kosong' })
+    }
+
+    // Hitung ulang bulan keluar, tapi JANGAN sentuh yang sudah lunas — nominal
+    // tagihan lunas dipakai saldo yang sudah dicocokkan dengan mutasi bank.
+    if (bulanKeluar) {
+      const draft = tagihanUntukKamar(p.kamar, p.property_id, bulanKeluar)
+      const milikDia = draft.find(d => d.penghuni_id === p.id)
+      const t = tagihan.items.find(x => x.bulan === bulanKeluar && x.property_id === p.property_id
+        && (x.penghuni_id === p.id || x.penghuni === p.nama))
+      if (t && milikDia) {
+        if (t.status === 'lunas') {
+          const lebih = (Number(t.jumlah_bayar) || Number(t.jumlah) || 0) - milikDia.jumlah
+          if (lebih > 0) await tagihan.update(t.id, { kelebihan: lebih })
+        } else {
+          await tagihan.update(t.id, {
+            jumlah: milikDia.jumlah, hari: milikDia.hari,
+            dari: milikDia.dari, sampai: milikDia.sampai,
+            is_prorated: milikDia.is_prorated ?? false,
+            prorated_hari: milikDia.prorated_hari ?? 0,
+          })
+        }
+      }
+    }
+
+    // Bulan setelah keluar: yang belum lunas dihapus, yang sudah lunas ditandai
+    // hangus. Dokumen lunas TIDAK dihapus — uangnya sudah masuk rekening, dan
+    // menghapusnya membuat saldo turun sendiri tanpa ada uang yang keluar.
+    const batas = bulanKeluar ? bulanKey(bulanKeluar) : ''
+    const sesudah = tagihan.items.filter(t =>
+      t.property_id === p.property_id
+      && (t.penghuni_id === p.id || t.penghuni === p.nama)
+      && bulanKey(t.bulan) > batas)
+    let hangus = 0
+    for (const t of sesudah) {
+      if (t.status === 'lunas') { await tagihan.update(t.id, { hangus: true }); hangus += Number(t.jumlah_bayar) || Number(t.jumlah) || 0 }
+      else await tagihan.remove(t.id)
+    }
+
+    const catatan = hangus > 0
+      ? `${p.nama} keluar ${fmtTgl(tgl)} — bayar di muka ${fmt(hangus)} hangus`
+      : `${p.nama} keluar ${fmtTgl(tgl)}`
+    await log.add(catatan, 'amber', p.property_id)
+    toast('Penghuni dikeluarkan', 'success')
+  } catch { toast('Gagal mengeluarkan penghuni', 'error') }
+}
+
 function openWA(p: Penghuni) {
   const num = p.hp.replace(/\D/g, '').replace(/^0/, '62')
   window.open(`https://wa.me/${num}`, '_blank')
@@ -173,11 +270,17 @@ function openWA(p: Penghuni) {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <button class="btn btn-primary" @click="openAdd">+ Tambah Penghuni</button>
       <div style="display:flex;gap:8px">
-        <span class="badge bg">{{ filtered.filter(p => statusPenghuni(p).cls === 'bg').length }} aktif</span>
-        <span class="badge br">{{ filtered.filter(p => statusPenghuni(p).cls === 'br').length }} habis</span>
+        <span class="badge bg">{{ aktif.length }} aktif</span>
+        <span class="badge br">{{ mantan.length }} mantan</span>
       </div>
     </div>
 
+    <div class="tabs">
+      <button class="tab-btn" :class="{ active: tab === 'aktif' }" @click="tab = 'aktif'">Aktif</button>
+      <button class="tab-btn" :class="{ active: tab === 'mantan' }" @click="tab = 'mantan'">Mantan Penghuni</button>
+    </div>
+
+    <template v-if="tab === 'aktif'">
     <!-- Desktop table -->
     <div class="card table-wrap">
       <table>
@@ -185,10 +288,10 @@ function openWA(p: Penghuni) {
           <tr><th></th><th>Nama</th><th>Kamar</th><th>No HP</th><th>Masuk</th><th>Keluar</th><th>Status</th><th>Aksi</th></tr>
         </thead>
         <tbody>
-          <tr v-if="filtered.length === 0">
+          <tr v-if="aktif.length === 0">
             <td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Belum ada penghuni</td>
           </tr>
-          <tr v-for="(p, i) in filtered" :key="p.id" class="anim-row" :style="{ '--n': i }">
+          <tr v-for="(p, i) in aktif" :key="p.id" class="anim-row" :style="{ '--n': i }">
             <td style="padding-right:6px">
               <div class="avatar avatar-sm" :style="{ background: `linear-gradient(135deg, ${avatarBg(i)}, ${avatarBg(i)}CC)` }">{{ getInitials(p.nama) }}</div>
             </td>
@@ -202,7 +305,8 @@ function openWA(p: Penghuni) {
               <div style="display:flex;gap:4px">
                 <button class="action-btn wa" @click="openWA(p)" title="WhatsApp">💬</button>
                 <button class="action-btn primary" @click="openEdit(p)" title="Edit">✏️</button>
-                <button class="action-btn danger" @click="askEvict(p)" title="Keluarkan">🚪</button>
+                <button class="action-btn amber" @click="askKeluar(p)" title="Keluarkan">📦</button>
+                <button class="action-btn danger" @click="askEvict(p)" title="Hapus">🗑</button>
               </div>
             </td>
           </tr>
@@ -212,8 +316,8 @@ function openWA(p: Penghuni) {
 
     <!-- Mobile cards -->
     <div class="mobile-list">
-      <div v-if="filtered.length === 0" class="empty-state"><div class="ei">👤</div><p>Belum ada penghuni</p></div>
-      <div v-for="(p, i) in filtered" :key="p.id" class="mc anim-card" :style="{ '--n': i }">
+      <div v-if="aktif.length === 0" class="empty-state"><div class="ei">👤</div><p>Belum ada penghuni</p></div>
+      <div v-for="(p, i) in aktif" :key="p.id" class="mc anim-card" :style="{ '--n': i }">
         <div class="mc-top" style="align-items:center">
           <div style="display:flex;align-items:center;gap:10px">
             <div class="avatar avatar-md anim-avatar" :style="{ background: `linear-gradient(135deg, ${avatarBg(i)}, ${avatarBg(i)}CC)`, animationDelay: `${i * 40}ms` }">
@@ -234,10 +338,67 @@ function openWA(p: Penghuni) {
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="action-btn wa" style="flex:1;justify-content:center" @click="openWA(p)">💬 WA</button>
           <button class="action-btn primary" style="flex:1;justify-content:center" @click="openEdit(p)">✏️ Edit</button>
-          <button class="action-btn danger" style="flex:1;justify-content:center" @click="askEvict(p)">🚪 Keluar</button>
+          <button class="action-btn amber" style="flex:1;justify-content:center" @click="askKeluar(p)">📦 Keluar</button>
+          <button class="action-btn danger" style="flex:1;justify-content:center" @click="askEvict(p)">🗑 Hapus</button>
         </div>
       </div>
     </div>
+    </template>
+
+    <template v-if="tab === 'mantan'">
+    <div style="margin-bottom:12px">
+      <input v-model="cariMantan" placeholder="Cari nama atau kamar..." style="max-width:280px" />
+    </div>
+
+    <!-- Desktop table -->
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nama</th><th>No HP</th><th>KTP</th><th>Kamar Terakhir</th><th>Masuk</th><th>Keluar</th><th>Total Dibayar</th><th>Aksi</th></tr>
+        </thead>
+        <tbody>
+          <tr v-if="mantan.length === 0">
+            <td colspan="8" style="text-align:center;color:var(--text3);padding:20px">{{ cariMantan ? 'Tidak ditemukan' : 'Belum ada mantan penghuni' }}</td>
+          </tr>
+          <tr v-for="(p, i) in mantan" :key="p.id" class="anim-row" :style="{ '--n': i }">
+            <td><strong>{{ p.nama }}</strong></td>
+            <td style="color:var(--text2)">{{ p.hp }}</td>
+            <td style="color:var(--text2)">{{ p.ktp || '-' }}</td>
+            <td><span class="badge bgr" style="font-size:11px">{{ p.kamar }}</span></td>
+            <td style="color:var(--text2)">{{ fmtTgl(p.masuk) }}</td>
+            <td style="color:var(--text2)">{{ fmtTgl(tglKeluar(p) ?? '') }}</td>
+            <td style="color:var(--text2)">{{ fmt(totalDibayar(p)) }}</td>
+            <td>
+              <button class="action-btn primary" @click="pulihkan(p)" title="Pulihkan">↩️ Pulihkan</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile cards -->
+    <div class="mobile-list">
+      <div v-if="mantan.length === 0" class="empty-state"><div class="ei">📦</div><p>{{ cariMantan ? 'Tidak ditemukan' : 'Belum ada mantan penghuni' }}</p></div>
+      <div v-for="(p, i) in mantan" :key="p.id" class="mc anim-card" :style="{ '--n': i }">
+        <div class="mc-top" style="align-items:center">
+          <div>
+            <div class="mc-name">{{ p.nama }}</div>
+            <span class="badge bgr" style="font-size:10px">Kamar terakhir {{ p.kamar }}</span>
+          </div>
+        </div>
+        <div class="mc-rows" style="margin-top:10px">
+          <div class="mc-row"><span class="mc-label">No HP</span><span class="mc-val">{{ p.hp }}</span></div>
+          <div class="mc-row"><span class="mc-label">KTP</span><span class="mc-val">{{ p.ktp || '-' }}</span></div>
+          <div class="mc-row"><span class="mc-label">Masuk</span><span class="mc-val">{{ fmtTgl(p.masuk) }}</span></div>
+          <div class="mc-row"><span class="mc-label">Keluar</span><span class="mc-val">{{ fmtTgl(tglKeluar(p) ?? '') }}</span></div>
+          <div class="mc-row"><span class="mc-label">Total Dibayar</span><span class="mc-val">{{ fmt(totalDibayar(p)) }}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="action-btn primary" style="flex:1;justify-content:center" @click="pulihkan(p)">↩️ Pulihkan</button>
+        </div>
+      </div>
+    </div>
+    </template>
 
     <!-- Add/Edit Modal -->
     <div class="overlay" :class="{ open: showModal }" @click.self="showModal = false">
@@ -272,11 +433,30 @@ function openWA(p: Penghuni) {
     </div>
 
     <ConfirmDialog
-      :open="confirmEvict" icon="🚪"
-      :msg="`Keluarkan ${evictTarget?.nama} dari kamar ${evictTarget?.kamar}?`"
-      sub="Status kamar akan dikembalikan ke Kosong."
-      ok-label="Keluarkan" :danger="true"
+      :open="confirmEvict" icon="🗑"
+      :msg="`Hapus data ${evictTarget?.nama} dari kamar ${evictTarget?.kamar}?`"
+      sub="Data penghuni dihapus permanen dan kamar dikembalikan ke Kosong. Untuk penghuni yang pindah keluar, pakai tombol Keluarkan supaya riwayatnya tersimpan di tab Mantan Penghuni."
+      ok-label="Hapus" :danger="true"
       @confirm="doEvict" @cancel="confirmEvict = false"
     />
+
+    <!-- Keluarkan Penghuni -->
+    <div class="overlay" :class="{ open: showKeluar }" @click.self="showKeluar = false">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-head"><h2>Keluarkan Penghuni</h2><button class="close-btn" @click="showKeluar = false">✕</button></div>
+        <div class="modal-body" v-if="keluarTarget">
+          <p style="color:var(--text2)">{{ keluarTarget.nama }} — kamar {{ keluarTarget.kamar }}</p>
+          <div class="fg"><label>Tanggal Keluar</label><input v-model="keluarTgl" type="date" /></div>
+          <p style="color:var(--text2);font-size:13px">
+            Tagihan bulan ini dihitung ulang sesuai hari yang ditempati. Tagihan yang sudah lunas tidak diubah.
+          </p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="showKeluar = false">Batal</button>
+          <button class="btn btn-primary" @click="doKeluar">Keluarkan</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
