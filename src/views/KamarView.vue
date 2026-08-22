@@ -339,7 +339,7 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
             <div v-for="p in penghuni.items.filter(p => p.kamar === detailKamar!.nomor && p.property_id === detailKamar!.property_id)" :key="p.id">
               <div class="info-row"><span class="info-label">Nama</span><span class="info-val">{{ p.nama }}</span></div>
               <div class="info-row"><span class="info-label">No HP</span><span class="info-val">{{ p.hp }}</span></div>
-              <div class="info-row"><span class="info-label">Keluar</span><span class="info-val">{{ fmtTgl(tglKeluar(p) ?? '') || '-' }}</span></div>
+              <div class="info-row"><span class="info-label">Keluar</span><span class="info-val">{{ fmtTgl(tglKeluar(p) ?? '') }}</span></div>
             </div>
           </div>
         </div>

@@ -393,7 +393,7 @@ function openWA(p: Penghuni) {
             <div class="fg"><label>Tanggal Masuk</label><input v-model="form.masuk" type="date" /></div>
             <div class="fg" v-if="editId">
               <label>Tanggal Keluar</label>
-              <input :value="fmtTgl(form.tgl_keluar ?? '') || 'Masih menghuni'" readonly />
+              <input :value="form.tgl_keluar ? fmtTgl(form.tgl_keluar) : 'Masih menghuni'" readonly />
               <small style="font-size:11px;color:var(--text3)">
                 Diisi lewat tombol Keluarkan (📦) supaya tagihan kamar ikut dihitung ulang dan kamarnya dikosongkan.
               </small>
