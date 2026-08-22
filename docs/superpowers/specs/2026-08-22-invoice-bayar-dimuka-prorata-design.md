@@ -122,15 +122,16 @@ Perubahan tipe `Penghuni`:
 
 ```ts
 tgl_keluar?: string   // menggantikan kontrak_selesai
-arsip?: boolean
 ```
+
+Tidak ada field `arsip`. Status mantan penghuni diturunkan dari `tgl_keluar` yang sudah lewat — menyimpan flag terpisah berarti dua sumber kebenaran yang bisa berselisih, misalnya saat tanggal keluar diisi mundur.
 
 Kompatibilitas data lama: pembacaan selalu `p.tgl_keluar ?? p.kontrak_selesai`. Penulisan hanya ke `tgl_keluar`. Tidak ada migrasi produksi — konsisten dengan kendala bahwa Firestore hanya bisa ditulis dari dalam aplikasi.
 
 Tombol **Keluarkan Penghuni** di `PenghuniView`:
 
 1. Dialog berisi tanggal keluar, terisi hari ini.
-2. Simpan menulis `tgl_keluar`, `arsip: true`.
+2. Simpan menulis `tgl_keluar`.
 3. Tagihan bulan keluar dihitung ulang **hanya bila statusnya belum atau kurang**. Tagihan yang sudah lunas tidak diubah nominalnya; bila hasil hitung ulang lebih kecil, tagihan diberi `kelebihan` berisi selisihnya dan ditampilkan sebagai info. Alasannya: mengubah tagihan lunas akan mengubah `nilaiDibayar()` dan menggeser saldo yang sudah cocok dengan bank.
 4. Tagihan **lunas** untuk bulan setelah bulan keluar ditandai `hangus: true`. Dokumennya tidak dihapus supaya uangnya tetap terhitung di saldo — uang itu memang dipegang pemilik. Tagihan belum lunas untuk bulan setelah keluar dihapus.
 5. Satu entri Log: `"Budi keluar 14 Mar 2026 — 3 bulan bayar di muka (4.500.000) hangus"`.
