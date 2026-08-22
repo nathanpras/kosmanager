@@ -87,6 +87,10 @@ const tgBln   = computed(() => filteredTagihan.value.filter(t => t.bulan === bul
 const belumBayar = computed(() =>
   tgBln.value.filter(t => {
     if (t.status !== 'belum' && t.status !== 'kurang') return false
+    // hangus hanya pernah dipasang pada tagihan yang sudah kemasukan uang;
+    // tanpa saringan ini bulan yang sudah dibayar di muka lalu hangus terus
+    // muncul sebagai tunggakan.
+    if (t.hangus === true) return false
     // property_id wajib ikut dicocokkan: setelah migrasi penomoran, Waru 23 dan
     // Citra 1 sama-sama punya kamar 101–107. Tanpa ini, mode "Semua Properti"
     // akan mengambil kamar milik properti yang salah.
@@ -96,29 +100,16 @@ const belumBayar = computed(() =>
 )
 const telatTagihan = computed(() =>
   filteredTagihan.value.filter(t =>
-    (t.status === 'belum' || t.status === 'kurang') && t.jatuh_tempo && t.jatuh_tempo < today()
+    (t.status === 'belum' || t.status === 'kurang') && t.hangus !== true
+    && t.jatuh_tempo && t.jatuh_tempo < today()
   )
 )
-const kontrakExpired = computed(() =>
-  filteredPenghuni.value.filter(p => p.kontrak_selesai && p.kontrak_selesai < today())
-)
-const kontrakAlert = computed(() => {
-  const soon = new Date(); soon.setDate(soon.getDate() + 30)
-  const soonStr = soon.toISOString().split('T')[0]
-  return filteredPenghuni.value.filter(p =>
-    p.kontrak_selesai && p.kontrak_selesai <= soonStr && p.kontrak_selesai >= today()
-  )
-})
-const kontrakUrgent = computed(() => {
-  const d7 = new Date(); d7.setDate(d7.getDate() + 7)
-  const d7Str = d7.toISOString().split('T')[0]
-  return filteredPenghuni.value.filter(p =>
-    p.kontrak_selesai && p.kontrak_selesai <= d7Str && p.kontrak_selesai >= today()
-  )
-})
+// Peringatan kontrak sudah dibuang: kos ini tidak berkontrak. Penghuni tinggal
+// terus sampai suatu hari pamit, lalu diarsipkan lewat Keluarkan Penghuni.
+// Peringatan itu selalu kosong untuk data baru, dan untuk data lama justru
+// meneriakkan "kontrak akan berakhir" untuk orang yang sudah di tab Mantan.
 const hasAlerts = computed(() =>
-  telatTagihan.value.length > 0 || kontrakExpired.value.length > 0 ||
-  kontrakUrgent.value.length > 0 || belumBayar.value.length > 0 || kontrakAlert.value.length > 0
+  telatTagihan.value.length > 0 || belumBayar.value.length > 0
 )
 
 function tagStatusInfo(t: typeof tagihan.items[0]): TagihanStatus {
@@ -267,24 +258,12 @@ const insightKolekt = computed(() => {
       🔴 <strong>{{ telatTagihan.length }} tagihan melewati jatuh tempo!</strong>
       Kamar: {{ telatTagihan.map(t => t.kamar).join(', ') }}
     </div>
-    <div v-if="kontrakExpired.length > 0" class="alert alert-red" style="animation:slideInLeft .38s ease both">
-      🚪 <strong>{{ kontrakExpired.length }} kontrak sudah habis:</strong>
-      {{ kontrakExpired.map(p => `${p.nama} (${p.kamar})`).join(', ') }}
-    </div>
-    <div v-if="kontrakUrgent.length > 0" class="alert alert-red" style="animation:slideInLeft .41s ease both">
-      🚨 <strong>{{ kontrakUrgent.length }} kontrak habis dalam 7 hari:</strong>
-      {{ kontrakUrgent.map(p => `${p.nama} — ${fmtTgl(p.kontrak_selesai!)}`).join(', ') }}
-    </div>
     <div v-if="belumBayar.filter(t => !telatTagihan.find(tt => tt.id === t.id)).length > 0" class="alert alert-amber" style="animation:slideInLeft .44s ease both">
       ⚠️ <strong>{{ belumBayar.filter(t => !telatTagihan.find(tt => tt.id === t.id)).length }} kamar</strong>
       belum bayar {{ bulanIni() }}: {{ belumBayar.filter(t => !telatTagihan.find(tt => tt.id === t.id)).map(t => t.kamar).join(', ') }}
     </div>
-    <div v-if="kontrakAlert.filter(p => !kontrakUrgent.find(u => u.id === p.id)).length > 0" class="alert alert-amber" style="animation:slideInLeft .47s ease both">
-      📅 <strong>{{ kontrakAlert.filter(p => !kontrakUrgent.find(u => u.id === p.id)).length }} kontrak</strong>
-      habis dalam 30 hari: {{ kontrakAlert.filter(p => !kontrakUrgent.find(u => u.id === p.id)).map(p => `${p.nama} (${p.kamar})`).join(', ') }}
-    </div>
     <div v-if="!hasAlerts && filteredPenghuni.length > 0" class="alert alert-green" style="animation:slideInLeft .4s ease both">
-      ✅ Semua beres! Tidak ada tagihan telat atau kontrak bermasalah.
+      ✅ Semua beres! Tidak ada tagihan telat maupun belum bayar.
     </div>
 
     <!-- Smart insight -->

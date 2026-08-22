@@ -7,6 +7,7 @@ import { useAppStore }        from '../stores/app'
 import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
+import { tglKeluar }          from '../composables/useOccupancy'
 import { lantaiDari }         from '../utils/nomorKamar'
 import { fmt, fmtTgl }        from '../utils/format'
 import type { Kamar }         from '../types'
@@ -338,7 +339,7 @@ const statusLabel: Record<string, string> = { kosong: 'Kosong', terisi: 'Terisi'
             <div v-for="p in penghuni.items.filter(p => p.kamar === detailKamar!.nomor && p.property_id === detailKamar!.property_id)" :key="p.id">
               <div class="info-row"><span class="info-label">Nama</span><span class="info-val">{{ p.nama }}</span></div>
               <div class="info-row"><span class="info-label">No HP</span><span class="info-val">{{ p.hp }}</span></div>
-              <div class="info-row"><span class="info-label">Kontrak s/d</span><span class="info-val">{{ fmtTgl(p.kontrak_selesai ?? '') }}</span></div>
+              <div class="info-row"><span class="info-label">Keluar</span><span class="info-val">{{ fmtTgl(tglKeluar(p) ?? '') || '-' }}</span></div>
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useMonths }           from '../composables/useMonths'
+import { tglKeluar }           from '../composables/useOccupancy'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { monthsBack, bulanIni } from '../utils/date'
 import RevenueBarChart         from '../components/charts/RevenueBarChart.vue'
@@ -89,7 +90,10 @@ const occupancyByMonth = computed(() => {
     const lastStr  = new Date(year, monthIdx + 1, 0).toISOString().split('T')[0]
     const active = filterByProperty(penghuni.items).filter(p => {
       const masuk  = p.masuk ?? '9999-01-01'
-      const keluar = p.kontrak_selesai ?? '9999-12-31'
+      // Lewat tglKeluar(): penghuni yang keluar lewat alur arsip cuma menulis
+      // tgl_keluar, jadi membaca kontrak_selesai saja membuat mereka terhitung
+      // menghuni selamanya dan grafik hunian merangkak lewat 100%.
+      const keluar = tglKeluar(p) ?? '9999-12-31'
       return masuk <= lastStr && keluar >= firstStr
     }).length
     return Math.round(active / totalRooms * 100)
