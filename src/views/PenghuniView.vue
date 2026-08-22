@@ -10,9 +10,9 @@ import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
 import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupancy'
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
+import { useKeluarPenghuni }  from '../composables/useKeluarPenghuni'
 import { fmtTgl, fmt }        from '../utils/format'
-import { today, bulanFromTgl, bulanKey } from '../utils/date'
-import { nilaiDibayar }       from '../utils/saldo'
+import { today, bulanFromTgl } from '../utils/date'
 import type { Penghuni }      from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
@@ -26,6 +26,7 @@ const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
 const { kamarMasihTerisi } = useOccupancy()
 const { tagihanUntukKamar } = useTagihanCalc()
+const { keluarkan } = useKeluarPenghuni()
 
 function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
   const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
@@ -206,63 +207,11 @@ async function doKeluar() {
   const tgl = keluarTgl.value
   if (!tgl) { toast('Tanggal keluar wajib diisi', 'error'); return }
   showKeluar.value = false
-  const bulanKeluar = bulanFromTgl(tgl)
   try {
-    await penghuni.update(p.id, { tgl_keluar: tgl })
-
-    // Kamar baru kosong kalau orang ini penghuni terakhirnya — dicek ulang
-    // setelah tgl_keluar tersimpan supaya kamarMasihTerisi membaca status baru.
-    if (!kamarMasihTerisi(p.kamar, p.property_id, p.id)) {
-      const k = findKamar(p.kamar, p.property_id)
-      if (k) await kamar.update(k.id, { status: 'kosong' })
-    }
-
-    // Hitung ulang bulan keluar, tapi JANGAN sentuh tagihan yang sudah kemasukan
-    // uang (lunas maupun kurang/dicicil) — nominalnya dipakai saldo yang sudah
-    // dicocokkan dengan mutasi bank.
-    if (bulanKeluar) {
-      const draft = tagihanUntukKamar(p.kamar, p.property_id, bulanKeluar)
-      const milikDia = draft.find(d => d.penghuni_id === p.id)
-      const t = tagihan.items.find(x => x.bulan === bulanKeluar && x.property_id === p.property_id
-        && (x.penghuni_id === p.id || x.penghuni === p.nama))
-      if (t && milikDia) {
-        // nilaiDibayar(), bukan status === 'lunas': tagihan 'kurang' juga sudah
-        // menyimpan uang sungguhan (jumlah_bayar) dan tidak boleh ditimpa/dihapus.
-        const dibayar = nilaiDibayar(t)
-        if (dibayar > 0) {
-          const lebih = dibayar - milikDia.jumlah
-          if (lebih > 0) await tagihan.update(t.id, { kelebihan: lebih })
-        } else {
-          await tagihan.update(t.id, {
-            jumlah: milikDia.jumlah, hari: milikDia.hari,
-            dari: milikDia.dari, sampai: milikDia.sampai,
-            is_prorated: milikDia.is_prorated ?? false,
-            prorated_hari: milikDia.prorated_hari ?? 0,
-          })
-        }
-      }
-    }
-
-    // Bulan setelah keluar: yang belum kemasukan uang dihapus, yang sudah
-    // (lunas atau baru dicicil sebagian) ditandai hangus, bukan dihapus —
-    // uangnya sudah masuk rekening, dan menghapusnya membuat saldo turun
-    // sendiri tanpa ada uang yang keluar.
-    const batas = bulanKeluar ? bulanKey(bulanKeluar) : ''
-    const sesudah = tagihan.items.filter(t =>
-      t.property_id === p.property_id
-      && (t.penghuni_id === p.id || t.penghuni === p.nama)
-      && bulanKey(t.bulan) > batas)
-    let hangus = 0
-    for (const t of sesudah) {
-      const dibayar = nilaiDibayar(t)
-      if (dibayar > 0) { await tagihan.update(t.id, { hangus: true }); hangus += dibayar }
-      else await tagihan.remove(t.id)
-    }
-
-    const catatan = hangus > 0
-      ? `${p.nama} keluar ${fmtTgl(tgl)} — bayar di muka ${fmt(hangus)} hangus`
-      : `${p.nama} keluar ${fmtTgl(tgl)}`
-    await log.add(catatan, 'amber', p.property_id)
+    // Seluruh urusan tagihan ada di useKeluarPenghuni(): tagihan kamar harus
+    // direkonsiliasi sekamar-sekamar, bukan dicari per orang — lihat komentar di
+    // sana untuk alasannya.
+    await keluarkan(p, tgl)
     toast('Penghuni dikeluarkan', 'success')
   } catch { toast('Gagal mengeluarkan penghuni', 'error') }
 }
@@ -457,7 +406,8 @@ function openWA(p: Penghuni) {
           <p style="color:var(--text2)">{{ keluarTarget.nama }} — kamar {{ keluarTarget.kamar }}</p>
           <div class="fg"><label>Tanggal Keluar</label><input v-model="keluarTgl" type="date" /></div>
           <p style="color:var(--text2);font-size:13px">
-            Tagihan bulan ini dihitung ulang sesuai hari yang ditempati. Tagihan yang sudah lunas tidak diubah.
+            Tagihan kamar ini dihitung ulang sesuai hari yang ditempati. Tagihan yang sudah kemasukan uang —
+            lunas maupun baru dibayar sebagian — nominalnya tidak diubah dan tidak dihapus.
           </p>
         </div>
         <div class="modal-foot">
