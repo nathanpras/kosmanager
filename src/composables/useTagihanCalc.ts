@@ -21,6 +21,26 @@ export interface DraftTagihan {
 }
 
 /**
+ * Kunci dedupe sebuah tagihan — bisa lebih dari satu.
+ *
+ * Dokumen tagihan yang ditulis sebelum ada `penghuni_id` hanya bisa dikenali
+ * lewat nama, sedangkan draft baru selalu punya id. Kalau dibandingkan dengan
+ * satu kunci saja, tagihan lama tidak pernah cocok dan penghuni yang sudah
+ * ditagih akan ditagih dua kali.
+ */
+export function kunciTagihan(t: {
+  penghuni_id?: string
+  penghuni: string
+  kamar: string
+  property_id?: string
+}): string[] {
+  const ekor = `${t.kamar}|${t.property_id ?? ''}`
+  const kunci = [`nama:${t.penghuni}|${ekor}`]
+  if (t.penghuni_id) kunci.push(`id:${t.penghuni_id}|${ekor}`)
+  return kunci
+}
+
+/**
  * Merakit tagihan sebuah kamar dari harga kamar, siapa saja yang menghuninya di
  * bulan itu, dan pengaturan.
  *

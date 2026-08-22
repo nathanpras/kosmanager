@@ -9,7 +9,7 @@ import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
 import { useOccupancy, tglKeluar } from '../composables/useOccupancy'
-import { useTagihanCalc }     from '../composables/useTagihanCalc'
+import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { fmtTgl }             from '../utils/format'
 import { today, bulanFromTgl } from '../utils/date'
 import type { Penghuni }      from '../types'
@@ -79,13 +79,12 @@ function findKamar(nomor: string, property_id: string) {
 async function buatTagihanBulanMasuk(p: Penghuni) {
   const bln = bulanFromTgl(p.masuk)
   if (!bln) return
-  const kunci = (t: { penghuni_id?: string; penghuni: string; kamar: string }) =>
-    `${t.penghuni_id || t.penghuni}|${t.kamar}`
-  const existing = new Set(
-    tagihan.items.filter(t => t.bulan === bln && t.property_id === p.property_id).map(kunci),
-  )
+  const existing = new Set<string>()
+  for (const t of tagihan.items.filter(t => t.bulan === bln && t.property_id === p.property_id)) {
+    for (const k of kunciTagihan(t)) existing.add(k)
+  }
   for (const draft of tagihanUntukKamar(p.kamar, p.property_id, bln)) {
-    if (existing.has(kunci(draft))) continue
+    if (kunciTagihan(draft).some(k => existing.has(k))) continue
     await tagihan.add({
       ...draft, status: 'belum', property_id: p.property_id,
       createdAt: new Date().toISOString(),
@@ -109,8 +108,10 @@ function openAdd() {
 function openEdit(p: Penghuni) {
   editId.value = p.id
   // Dokumen lama menyimpan tanggal keluar di kontrak_selesai — baca lewat
-  // tglKeluar() supaya field di form tetap terisi.
-  form.value = { ...p, tgl_keluar: tglKeluar(p) }
+  // tglKeluar() supaya field di form tetap terisi, lalu buang kontrak_selesai
+  // dari form supaya cuma tgl_keluar yang dibawa saat save().
+  const { kontrak_selesai, ...rest } = p
+  form.value = { ...rest, tgl_keluar: tglKeluar(p) }
   showModal.value = true
 }
 

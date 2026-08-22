@@ -10,7 +10,7 @@ import { useLogStore }         from '../stores/log'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useWAReminder, DEFAULT_TEMPLATE, isValidPhone } from '../composables/useWAReminder'
-import { useTagihanCalc }      from '../composables/useTagihanCalc'
+import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import type { DraftTagihan }   from '../composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
@@ -158,9 +158,10 @@ async function saveAdd() {
 const confirmGen = ref(false)
 const genPreview = computed(() => {
   const bulan = activeBulan.value
-  const kunci = (t: { penghuni_id?: string; penghuni: string; kamar: string; property_id: string }) =>
-    `${t.penghuni_id || t.penghuni}|${t.kamar}|${t.property_id}`
-  const existing = new Set(tagihan.items.filter(t => t.bulan === bulan).map(kunci))
+  const existing = new Set<string>()
+  for (const t of tagihan.items.filter(t => t.bulan === bulan)) {
+    for (const k of kunciTagihan(t)) existing.add(k)
+  }
 
   const kamarAktif = new Set(
     filterByProperty(penghuni.items).map(p => `${p.kamar}|${p.property_id}`),
@@ -169,7 +170,7 @@ const genPreview = computed(() => {
   for (const key of kamarAktif) {
     const [nomor, property_id] = key.split('|')
     for (const draft of tagihanUntukKamar(nomor, property_id, bulan)) {
-      if (existing.has(kunci({ ...draft, property_id }))) continue
+      if (kunciTagihan({ ...draft, property_id }).some(k => existing.has(k))) continue
       hasil.push({ ...draft, property_id })
     }
   }

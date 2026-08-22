@@ -12,7 +12,7 @@ import { usePropertiesStore }  from './stores/properties'
 import { useSettingsStore }    from './stores/settings'
 import { useLogStore }         from './stores/log'
 import { useViewportInsets }   from './composables/useViewportInsets'
-import { useTagihanCalc }      from './composables/useTagihanCalc'
+import { useTagihanCalc, kunciTagihan } from './composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
 import { useBiometrik }        from './composables/useBiometrik'
 import { useSinkronPublik }    from './composables/useSinkronPublik'
@@ -85,11 +85,10 @@ async function autoGenerateNextMonth() {
 
   // Kunci per penghuni, bukan per kamar: satu kamar bisa menghasilkan dua
   // tagihan di bulan pergantian.
-  const kunci = (t: { penghuni_id?: string; penghuni: string; kamar: string; property_id: string }) =>
-    `${t.penghuni_id || t.penghuni}|${t.kamar}|${t.property_id}`
-  const existing = new Set(
-    tagihan.items.filter(t => t.bulan === nextBulan).map(kunci),
-  )
+  const existing = new Set<string>()
+  for (const t of tagihan.items.filter(t => t.bulan === nextBulan)) {
+    for (const k of kunciTagihan(t)) existing.add(k)
+  }
 
   const kamarBulanDepan = new Set(
     penghuni.items.map(p => `${p.kamar}|${p.property_id}`),
@@ -97,7 +96,7 @@ async function autoGenerateNextMonth() {
   for (const key of kamarBulanDepan) {
     const [nomor, property_id] = key.split('|')
     for (const draft of tagihanUntukKamar(nomor, property_id, nextBulan)) {
-      if (existing.has(kunci({ ...draft, property_id }))) continue
+      if (kunciTagihan({ ...draft, property_id }).some(k => existing.has(k))) continue
       await tagihan.add({
         ...draft,
         status: 'belum', property_id, createdAt: new Date().toISOString(),
