@@ -12,6 +12,7 @@ import { useSaldo }            from '../composables/useSaldo'
 import { fmt, fmtTgl }         from '../utils/format'
 import { bulanIni, today }     from '../utils/date'
 import type { TagihanStatus }  from '../types'
+import SesuaikanSaldoDialog    from '../components/shared/SesuaikanSaldoDialog.vue'
 
 const kamar       = useKamarStore()
 const penghuni    = usePenghuniStore()
@@ -36,6 +37,8 @@ const { availableMonths: allBulan } = useMonths()
 
 // Saldo tidak ikut filter bulan: ini posisi uang sekarang, bukan angka periode.
 const { saldo } = useSaldo()
+const showSesuaikan = ref(false)
+const propertiAktif = computed(() => properties.items.find(p => p.id === app.currentPropertyId) ?? null)
 
 const selectedBulan = computed(() =>
   dashMode.value === 'bulan_ini' ? bulanIni() : dashBulan.value
@@ -342,10 +345,14 @@ const insightKolekt = computed(() => {
         <div class="m-sub">{{ net >= 0 ? '📈 Surplus' : '📉 Defisit' }}</div>
       </div>
       <div class="metric anim-metric" :class="saldo.saldo >= 0 ? 'mb' : 'mr'" style="--n:5">
-        <div class="m-lbl">Saldo Berjalan</div>
+        <div class="m-lbl" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Saldo Berjalan</span>
+          <button class="btn btn-ghost btn-sm" style="padding:2px 8px" @click="showSesuaikan = true">Sesuaikan</button>
+        </div>
         <div class="m-val" :class="saldo.saldo >= 0 ? 'blue' : 'red'" style="font-size:18px">{{ fmt(saldo.saldo) }}</div>
         <div class="m-sub" v-if="saldo.belumDiatur">⚠️ Saldo awal belum diatur — ini arus kas, bukan saldo rekening</div>
         <div class="m-sub" v-else>Awal {{ fmt(saldo.saldoAwal) }} · masuk {{ fmt(saldo.masuk) }} · keluar {{ fmt(saldo.keluar) }}</div>
+        <div class="m-sub" v-if="propertiAktif?.saldo_awal_tgl">terakhir disesuaikan {{ fmtTgl(propertiAktif?.saldo_awal_tgl ?? '') }}</div>
       </div>
     </div>
 
@@ -426,6 +433,8 @@ const insightKolekt = computed(() => {
       </div>
     </div>
   </div>
+
+  <SesuaikanSaldoDialog :open="showSesuaikan" @close="showSesuaikan = false" />
 </template>
 
 <style scoped>
