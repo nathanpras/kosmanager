@@ -37,34 +37,34 @@ const data = computed(() => {
 // batch sementara dialognya sudah terbuka tetap memicu penomoran — kalau
 // cuma `open` yang diawasi, batch baru yang datang saat dialog masih
 // terbuka tidak pernah kebagian nomor.
-//
-// `assigning` mencegah dua proses tulis berjalan bersamaan: tiap `update()`
-// menulis ke Firestore lalu memuat ulang seluruh koleksi, jadi jendela
-// baloncatan-nya cukup lebar untuk ke-tutup-buka-lagi menabrak proses yang
-// masih berjalan dan menghasilkan nomor kedua untuk tagihan yang sama.
-const assigning = ref(false)
-watch(
-  [() => props.open, () => props.tagihanIds],
-  async ([open]) => {
-    if (!open || daftar.value.length === 0 || assigning.value) return
-    assigning.value = true
-    try {
-      const sudah = daftar.value.find(t => t.invoice_no)?.invoice_no
-      const tglAsal = daftar.value.find(t => t.invoice_tgl)?.invoice_tgl ?? today()
-      const nomorPakai = sudah ?? nomorInvoiceBerikutnya(tagihan.items.map(t => t.invoice_no), tglAsal)
-      nomor.value = nomorPakai
-      // Tulis ke tagihan yang belum kebagian nomor saja — ini juga menyembuhkan
-      // batch yang penulisannya sempat terputus di tengah jalan (sebagian sudah
-      // bernomor, sebagian belum), bukan cuma jalur "pertama kali dibuka".
-      for (const t of daftar.value) {
-        if (t.invoice_no) continue
-        await tagihan.update(t.id, { invoice_no: nomorPakai, invoice_tgl: tglAsal })
-      }
-    } finally {
-      assigning.value = false
-    }
-  },
-)
+async function tetapkanNomor() {
+  const list = daftar.value
+  if (list.length === 0) return
+  const sudah = list.find(t => t.invoice_no)?.invoice_no
+  const tglAsal = list.find(t => t.invoice_tgl)?.invoice_tgl ?? today()
+  const nomorPakai = sudah ?? nomorInvoiceBerikutnya(tagihan.items.map(t => t.invoice_no), tglAsal)
+  nomor.value = nomorPakai
+  // Tulis ke tagihan yang belum kebagian nomor saja — ini juga menyembuhkan
+  // batch yang penulisannya sempat terputus di tengah jalan (sebagian sudah
+  // bernomor, sebagian belum), bukan cuma jalur "pertama kali dibuka".
+  for (const t of list) {
+    if (t.invoice_no) continue
+    await tagihan.update(t.id, { invoice_no: nomorPakai, invoice_tgl: tglAsal })
+  }
+}
+
+// Penetapan nomor diantrekan, bukan dibuang. Kalau dijaga dengan flag boolean
+// saja, batch yang dibuka saat tulisan batch sebelumnya masih berjalan tidak
+// akan pernah dapat nomor — watch di Vue hanya memicu sekali per perubahan
+// (edge-triggered), jadi trigger yang ditolak flag tidak pernah diulang lagi.
+// Rantai promise ini menjamin tiap trigger tetap dieksekusi, berurutan;
+// `tetapkanNomor()` membaca `daftar.value` saat ia benar-benar berjalan,
+// jadi ia selalu bekerja atas batch yang sedang aktif saat itu.
+let rantai: Promise<void> = Promise.resolve()
+watch([() => props.open, () => props.tagihanIds], () => {
+  if (!props.open) return
+  rantai = rantai.then(() => tetapkanNomor()).catch(() => {})
+})
 
 function cetak() {
   document.body.classList.add('printing-invoice')
