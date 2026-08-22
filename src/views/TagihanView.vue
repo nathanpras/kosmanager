@@ -15,10 +15,11 @@ import type { DraftTagihan }   from '../composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
-import { today, bulanIni, monthsBack } from '../utils/date'
+import { today, bulanIni, monthsBack, bulanKey } from '../utils/date'
 import type { Tagihan, TagihanStatus } from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 import BayarDiMukaDialog       from '../components/shared/BayarDiMukaDialog.vue'
+import InvoiceDoc              from '../components/shared/InvoiceDoc.vue'
 
 const tagihan     = useTagihanStore()
 const penghuni    = usePenghuniStore()
@@ -236,7 +237,22 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
 // Bayar Beberapa Bulan (bayar di muka berdiskon)
 const showBayarDiMuka = ref(false)
 const lastBayarRef = ref<string | null>(null)
-function onBatchSaved(bayarRef: string) { lastBayarRef.value = bayarRef }
+function onBatchSaved(bayarRef: string) {
+  lastBayarRef.value = bayarRef
+  invoiceIds.value = tagihan.items.filter(x => x.bayar_ref === bayarRef)
+    .sort((a, b) => bulanKey(a.bulan).localeCompare(bulanKey(b.bulan))).map(x => x.id)
+  showInvoice.value = true
+}
+
+// Invoice
+const showInvoice = ref(false)
+const invoiceIds  = ref<string[]>([])
+function bukaInvoice(t: Tagihan) {
+  invoiceIds.value = t.bayar_ref
+    ? tagihan.items.filter(x => x.bayar_ref === t.bayar_ref).sort((a, b) => bulanKey(a.bulan).localeCompare(bulanKey(b.bulan))).map(x => x.id)
+    : [t.id]
+  showInvoice.value = true
+}
 </script>
 
 <template>
@@ -295,6 +311,7 @@ function onBatchSaved(bayarRef: string) { lastBayarRef.value = bayarRef }
               <div style="display:flex;gap:4px">
                 <button v-if="t.status !== 'lunas'" class="action-btn primary" @click="openPay(t)">💰 Bayar</button>
                 <button v-else class="action-btn" style="background:var(--surf2);color:var(--text2);border:1px solid var(--border)" @click="undoPay(t)">↩ Undo</button>
+                <button class="action-btn" style="background:var(--surf2);color:var(--text2);border:1px solid var(--border)" @click="bukaInvoice(t)">🧾 Invoice</button>
                 <button class="action-btn danger" @click="askDelete(t)">🗑</button>
               </div>
             </td>
@@ -321,6 +338,7 @@ function onBatchSaved(bayarRef: string) { lastBayarRef.value = bayarRef }
         <div style="display:flex;gap:8px;margin-top:12px">
           <button v-if="t.status !== 'lunas'" class="action-btn primary" style="flex:1;justify-content:center" @click="openPay(t)">💰 Bayar</button>
           <button v-else class="action-btn" style="flex:1;justify-content:center;background:var(--surf2);color:var(--text2);border:1px solid var(--border)" @click="undoPay(t)">↩ Undo</button>
+          <button class="action-btn" style="background:var(--surf2);color:var(--text2);border:1px solid var(--border)" @click="bukaInvoice(t)">🧾</button>
           <button class="action-btn danger" @click="askDelete(t)">🗑</button>
         </div>
       </div>
@@ -425,6 +443,12 @@ function onBatchSaved(bayarRef: string) { lastBayarRef.value = bayarRef }
       :open="showBayarDiMuka"
       @close="showBayarDiMuka = false"
       @saved="onBatchSaved"
+    />
+
+    <InvoiceDoc
+      :open="showInvoice"
+      :tagihan-ids="invoiceIds"
+      @close="showInvoice = false"
     />
 
     <ConfirmDialog
