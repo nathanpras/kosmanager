@@ -11,6 +11,7 @@ import { bulanBerurutan, bagiDiskon } from '../../utils/bayarDiMuka'
 import { bulanIni, today } from '../../utils/date'
 import { fmt } from '../../utils/format'
 import { sudahKeluar } from '../../composables/useOccupancy'
+import { nilaiDibayar } from '../../utils/saldo'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: []; saved: [ref: string] }>()
@@ -35,13 +36,19 @@ const bulanOpsi = computed(() => bulanBerurutan(bulanIni(), 12))
 const kandidat = computed(() => filterByProperty(penghuni.items).filter(p => !sudahKeluar(p)))
 const terpilih = computed(() => penghuni.items.find(p => p.id === penghuniId.value) ?? null)
 
-/** Bulan yang sudah punya tagihan lunas tidak boleh ikut — nanti dobel bayar. */
+/**
+ * Bulan yang sudah kemasukan uang tidak boleh ikut — nanti dobel bayar.
+ *
+ * Dites lewat `nilaiDibayar()`, bukan `status === 'lunas'`: tagihan berstatus
+ * 'kurang' juga sudah menyimpan uang sungguhan di `jumlah_bayar` dan tidak
+ * boleh ditimpa oleh batch ini.
+ */
 const bentrok = computed(() => {
   const p = terpilih.value
   if (!p) return [] as string[]
   const bulan = bulanBerurutan(bulanMulai.value, jumlahBulan.value)
   return bulan.filter(b => tagihan.items.some(t =>
-    t.bulan === b && t.property_id === p.property_id && t.status === 'lunas'
+    t.bulan === b && t.property_id === p.property_id && nilaiDibayar(t) > 0
     && (t.penghuni_id === p.id || t.penghuni === p.nama)))
 })
 
@@ -62,8 +69,11 @@ const baris = computed<BarisBatch[]>(() => {
   if (!p) return []
   const bulan = bulanBerurutan(bulanMulai.value, jumlahBulan.value)
   const dasar: BarisBatch[] = bulan.map(b => {
+    // Tagihan yang sudah kemasukan uang tidak boleh jadi target update — kalau
+    // lolos ke sini, `bentrok` sudah menolak simpan duluan. Bulan itu dianggap
+    // "belum ada tagihan" di sini supaya tidak diam-diam menimpa uang lama.
     const lama = tagihan.items.find(t => t.bulan === b && t.property_id === p.property_id
-      && (t.penghuni_id === p.id || t.penghuni === p.nama))
+      && (t.penghuni_id === p.id || t.penghuni === p.nama) && nilaiDibayar(t) === 0)
     if (lama) return { bulan: b, jumlah: Number(lama.jumlah) || 0, id: lama.id }
     const draft = tagihanUntukKamar(p.kamar, p.property_id, b)
     const milikDia = draft.find(d => d.penghuni_id === p.id) ?? draft[0]
@@ -72,6 +82,9 @@ const baris = computed<BarisBatch[]>(() => {
   const setelahDiskon = bagiDiskon(dasar.map(x => x.jumlah), diskon.value)
   return dasar.map((x, i) => ({ ...x, jumlah: setelahDiskon[i] }))
 })
+
+/** Bulan yang jumlahnya jadi negatif setelah diskon dibagi — diskon kelewat besar. */
+const barisNegatif = computed(() => baris.value.filter(x => x.jumlah < 0).map(x => x.bulan))
 
 const subtotal = computed(() => baris.value.reduce((s, x) => s + x.jumlah, 0) + (Number(diskon.value) || 0))
 const total = computed(() => baris.value.reduce((s, x) => s + x.jumlah, 0))
@@ -85,27 +98,32 @@ watch(() => props.open, (v) => {
 async function simpan() {
   const p = terpilih.value
   if (!p) { toast('Pilih penghuni dulu', 'error'); return }
-  if (bentrok.value.length) { toast(`Sudah lunas: ${bentrok.value.join(', ')}`, 'error'); return }
+  if (bentrok.value.length) { toast(`Sudah ada pembayaran tercatat: ${bentrok.value.join(', ')}`, 'error'); return }
+  if (barisNegatif.value.length) { toast(`Diskon kelewat besar, jumlah jadi negatif: ${barisNegatif.value.join(', ')}`, 'error'); return }
   if (total.value <= 0) { toast('Total tidak boleh nol', 'error'); return }
   menyimpan.value = true
   const bayar_ref = `BDM-${Date.now()}`
+  let ditulis = 0
   try {
     for (const b of baris.value) {
       const isi = {
         status: 'lunas' as const, jumlah: b.jumlah, jumlah_bayar: b.jumlah,
         tgl: tglBayar.value, bayar_ref, diskon_batch: Number(diskon.value) || 0,
       }
-      if (b.id) await tagihan.update(b.id, isi)
-      else if (b.draft) await tagihan.add({
-        ...b.draft, ...isi, property_id: p.property_id, createdAt: new Date().toISOString(),
-      })
+      if (b.id) { await tagihan.update(b.id, isi); ditulis++ }
+      else if (b.draft) {
+        await tagihan.add({ ...b.draft, ...isi, property_id: p.property_id, createdAt: new Date().toISOString() })
+        ditulis++
+      }
+      // Bulan tanpa `id` maupun `draft` (mis. kamar kosong di bulan itu) dilewati —
+      // tidak ada apa-apa untuk ditulis, dan tidak dihitung ke `ditulis`.
     }
     await log.add(
-      `${p.nama} bayar ${baris.value.length} bulan di muka ${fmt(total.value)}`
+      `${p.nama} bayar ${ditulis} bulan di muka ${fmt(total.value)}`
         + (diskon.value ? ` (diskon ${fmt(diskon.value)})` : ''),
       'green', p.property_id,
     )
-    toast(`${baris.value.length} bulan ditandai lunas`, 'success')
+    toast(`${ditulis} bulan ditandai lunas`, 'success')
     emit('saved', bayar_ref)
     emit('close')
   } catch { toast('Gagal menyimpan pembayaran', 'error') }
@@ -148,7 +166,10 @@ async function simpan() {
         </div>
 
         <div v-if="bentrok.length > 0" class="alert alert-red" style="margin-top:14px">
-          ⚠ Sudah lunas, tidak bisa ikut batch: {{ bentrok.join(', ') }}
+          ⚠ Sudah ada pembayaran tercatat, tidak bisa ikut batch: {{ bentrok.join(', ') }}
+        </div>
+        <div v-if="barisNegatif.length > 0" class="alert alert-red" style="margin-top:14px">
+          ⚠ Diskon kelewat besar, jumlah jadi negatif: {{ barisNegatif.join(', ') }}
         </div>
 
         <template v-if="terpilih && baris.length > 0">
@@ -158,7 +179,7 @@ async function simpan() {
             <tbody>
               <tr v-for="b in baris" :key="b.bulan">
                 <td>{{ b.bulan }}</td>
-                <td>{{ fmt(b.jumlah) }}</td>
+                <td :style="b.jumlah < 0 ? { color: 'var(--red)', fontWeight: 700 } : {}">{{ fmt(b.jumlah) }}</td>
               </tr>
             </tbody>
           </table>
@@ -171,7 +192,7 @@ async function simpan() {
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" @click="emit('close')">Batal</button>
-        <button class="btn btn-primary" :disabled="menyimpan || bentrok.length > 0" @click="simpan">
+        <button class="btn btn-primary" :disabled="menyimpan || bentrok.length > 0 || barisNegatif.length > 0" @click="simpan">
           {{ menyimpan ? 'Menyimpan…' : 'Simpan' }}
         </button>
       </div>

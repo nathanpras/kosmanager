@@ -236,7 +236,7 @@ function openReminder(bulan: string) { reminderBulan.value = bulan; showReminder
 // Bayar Beberapa Bulan (bayar di muka berdiskon)
 const showBayarDiMuka = ref(false)
 const lastBayarRef = ref<string | null>(null)
-function onBatchSaved(ref: string) { lastBayarRef.value = ref }
+function onBatchSaved(bayarRef: string) { lastBayarRef.value = bayarRef }
 </script>
 
 <template>
