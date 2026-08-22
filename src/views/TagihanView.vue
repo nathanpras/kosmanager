@@ -318,7 +318,12 @@ function bukaInvoice(t: Tagihan) {
           <tr v-for="(t, i) in byMonth" :key="t.id" class="anim-row" :style="{ '--n': i }">
             <td><strong>{{ t.penghuni }}</strong></td>
             <td><span class="badge bg" style="font-size:11px">{{ t.kamar }}</span></td>
-            <td style="font-weight:600">{{ fmt(t.jumlah) }}</td>
+            <td style="font-weight:600">
+              {{ fmt(t.jumlah) }}
+              <div v-if="t.kelebihan" style="font-size:11px;font-weight:500;color:var(--amber)">
+                kelebihan bayar {{ fmt(t.kelebihan) }}
+              </div>
+            </td>
             <td><span class="badge" :class="statusMap.get(t.id)?.cls">{{ statusMap.get(t.id)?.label }}</span></td>
             <td style="color:var(--text2)">{{ fmtTgl(t.tgl ?? '') }}</td>
             <td>
@@ -347,6 +352,7 @@ function bukaInvoice(t: Tagihan) {
         </div>
         <div class="mc-rows" style="margin-top:8px">
           <div class="mc-row"><span class="mc-label">Tagihan</span><span class="mc-val" style="color:var(--green);font-weight:700">{{ fmt(t.jumlah) }}</span></div>
+          <div v-if="t.kelebihan" class="mc-row"><span class="mc-label">Kelebihan bayar</span><span class="mc-val" style="color:var(--amber);font-weight:700">{{ fmt(t.kelebihan) }}</span></div>
           <div v-if="t.tgl" class="mc-row"><span class="mc-label">Dibayar</span><span class="mc-val">{{ fmtTgl(t.tgl) }}</span></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">

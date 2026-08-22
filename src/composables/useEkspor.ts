@@ -83,6 +83,9 @@ export function useEkspor() {
       dibayar: nilaiDibayar(t),
       sisa: Math.max(0, (Number(t.jumlah) || 0) - nilaiDibayar(t)),
       status: t.status,
+      // Selisih yang harus dikembalikan saat tagihan yang sudah dibayar dihitung
+      // ulang jadi lebih kecil — ikut diekspor supaya tidak cuma hidup di layar.
+      kelebihan: t.kelebihan ?? 0,
       jatuh_tempo: t.jatuh_tempo ?? '',
       tgl_bayar: t.tgl ?? '',
       prorata: t.is_prorated ? `ya (${t.prorated_hari} hari)` : '',
@@ -98,6 +101,7 @@ export function useEkspor() {
         { kunci: 'dibayar', judul: 'Dibayar' },
         { kunci: 'sisa', judul: 'Sisa' },
         { kunci: 'status', judul: 'Status' },
+        { kunci: 'kelebihan', judul: 'Kelebihan Bayar' },
         { kunci: 'jatuh_tempo', judul: 'Jatuh Tempo' },
         { kunci: 'tgl_bayar', judul: 'Tanggal Bayar' },
         { kunci: 'prorata', judul: 'Prorata' },

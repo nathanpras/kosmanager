@@ -12,7 +12,7 @@ import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupanc
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { useKeluarPenghuni }  from '../composables/useKeluarPenghuni'
 import { fmtTgl, fmt }        from '../utils/format'
-import { today, bulanFromTgl } from '../utils/date'
+import { today, bulanFromTgl, bulanKey } from '../utils/date'
 import type { Penghuni }      from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
@@ -64,9 +64,27 @@ function totalDibayar(p: Penghuni): number {
 }
 
 async function pulihkan(p: Penghuni) {
+  const keluar = tglKeluar(p)
   // Satu-satunya tempat kontrak_selesai ditulis: ia harus ikut dikosongkan,
   // kalau tidak, tglKeluar() masih membacanya dan orangnya kembali ke arsip.
   await penghuni.update(p.id, { tgl_keluar: '', kontrak_selesai: '' })
+
+  // Kamar dikembalikan terisi: doKeluar() mengosongkannya, dan kalau dibiarkan
+  // kosong kamar ini muncul lagi di pemilih kamar dan bisa diisi orang kedua
+  // padahal sudah ada penghuninya.
+  const k = findKamar(p.kamar, p.property_id)
+  if (k && k.status === 'kosong') await kamar.update(k.id, { status: 'terisi' })
+
+  // Bulan yang sempat ditandai hangus karena ia keluar sekarang berlaku lagi.
+  const batas = keluar ? bulanKey(bulanFromTgl(keluar) ?? '') : ''
+  const dipulihkan = tagihan.items.filter(t =>
+    t.property_id === p.property_id
+    && (t.penghuni_id === p.id || t.penghuni === p.nama)
+    && t.hangus === true
+    && bulanKey(t.bulan) >= batas)
+  for (const t of dipulihkan) await tagihan.update(t.id, { hangus: false })
+
+  await log.add(`${p.nama} dipulihkan ke kamar ${p.kamar}`, 'green', p.property_id)
   toast('Penghuni dipulihkan', 'success')
 }
 
@@ -373,7 +391,13 @@ function openWA(p: Penghuni) {
             </div>
             <div class="fg"><label>No HP / WA</label><input v-model="form.hp" placeholder="08xxxxxxxxxx" /></div>
             <div class="fg"><label>Tanggal Masuk</label><input v-model="form.masuk" type="date" /></div>
-            <div class="fg"><label>Tanggal Keluar</label><input v-model="form.tgl_keluar" type="date" /></div>
+            <div class="fg" v-if="editId">
+              <label>Tanggal Keluar</label>
+              <input :value="fmtTgl(form.tgl_keluar ?? '') || 'Masih menghuni'" readonly />
+              <small style="font-size:11px;color:var(--text3)">
+                Diisi lewat tombol Keluarkan (📦) supaya tagihan kamar ikut dihitung ulang dan kamarnya dikosongkan.
+              </small>
+            </div>
             <div class="fg"><label>Jenis Kelamin</label>
               <select v-model="form.jenis_kelamin"><option value="">—</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
             </div>
