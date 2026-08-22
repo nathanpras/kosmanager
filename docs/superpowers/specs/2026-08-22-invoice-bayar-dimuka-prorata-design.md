@@ -131,7 +131,7 @@ Tombol **Keluarkan Penghuni** di `PenghuniView`:
 
 1. Dialog berisi tanggal keluar, terisi hari ini.
 2. Simpan menulis `tgl_keluar`, `arsip: true`.
-3. Tagihan bulan keluar dihitung ulang **hanya bila statusnya belum atau kurang**. Tagihan yang sudah lunas tidak diubah nominalnya; bila hasil hitung ulang lebih kecil, tagihan diberi penanda kelebihan bayar dan ditampilkan sebagai info. Alasannya: mengubah tagihan lunas akan mengubah `nilaiDibayar()` dan menggeser saldo yang sudah cocok dengan bank.
+3. Tagihan bulan keluar dihitung ulang **hanya bila statusnya belum atau kurang**. Tagihan yang sudah lunas tidak diubah nominalnya; bila hasil hitung ulang lebih kecil, tagihan diberi `kelebihan` berisi selisihnya dan ditampilkan sebagai info. Alasannya: mengubah tagihan lunas akan mengubah `nilaiDibayar()` dan menggeser saldo yang sudah cocok dengan bank.
 4. Tagihan **lunas** untuk bulan setelah bulan keluar ditandai `hangus: true`. Dokumennya tidak dihapus supaya uangnya tetap terhitung di saldo — uang itu memang dipegang pemilik. Tagihan belum lunas untuk bulan setelah keluar dihapus.
 5. Satu entri Log: `"Budi keluar 14 Mar 2026 — 3 bulan bayar di muka (4.500.000) hangus"`.
 6. Kamar ikut kosong lewat `useOccupancy` yang sudah menurunkan status dari koleksi penghuni.
@@ -150,6 +150,7 @@ sampai?: string        // YYYY-MM-DD
 bayar_ref?: string     // ID batch, sama untuk semua bulan dalam satu pembayaran
 diskon_batch?: number  // total diskon batch, disalin ke tiap tagihan untuk invoice
 hangus?: boolean
+kelebihan?: number     // hasil hitung ulang lebih kecil dari yang sudah dibayar
 invoice_no?: string
 invoice_tgl?: string
 ```
