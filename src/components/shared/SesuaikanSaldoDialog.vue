@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { usePropertiesStore } from '../../stores/properties'
+import { useTagihanStore } from '../../stores/tagihan'
+import { usePengeluaranStore } from '../../stores/pengeluaran'
 import { useLogStore } from '../../stores/log'
 import { useAppStore } from '../../stores/app'
 import { useSaldo } from '../../composables/useSaldo'
 import { useToast } from '../../composables/useToast'
 import { fmt } from '../../utils/format'
 import { today } from '../../utils/date'
+import { nilaiDibayar, tglPembayaran } from '../../utils/saldo'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const properties = usePropertiesStore()
+const tagihan = useTagihanStore()
+const pengeluaran = usePengeluaranStore()
 const log = useLogStore()
 const app = useAppStore()
 const { perProperti } = useSaldo()
@@ -34,6 +39,33 @@ function saldoProperti(id: string): number {
   return perProperti.value.find(x => x.id === id)?.ringkas.saldo ?? 0
 }
 
+/**
+ * Saldo properti pada AWAL tanggal `per` — sebelum transaksi hari itu.
+ *
+ * hitungSaldo() menghitung `tgl >= saldo_awal_tgl`, jadi transaksi yang
+ * bertanggal sama dengan tanggal patokan ikut ditambahkan di atas saldo awal.
+ * Mengisi kolom ini dengan saldo berjalan apa adanya berarti transaksi hari itu
+ * dihitung dua kali: sekali karena sudah termasuk di saldo berjalan, sekali lagi
+ * karena hitungSaldo() menambahkannya lagi. Tombol yang tugasnya menyamakan
+ * angka dengan rekening justru membuatnya melenceng.
+ *
+ * Yang dikembalikan di sini adalah angka yang membuat saldo berjalan tetap sama
+ * setelah disimpan: saldo sekarang, dikurangi pemasukan dan ditambah pengeluaran
+ * yang bertanggal `per` atau sesudahnya.
+ */
+function saldoAwalPer(id: string, per: string): number {
+  const saldoKini = saldoProperti(id)
+  if (!id || !per) return Math.round(saldoKini)
+  const masuk = tagihan.items
+    .filter(t => t.property_id === id)
+    .filter(t => { const tgl = tglPembayaran(t); return tgl != null && tgl >= per })
+    .reduce((s, t) => s + nilaiDibayar(t), 0)
+  const keluar = pengeluaran.items
+    .filter(p => p.property_id === id && (p.tgl ?? '') >= per && !!p.tgl)
+    .reduce((s, p) => s + (Number(p.jumlah) || 0), 0)
+  return Math.round(saldoKini - masuk + keluar)
+}
+
 watch(() => props.open, (v) => {
   if (!v) return
   // Mode "Semua Properti" tidak punya satu rekening — Waru 23 dan Citra 1
@@ -42,16 +74,17 @@ watch(() => props.open, (v) => {
   propId.value = app.currentPropertyId !== 'all'
     ? app.currentPropertyId
     : (properties.items.length === 1 ? (properties.items[0]?.id ?? '') : '')
-  nominal.value = Math.round(saldoProperti(propId.value))
   tgl.value = today()
+  nominal.value = saldoAwalPer(propId.value, tgl.value)
 })
 
-// Ganti properti (baik lewat dropdown maupun re-seed di atas) selalu menulis
-// ulang nominal dari saldo properti itu sendiri — supaya angka properti
-// sebelumnya (atau angka gabungan saat belum memilih) tidak pernah kebawa.
-watch(propId, (id) => {
+// Ganti properti maupun ganti tanggal selalu menulis ulang nominal dari saldo
+// properti itu sendiri pada tanggal itu — supaya angka properti sebelumnya
+// (atau angka gabungan saat belum memilih) tidak pernah kebawa, dan supaya
+// isian awalnya selalu cocok dengan tanggal yang sedang dipilih.
+watch([propId, tgl], ([id, per]) => {
   if (!props.open) return
-  nominal.value = Math.round(saldoProperti(id))
+  nominal.value = saldoAwalPer(id, per)
 })
 
 async function simpan() {
@@ -64,7 +97,7 @@ async function simpan() {
     await properties.updateProperty(p.id, { saldo_awal: Number(nominal.value) || 0, saldo_awal_tgl: tgl.value })
     const selisih = (Number(nominal.value) || 0) - lama
     await log.add(
-      `Saldo ${p.nama} disesuaikan ke ${fmt(nominal.value)} per ${tgl.value} (selisih ${fmt(selisih)})`,
+      `Saldo awal ${p.nama} disesuaikan ke ${fmt(nominal.value)} per awal ${tgl.value} (selisih ${fmt(selisih)})`,
       'blue', p.id,
     )
     toast('Saldo disesuaikan', 'success')
@@ -89,7 +122,7 @@ async function simpan() {
             </select>
           </div>
           <div class="fg full">
-            <label>Saldo Bank Sebenarnya</label>
+            <label>Saldo Bank di Awal Tanggal Ini</label>
             <input v-model.number="nominal" type="number" min="0" />
           </div>
           <div class="fg full">
@@ -98,7 +131,9 @@ async function simpan() {
           </div>
         </div>
         <p style="font-size:12px;color:var(--text3);margin-top:12px">
-          Transaksi sebelum tanggal ini tidak lagi dihitung ke saldo berjalan — samakan dengan tanggal mutasi rekening yang dipakai sebagai patokan.
+          Isi dengan saldo rekening pada <strong>awal</strong> tanggal itu, sebelum transaksi hari itu masuk —
+          pembayaran dan pengeluaran bertanggal tanggal itu dan sesudahnya akan ditambahkan sendiri di atasnya.
+          Transaksi sebelum tanggal ini tidak lagi dihitung ke saldo berjalan.
         </p>
       </div>
       <div class="modal-foot">
