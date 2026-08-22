@@ -113,11 +113,14 @@ async function undoPay(t: Tagihan) {
 // Add tagihan modal
 const showAdd = ref(false)
 const addForm = ref<Partial<Tagihan>>({})
+/** Terisi bila nominal isian awal sebenarnya tagihan kamar atas nama orang lain. */
+const prefillCatatan = ref('')
 
 function openAddTagihan() {
   if (app.currentPropertyId === 'all' && properties.items.length === 0) {
     toast('Tambah properti terlebih dahulu', 'error'); return
   }
+  prefillCatatan.value = ''
   addForm.value = {
     bulan: activeBulan.value, status: 'belum',
     property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId,
@@ -126,18 +129,29 @@ function openAddTagihan() {
   showAdd.value = true
 }
 function onPenghuniChange() {
+  prefillCatatan.value = ''
   const p = penghuni.items.find(x => x.nama === addForm.value.penghuni)
   if (!p) return
   addForm.value.kamar = p.kamar
   const bulan = addForm.value.bulan ?? bulanIni()
   const draft = tagihanUntukKamar(p.kamar, p.property_id, bulan)
-  // Ambil bagian milik orang yang dipilih; kalau tagihannya digabung, yang
-  // muncul adalah satu draft atas nama penanggung.
-  const milikDia = draft.find(d => d.penghuni_id === p.id) ?? draft[0]
-  if (!milikDia) return
-  addForm.value.jumlah = milikDia.jumlah
-  addForm.value.jatuh_tempo = milikDia.jatuh_tempo
-  addForm.value.penghuni_id = milikDia.penghuni_id
+  const milikDia = draft.find(d => d.penghuni_id === p.id)
+  // Selama tidak ada yang keluar di tengah bulan, satu kamar cuma punya satu
+  // draft gabungan atas nama penanggung. Nominalnya tetap dipakai sebagai isian
+  // awal — tapi harus dikatakan terus terang milik siapa, bukan disodorkan
+  // seolah-olah itu bagian orang yang dipilih.
+  const dasar = milikDia ?? draft[0]
+  if (!dasar) return
+  if (!milikDia) {
+    prefillCatatan.value =
+      `Tagihan kamar ${p.kamar} bulan ${bulan} digabung atas nama ${dasar.penghuni} — `
+      + 'nominal di bawah adalah total kamar, bukan bagian orang ini.'
+  }
+  addForm.value.jumlah = dasar.jumlah
+  addForm.value.jatuh_tempo = dasar.jatuh_tempo
+  // penghuni_id selalu milik orang yang dipilih: tagihan ini nanti tersimpan
+  // atas namanya, jadi id dan nama harus menunjuk orang yang sama.
+  addForm.value.penghuni_id = p.id
 }
 async function saveAdd() {
   if (!addForm.value.penghuni || !addForm.value.jumlah) { toast('Penghuni dan jumlah wajib diisi', 'error'); return }
@@ -388,6 +402,9 @@ function bukaInvoice(t: Tagihan) {
             </div>
             <div class="fg"><label>Jumlah (Rp)</label><input v-model.number="addForm.jumlah" type="number" /></div>
           </div>
+          <p v-if="prefillCatatan" class="alert alert-amber" style="margin-top:12px;font-size:12px">
+            ⚠️ {{ prefillCatatan }}
+          </p>
         </div>
         <div class="modal-foot">
           <button class="btn btn-ghost" @click="showAdd = false">Batal</button>

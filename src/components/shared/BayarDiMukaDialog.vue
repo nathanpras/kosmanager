@@ -3,8 +3,9 @@ import { ref, computed, watch } from 'vue'
 import { useTagihanStore } from '../../stores/tagihan'
 import { usePenghuniStore } from '../../stores/penghuni'
 import { useLogStore } from '../../stores/log'
-import { useTagihanCalc } from '../../composables/useTagihanCalc'
+import { useTagihanCalc, kunciTagihan } from '../../composables/useTagihanCalc'
 import type { DraftTagihan } from '../../composables/useTagihanCalc'
+import type { Tagihan } from '../../types'
 import { useProperty } from '../../composables/useProperty'
 import { useToast } from '../../composables/useToast'
 import { bulanBerurutan, bagiDiskon } from '../../utils/bayarDiMuka'
@@ -36,29 +37,27 @@ const bulanOpsi = computed(() => bulanBerurutan(bulanIni(), 12))
 const kandidat = computed(() => filterByProperty(penghuni.items).filter(p => !sudahKeluar(p)))
 const terpilih = computed(() => penghuni.items.find(p => p.id === penghuniId.value) ?? null)
 
-/**
- * Bulan yang sudah kemasukan uang tidak boleh ikut — nanti dobel bayar.
- *
- * Dites lewat `nilaiDibayar()`, bukan `status === 'lunas'`: tagihan berstatus
- * 'kurang' juga sudah menyimpan uang sungguhan di `jumlah_bayar` dan tidak
- * boleh ditimpa oleh batch ini.
- */
-const bentrok = computed(() => {
-  const p = terpilih.value
-  if (!p) return [] as string[]
-  const bulan = bulanBerurutan(bulanMulai.value, jumlahBulan.value)
-  return bulan.filter(b => tagihan.items.some(t =>
-    t.bulan === b && t.property_id === p.property_id && nilaiDibayar(t) > 0
-    && (t.penghuni_id === p.id || t.penghuni === p.nama)))
-})
-
 interface BarisBatch {
   bulan: string
   jumlah: number
+  /**
+   * Nama pemilik tagihan bulan itu. Bisa roommate, bukan orang yang dipilih:
+   * selama tidak ada yang keluar di tengah bulan, satu kamar cuma punya satu
+   * tagihan gabungan atas nama penanggung.
+   */
+  atasNama: string
+  /** true bila tagihan yang jadi sasaran bulan ini sudah kemasukan uang. */
+  bentrok: boolean
   /** Terisi bila tagihan bulan itu sudah ada dan tinggal dilunasi. */
   id?: string
   /** Terisi bila tagihannya belum ada dan harus dibuat. */
   draft?: DraftTagihan
+}
+
+/** Apakah tagihan `t` menunjuk orang yang sama dengan draft `d`? */
+function cocokDraft(t: Tagihan, d: DraftTagihan): boolean {
+  const kunciT = kunciTagihan(t)
+  return kunciTagihan({ ...d, property_id: t.property_id }).some(k => kunciT.includes(k))
 }
 
 // Bulan-bulan ke depan memakai komposisi penghuni saat ini — asumsi yang wajar
@@ -69,19 +68,41 @@ const baris = computed<BarisBatch[]>(() => {
   if (!p) return []
   const bulan = bulanBerurutan(bulanMulai.value, jumlahBulan.value)
   const dasar: BarisBatch[] = bulan.map(b => {
-    // Tagihan yang sudah kemasukan uang tidak boleh jadi target update — kalau
-    // lolos ke sini, `bentrok` sudah menolak simpan duluan. Bulan itu dianggap
-    // "belum ada tagihan" di sini supaya tidak diam-diam menimpa uang lama.
-    const lama = tagihan.items.find(t => t.bulan === b && t.property_id === p.property_id
-      && (t.penghuni_id === p.id || t.penghuni === p.nama) && nilaiDibayar(t) === 0)
-    if (lama) return { bulan: b, jumlah: Number(lama.jumlah) || 0, id: lama.id }
     const draft = tagihanUntukKamar(p.kamar, p.property_id, b)
-    const milikDia = draft.find(d => d.penghuni_id === p.id) ?? draft[0]
-    return { bulan: b, jumlah: milikDia?.jumlah ?? 0, draft: milikDia }
+    // Tagihan kamar ini, bukan tagihan "milik" orang yang dipilih: kalau
+    // dicari per orang, roommate yang bukan penanggung tidak pernah menemukan
+    // tagihan kamarnya dan batch ini membuat tagihan kedua di bulan yang sama.
+    const milikDia = draft.find(d => d.penghuni_id === p.id)
+    const sasaranDraft = milikDia ?? draft[0]
+    const calon = tagihan.items.filter(t =>
+      t.bulan === b && t.property_id === p.property_id && t.kamar === p.kamar
+      && (t.penghuni_id === p.id || t.penghuni === p.nama
+        || (sasaranDraft != null && cocokDraft(t, sasaranDraft))))
+
+    // Dites lewat nilaiDibayar(), bukan status === 'lunas': tagihan berstatus
+    // 'kurang' juga sudah menyimpan uang sungguhan dan tidak boleh ditimpa.
+    const berbayar = calon.find(t => nilaiDibayar(t) > 0)
+    const lama = calon.find(t => nilaiDibayar(t) === 0)
+    if (lama) {
+      return {
+        bulan: b, jumlah: Number(lama.jumlah) || 0, atasNama: lama.penghuni,
+        bentrok: !!berbayar, id: lama.id,
+      }
+    }
+    return {
+      bulan: b,
+      jumlah: sasaranDraft?.jumlah ?? 0,
+      atasNama: sasaranDraft?.penghuni ?? p.nama,
+      bentrok: !!berbayar,
+      draft: sasaranDraft,
+    }
   })
   const setelahDiskon = bagiDiskon(dasar.map(x => x.jumlah), diskon.value)
   return dasar.map((x, i) => ({ ...x, jumlah: setelahDiskon[i] }))
 })
+
+/** Bulan yang tagihannya sudah kemasukan uang — tidak boleh ikut, nanti dobel bayar. */
+const bentrok = computed(() => baris.value.filter(x => x.bentrok).map(x => x.bulan))
 
 /** Bulan yang jumlahnya jadi negatif setelah diskon dibagi — diskon kelewat besar. */
 const barisNegatif = computed(() => baris.value.filter(x => x.jumlah < 0).map(x => x.bulan))
@@ -178,7 +199,12 @@ async function simpan() {
             <thead><tr><th>Bulan</th><th>Jumlah</th></tr></thead>
             <tbody>
               <tr v-for="b in baris" :key="b.bulan">
-                <td>{{ b.bulan }}</td>
+                <td>
+                  {{ b.bulan }}
+                  <div v-if="terpilih && b.atasNama !== terpilih.nama" style="font-size:11px;color:var(--text3)">
+                    tagihan kamar ini atas nama {{ b.atasNama }}
+                  </div>
+                </td>
                 <td :style="b.jumlah < 0 ? { color: 'var(--red)', fontWeight: 700 } : {}">{{ fmt(b.jumlah) }}</td>
               </tr>
             </tbody>
