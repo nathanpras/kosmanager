@@ -43,7 +43,13 @@ export function nomorInvoiceBerikutnya(nomorTerpakai: (string | undefined)[], tg
   return `INV/RK/${tahun}/${bulan}/${String(tertinggi + 1).padStart(4, '0')}`
 }
 
-/** "2026-03-01" + "2026-03-10" -> "1–10 Mar 2026". */
+/**
+ * "2026-03-01" + "2026-03-10" -> "1–10 Mar 2026".
+ *
+ * `dari` dan `sampai` selalu berada di dalam satu bulan kalender karena
+ * rentangHuni() menjepitnya ke bulan yang sedang ditagih, jadi label bulannya
+ * boleh diambil dari ujung mana pun.
+ */
 function rentangTeks(dari: string, sampai: string): string {
   const d1 = parseInt(dari.slice(8, 10), 10)
   const d2 = parseInt(sampai.slice(8, 10), 10)

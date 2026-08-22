@@ -63,7 +63,11 @@ async function tetapkanNomor() {
 let rantai: Promise<void> = Promise.resolve()
 watch([() => props.open, () => props.tagihanIds], () => {
   if (!props.open) return
-  rantai = rantai.then(() => tetapkanNomor()).catch(() => {})
+  // Ditelan supaya satu penulisan gagal tidak menghentikan penomoran batch
+  // berikutnya — rantai yang ter-reject akan menolak semua .then() sesudahnya.
+  // Tetap dicatat ke console: gagal diam-diam artinya invoice tanpa nomor tanpa
+  // sebab yang bisa ditelusuri.
+  rantai = rantai.then(() => tetapkanNomor()).catch(e => console.error('Gagal menetapkan nomor invoice', e))
 })
 
 function cetak() {
@@ -315,5 +319,11 @@ function cetak() {
   body.printing-invoice .invoice-print {
     position: absolute; left: 0; top: 0; width: 100%;
   }
+  /* visibility:hidden menyembunyikan elemen tapi tetap memakan ruang, jadi
+     daftar Tagihan yang panjang di belakang modal masih menghasilkan
+     halaman-halaman kosong di ekor cetakan. #app dijepit habis supaya tidak
+     menyisakan tinggi; .invoice-print lolos dari jepitan itu karena
+     position:absolute dan #app bukan leluhur yang diposisikan. */
+  body.printing-invoice #app { height: 0; overflow: hidden; }
 }
 </style>

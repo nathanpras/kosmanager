@@ -22,14 +22,14 @@ afterEach(() => vi.useRealTimers())
 describe('useOccupancy', () => {
   it('counts occupants of a room', () => {
     usePenghuniStore().items = [huni({ id: 'a' }), huni({ id: 'b' })]
-    expect(useOccupancy().jumlahPenghuni('101', 'p1')).toBe(2)
+    expect(useOccupancy().penghuniDiKamar('101', 'p1').length).toBe(2)
   })
 
   it('keeps rooms with the same number in different properties separate', () => {
     usePenghuniStore().items = [huni({ id: 'a' }), huni({ id: 'b', property_id: 'p2' })]
-    const { jumlahPenghuni } = useOccupancy()
-    expect(jumlahPenghuni('101', 'p1')).toBe(1)
-    expect(jumlahPenghuni('101', 'p2')).toBe(1)
+    const { penghuniDiKamar } = useOccupancy()
+    expect(penghuniDiKamar('101', 'p1').length).toBe(1)
+    expect(penghuniDiKamar('101', 'p2').length).toBe(1)
   })
 
   it('excludes occupants whose contract has ended', () => {
@@ -37,12 +37,12 @@ describe('useOccupancy', () => {
       huni({ id: 'a' }),
       huni({ id: 'b', kontrak_selesai: '2026-06-30' }),   // sudah lewat
     ]
-    expect(useOccupancy().jumlahPenghuni('101', 'p1')).toBe(1)
+    expect(useOccupancy().penghuniDiKamar('101', 'p1').length).toBe(1)
   })
 
   it('still counts a contract that ends in the future', () => {
     usePenghuniStore().items = [huni({ id: 'a', kontrak_selesai: '2026-12-31' })]
-    expect(useOccupancy().jumlahPenghuni('101', 'p1')).toBe(1)
+    expect(useOccupancy().penghuniDiKamar('101', 'p1').length).toBe(1)
   })
 
   it('orders occupants by move-in date, longest-standing first', () => {
@@ -66,7 +66,7 @@ describe('useOccupancy', () => {
 
   it('returns zero for a room nobody lives in', () => {
     usePenghuniStore().items = [huni({ id: 'a' })]
-    expect(useOccupancy().jumlahPenghuni('999', 'p1')).toBe(0)
+    expect(useOccupancy().penghuniDiKamar('999', 'p1').length).toBe(0)
   })
 })
 

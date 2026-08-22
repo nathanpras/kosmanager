@@ -61,10 +61,6 @@ export function useOccupancy() {
       .sort((a, b) => (a.masuk ?? '').localeCompare(b.masuk ?? ''))
   }
 
-  function jumlahPenghuni(nomor: string, property_id: string, per = today()): number {
-    return penghuniDiKamar(nomor, property_id, per).length
-  }
-
   /**
    * Apakah kamar masih dihuni bila penghuni `kecualiId` dikeluarkan?
    * Dipakai sebelum menandai kamar kosong, supaya roommate tidak ikut terhapus.
@@ -73,5 +69,5 @@ export function useOccupancy() {
     return penghuniDiKamar(nomor, property_id).some(p => p.id !== kecualiId)
   }
 
-  return { penghuniDiKamar, penghuniDiBulan, jumlahPenghuni, kamarMasihTerisi }
+  return { penghuniDiKamar, penghuniDiBulan, kamarMasihTerisi }
 }
