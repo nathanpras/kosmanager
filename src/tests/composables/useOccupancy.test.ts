@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useOccupancy } from '../../composables/useOccupancy'
+import { useOccupancy, tglKeluar, sudahKeluar } from '../../composables/useOccupancy'
 import { usePenghuniStore } from '../../stores/penghuni'
 import type { Penghuni } from '../../types'
 
@@ -67,5 +67,52 @@ describe('useOccupancy', () => {
   it('returns zero for a room nobody lives in', () => {
     usePenghuniStore().items = [huni({ id: 'a' })]
     expect(useOccupancy().jumlahPenghuni('999', 'p1')).toBe(0)
+  })
+})
+
+describe('tgl_keluar', () => {
+  it('membaca kontrak_selesai milik data lama', () => {
+    expect(tglKeluar({ ...huni({ id: 'a' }), kontrak_selesai: '2026-03-10' })).toBe('2026-03-10')
+  })
+
+  it('mendahulukan tgl_keluar bila keduanya ada', () => {
+    expect(tglKeluar({ ...huni({ id: 'a' }), kontrak_selesai: '2026-03-10', tgl_keluar: '2026-04-01' }))
+      .toBe('2026-04-01')
+  })
+
+  it('menandai penghuni yang tanggal keluarnya sudah lewat', () => {
+    expect(sudahKeluar(huni({ id: 'a', tgl_keluar: '2026-06-30' }))).toBe(true)
+    expect(sudahKeluar(huni({ id: 'b', tgl_keluar: '2026-12-31' }))).toBe(false)
+    expect(sudahKeluar(huni({ id: 'c' }))).toBe(false)
+  })
+})
+
+describe('penghuniDiBulan', () => {
+  it('menyertakan penghuni yang sudah keluar di bulan itu', () => {
+    usePenghuniStore().items = [huni({ id: 'a', tgl_keluar: '2026-03-10' })]
+    expect(useOccupancy().penghuniDiBulan('101', 'p1', 'Maret 2026').map(p => p.id)).toEqual(['a'])
+  })
+
+  it('membuang penghuni yang keluar sebelum bulan itu', () => {
+    usePenghuniStore().items = [huni({ id: 'a', tgl_keluar: '2026-02-28' })]
+    expect(useOccupancy().penghuniDiBulan('101', 'p1', 'Maret 2026')).toEqual([])
+  })
+
+  it('membuang penghuni yang baru masuk setelah bulan itu', () => {
+    usePenghuniStore().items = [huni({ id: 'a', masuk: '2026-05-01' })]
+    expect(useOccupancy().penghuniDiBulan('101', 'p1', 'Maret 2026')).toEqual([])
+  })
+
+  it('mengumpulkan yang keluar dan yang masuk di bulan yang sama', () => {
+    usePenghuniStore().items = [
+      huni({ id: 'b', masuk: '2026-03-15' }),
+      huni({ id: 'a', masuk: '2026-01-01', tgl_keluar: '2026-03-10' }),
+    ]
+    expect(useOccupancy().penghuniDiBulan('101', 'p1', 'Maret 2026').map(p => p.id)).toEqual(['a', 'b'])
+  })
+
+  it('tidak mencampur kamar bernomor sama dari properti lain', () => {
+    usePenghuniStore().items = [huni({ id: 'a' }), huni({ id: 'b', property_id: 'p2' })]
+    expect(useOccupancy().penghuniDiBulan('101', 'p1', 'Maret 2026').map(p => p.id)).toEqual(['a'])
   })
 })

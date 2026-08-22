@@ -21,7 +21,10 @@ export interface Penghuni {
   kamar: string
   hp: string
   masuk: string
+  /** @deprecated Dipakai data lama. Baca lewat tglKeluar(), tulis ke tgl_keluar. */
   kontrak_selesai?: string
+  /** Tanggal penghuni keluar, inklusif. Diisi saat orangnya pamit — kos ini tidak berkontrak. */
+  tgl_keluar?: string
   property_id: string
   ktp?: string
   pekerjaan?: string
