@@ -12,6 +12,7 @@ import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupanc
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { fmtTgl, fmt }        from '../utils/format'
 import { today, bulanFromTgl, bulanKey } from '../utils/date'
+import { nilaiDibayar }       from '../utils/saldo'
 import type { Penghuni }      from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
@@ -202,8 +203,9 @@ function askKeluar(p: Penghuni) {
 async function doKeluar() {
   const p = keluarTarget.value
   if (!p) return
-  showKeluar.value = false
   const tgl = keluarTgl.value
+  if (!tgl) { toast('Tanggal keluar wajib diisi', 'error'); return }
+  showKeluar.value = false
   const bulanKeluar = bulanFromTgl(tgl)
   try {
     await penghuni.update(p.id, { tgl_keluar: tgl })
@@ -215,16 +217,20 @@ async function doKeluar() {
       if (k) await kamar.update(k.id, { status: 'kosong' })
     }
 
-    // Hitung ulang bulan keluar, tapi JANGAN sentuh yang sudah lunas — nominal
-    // tagihan lunas dipakai saldo yang sudah dicocokkan dengan mutasi bank.
+    // Hitung ulang bulan keluar, tapi JANGAN sentuh tagihan yang sudah kemasukan
+    // uang (lunas maupun kurang/dicicil) — nominalnya dipakai saldo yang sudah
+    // dicocokkan dengan mutasi bank.
     if (bulanKeluar) {
       const draft = tagihanUntukKamar(p.kamar, p.property_id, bulanKeluar)
       const milikDia = draft.find(d => d.penghuni_id === p.id)
       const t = tagihan.items.find(x => x.bulan === bulanKeluar && x.property_id === p.property_id
         && (x.penghuni_id === p.id || x.penghuni === p.nama))
       if (t && milikDia) {
-        if (t.status === 'lunas') {
-          const lebih = (Number(t.jumlah_bayar) || Number(t.jumlah) || 0) - milikDia.jumlah
+        // nilaiDibayar(), bukan status === 'lunas': tagihan 'kurang' juga sudah
+        // menyimpan uang sungguhan (jumlah_bayar) dan tidak boleh ditimpa/dihapus.
+        const dibayar = nilaiDibayar(t)
+        if (dibayar > 0) {
+          const lebih = dibayar - milikDia.jumlah
           if (lebih > 0) await tagihan.update(t.id, { kelebihan: lebih })
         } else {
           await tagihan.update(t.id, {
@@ -237,9 +243,10 @@ async function doKeluar() {
       }
     }
 
-    // Bulan setelah keluar: yang belum lunas dihapus, yang sudah lunas ditandai
-    // hangus. Dokumen lunas TIDAK dihapus — uangnya sudah masuk rekening, dan
-    // menghapusnya membuat saldo turun sendiri tanpa ada uang yang keluar.
+    // Bulan setelah keluar: yang belum kemasukan uang dihapus, yang sudah
+    // (lunas atau baru dicicil sebagian) ditandai hangus, bukan dihapus —
+    // uangnya sudah masuk rekening, dan menghapusnya membuat saldo turun
+    // sendiri tanpa ada uang yang keluar.
     const batas = bulanKeluar ? bulanKey(bulanKeluar) : ''
     const sesudah = tagihan.items.filter(t =>
       t.property_id === p.property_id
@@ -247,7 +254,8 @@ async function doKeluar() {
       && bulanKey(t.bulan) > batas)
     let hangus = 0
     for (const t of sesudah) {
-      if (t.status === 'lunas') { await tagihan.update(t.id, { hangus: true }); hangus += Number(t.jumlah_bayar) || Number(t.jumlah) || 0 }
+      const dibayar = nilaiDibayar(t)
+      if (dibayar > 0) { await tagihan.update(t.id, { hangus: true }); hangus += dibayar }
       else await tagihan.remove(t.id)
     }
 
@@ -454,7 +462,7 @@ function openWA(p: Penghuni) {
         </div>
         <div class="modal-foot">
           <button class="btn btn-ghost" @click="showKeluar = false">Batal</button>
-          <button class="btn btn-primary" @click="doKeluar">Keluarkan</button>
+          <button class="btn btn-primary" :disabled="!keluarTgl" @click="doKeluar">Keluarkan</button>
         </div>
       </div>
     </div>
