@@ -82,25 +82,27 @@ async function autoGenerateNextMonth() {
   const nextIdx   = (d.getMonth() + 1) % 12
   const nextYear  = nextIdx === 0 ? d.getFullYear() + 1 : d.getFullYear()
   const nextBulan = `${MONTHS_FULL[nextIdx]} ${nextYear}`
-  const firstOfNext  = new Date(nextYear, nextIdx, 1).toISOString().split('T')[0]
-  const existing  = new Set(tagihan.items.filter(t => t.bulan === nextBulan).map(t => `${t.kamar}|${t.property_id}`))
-  const toCreate  = penghuni.items.filter(p =>
-    (!p.kontrak_selesai || p.kontrak_selesai >= firstOfNext) && !existing.has(`${p.kamar}|${p.property_id}`)
+
+  // Kunci per penghuni, bukan per kamar: satu kamar bisa menghasilkan dua
+  // tagihan di bulan pergantian.
+  const kunci = (t: { penghuni_id?: string; penghuni: string; kamar: string; property_id: string }) =>
+    `${t.penghuni_id || t.penghuni}|${t.kamar}|${t.property_id}`
+  const existing = new Set(
+    tagihan.items.filter(t => t.bulan === nextBulan).map(kunci),
   )
-  // Satu tagihan per kamar, bukan per orang: tarif melekat pada kamar dan
-  // penghuni kedua menambah nominal, bukan menambah tagihan.
-  const sudahDibuat = new Set<string>()
-  for (const p of toCreate) {
-    const key = `${p.kamar}|${p.property_id}`
-    if (sudahDibuat.has(key)) continue
-    sudahDibuat.add(key)
-    await tagihan.add({
-      // prorata aman dinyalakan: hitungTagihan hanya memotong bila tanggal masuk
-      // memang jatuh di bulan itu, jadi penghuni yang didaftarkan lebih awal
-      // untuk bulan depan tetap ditagih pro rata.
-      ...tagihanUntukKamar(p.kamar, p.property_id, nextBulan, { prorata: true }),
-      status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString(),
-    })
+
+  const kamarBulanDepan = new Set(
+    penghuni.items.map(p => `${p.kamar}|${p.property_id}`),
+  )
+  for (const key of kamarBulanDepan) {
+    const [nomor, property_id] = key.split('|')
+    for (const draft of tagihanUntukKamar(nomor, property_id, nextBulan)) {
+      if (existing.has(kunci({ ...draft, property_id }))) continue
+      await tagihan.add({
+        ...draft,
+        status: 'belum', property_id, createdAt: new Date().toISOString(),
+      })
+    }
   }
 }
 

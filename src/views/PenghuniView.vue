@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { usePenghuniStore }   from '../stores/penghuni'
 import { useKamarStore }      from '../stores/kamar'
 import { useTagihanStore }    from '../stores/tagihan'
@@ -8,7 +8,7 @@ import { useAppStore }        from '../stores/app'
 import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
-import { useOccupancy }       from '../composables/useOccupancy'
+import { useOccupancy, tglKeluar } from '../composables/useOccupancy'
 import { useTagihanCalc }     from '../composables/useTagihanCalc'
 import { fmtTgl }             from '../utils/format'
 import { today, bulanFromTgl } from '../utils/date'
@@ -49,11 +49,9 @@ function getInitials(name: string) {
 function avatarBg(idx: number) { return AVATAR_COLORS[idx % AVATAR_COLORS.length] }
 
 function statusPenghuni(p: Penghuni) {
-  if (!p.kontrak_selesai) return { cls: 'bg', label: 'Aktif' }
-  const days = Math.ceil((new Date(p.kontrak_selesai).getTime() - Date.now()) / 86400000)
-  if (days < 0) return { cls: 'br', label: 'Kontrak Habis' }
-  if (days <= 30) return { cls: 'ba', label: `Habis ${days}h` }
-  return { cls: 'bg', label: 'Aktif' }
+  const keluar = tglKeluar(p)
+  if (!keluar) return { cls: 'bg', label: 'Aktif' }
+  return { cls: 'br', label: `Keluar ${fmtTgl(keluar)}` }
 }
 
 /**
@@ -81,29 +79,24 @@ function findKamar(nomor: string, property_id: string) {
 async function buatTagihanBulanMasuk(p: Penghuni) {
   const bln = bulanFromTgl(p.masuk)
   if (!bln) return
-  const sudahAda = tagihan.items.some(
-    t => t.kamar === p.kamar && t.property_id === p.property_id && t.bulan === bln,
+  const kunci = (t: { penghuni_id?: string; penghuni: string; kamar: string }) =>
+    `${t.penghuni_id || t.penghuni}|${t.kamar}`
+  const existing = new Set(
+    tagihan.items.filter(t => t.bulan === bln && t.property_id === p.property_id).map(kunci),
   )
-  if (sudahAda) return
-  await tagihan.add({
-    ...tagihanUntukKamar(p.kamar, p.property_id, bln, { prorata: true }),
-    status: 'belum', property_id: p.property_id, createdAt: new Date().toISOString(),
-  })
+  for (const draft of tagihanUntukKamar(p.kamar, p.property_id, bln)) {
+    if (existing.has(kunci(draft))) continue
+    await tagihan.add({
+      ...draft, status: 'belum', property_id: p.property_id,
+      createdAt: new Date().toISOString(),
+    })
+  }
 }
 
 const showModal  = ref(false)
 const editId     = ref<string | null>(null)
 const form       = ref<Partial<Penghuni>>({})
 const modalTitle = computed(() => editId.value ? 'Edit Penghuni' : 'Tambah Penghuni')
-
-// Auto-suggest kontrak_selesai = masuk + 12 months when masuk changes
-watch(() => form.value.masuk, (newMasuk) => {
-  if (newMasuk && !form.value.kontrak_selesai) {
-    const d = new Date(newMasuk)
-    d.setFullYear(d.getFullYear() + 1)
-    form.value.kontrak_selesai = d.toISOString().split('T')[0]
-  }
-})
 
 function openAdd() {
   if (app.currentPropertyId === 'all' && properties.items.length === 0) {
@@ -113,7 +106,13 @@ function openAdd() {
   form.value = { masuk: today(), property_id: app.currentPropertyId === 'all' ? (properties.items[0]?.id ?? '') : app.currentPropertyId }
   showModal.value = true
 }
-function openEdit(p: Penghuni) { editId.value = p.id; form.value = { ...p }; showModal.value = true }
+function openEdit(p: Penghuni) {
+  editId.value = p.id
+  // Dokumen lama menyimpan tanggal keluar di kontrak_selesai — baca lewat
+  // tglKeluar() supaya field di form tetap terisi.
+  form.value = { ...p, tgl_keluar: tglKeluar(p) }
+  showModal.value = true
+}
 
 async function save() {
   if (!form.value.nama || !form.value.kamar || !form.value.hp) { toast('Nama, kamar, dan no HP wajib diisi', 'error'); return }
@@ -182,7 +181,7 @@ function openWA(p: Penghuni) {
     <div class="card table-wrap">
       <table>
         <thead>
-          <tr><th></th><th>Nama</th><th>Kamar</th><th>No HP</th><th>Masuk</th><th>Kontrak s/d</th><th>Status</th><th>Aksi</th></tr>
+          <tr><th></th><th>Nama</th><th>Kamar</th><th>No HP</th><th>Masuk</th><th>Keluar</th><th>Status</th><th>Aksi</th></tr>
         </thead>
         <tbody>
           <tr v-if="filtered.length === 0">
@@ -196,7 +195,7 @@ function openWA(p: Penghuni) {
             <td><span class="badge bg" style="font-size:11px">{{ p.kamar }}</span></td>
             <td style="color:var(--text2)">{{ p.hp }}</td>
             <td style="color:var(--text2)">{{ fmtTgl(p.masuk) }}</td>
-            <td style="color:var(--text2)">{{ fmtTgl(p.kontrak_selesai ?? '') }}</td>
+            <td style="color:var(--text2)">{{ fmtTgl(tglKeluar(p) ?? '') }}</td>
             <td><span class="badge" :class="statusPenghuni(p).cls">{{ statusPenghuni(p).label }}</span></td>
             <td>
               <div style="display:flex;gap:4px">
@@ -229,7 +228,7 @@ function openWA(p: Penghuni) {
         <div class="mc-rows" style="margin-top:10px">
           <div class="mc-row"><span class="mc-label">No HP</span><span class="mc-val">{{ p.hp }}</span></div>
           <div class="mc-row"><span class="mc-label">Masuk</span><span class="mc-val">{{ fmtTgl(p.masuk) }}</span></div>
-          <div v-if="p.kontrak_selesai" class="mc-row"><span class="mc-label">Kontrak s/d</span><span class="mc-val">{{ fmtTgl(p.kontrak_selesai) }}</span></div>
+          <div v-if="tglKeluar(p)" class="mc-row"><span class="mc-label">Keluar</span><span class="mc-val">{{ fmtTgl(tglKeluar(p) ?? '') }}</span></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="action-btn wa" style="flex:1;justify-content:center" @click="openWA(p)">💬 WA</button>
@@ -255,7 +254,7 @@ function openWA(p: Penghuni) {
             </div>
             <div class="fg"><label>No HP / WA</label><input v-model="form.hp" placeholder="08xxxxxxxxxx" /></div>
             <div class="fg"><label>Tanggal Masuk</label><input v-model="form.masuk" type="date" /></div>
-            <div class="fg"><label>Kontrak Selesai</label><input v-model="form.kontrak_selesai" type="date" /></div>
+            <div class="fg"><label>Tanggal Keluar</label><input v-model="form.tgl_keluar" type="date" /></div>
             <div class="fg"><label>Jenis Kelamin</label>
               <select v-model="form.jenis_kelamin"><option value="">—</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
             </div>

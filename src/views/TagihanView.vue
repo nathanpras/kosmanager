@@ -11,6 +11,7 @@ import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useWAReminder, DEFAULT_TEMPLATE, isValidPhone } from '../composables/useWAReminder'
 import { useTagihanCalc }      from '../composables/useTagihanCalc'
+import type { DraftTagihan }   from '../composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
@@ -126,12 +127,15 @@ function onPenghuniChange() {
   const p = penghuni.items.find(x => x.nama === addForm.value.penghuni)
   if (!p) return
   addForm.value.kamar = p.kamar
-  // Lewat tagihanUntukKamar supaya tambahan penghuni kedua ikut terhitung, dan
-  // kamar dicari dengan property_id — pencarian lama bisa mengambil kamar
-  // bernomor sama milik properti lain.
-  const hasil = tagihanUntukKamar(p.kamar, p.property_id, addForm.value.bulan ?? bulanIni())
-  addForm.value.jumlah = hasil.jumlah
-  addForm.value.jatuh_tempo = hasil.jatuh_tempo
+  const bulan = addForm.value.bulan ?? bulanIni()
+  const draft = tagihanUntukKamar(p.kamar, p.property_id, bulan)
+  // Ambil bagian milik orang yang dipilih; kalau tagihannya digabung, yang
+  // muncul adalah satu draft atas nama penanggung.
+  const milikDia = draft.find(d => d.penghuni_id === p.id) ?? draft[0]
+  if (!milikDia) return
+  addForm.value.jumlah = milikDia.jumlah
+  addForm.value.jatuh_tempo = milikDia.jatuh_tempo
+  addForm.value.penghuni_id = milikDia.penghuni_id
 }
 async function saveAdd() {
   if (!addForm.value.penghuni || !addForm.value.jumlah) { toast('Penghuni dan jumlah wajib diisi', 'error'); return }
@@ -154,21 +158,22 @@ async function saveAdd() {
 const confirmGen = ref(false)
 const genPreview = computed(() => {
   const bulan = activeBulan.value
-  const [mName, yStr] = bulan.split(' ')
-  const mIdx = MONTHS_FULL.indexOf(mName)
-  const firstOfMonth = mIdx >= 0 ? new Date(parseInt(yStr), mIdx, 1).toISOString().split('T')[0] : ''
-  const existing = new Set(tagihan.items.filter(t => t.bulan === bulan).map(t => `${t.kamar}|${t.property_id}`))
-  const aktif = filterByProperty(penghuni.items).filter(p =>
-    (!p.kontrak_selesai || p.kontrak_selesai >= firstOfMonth) && !existing.has(`${p.kamar}|${p.property_id}`)
+  const kunci = (t: { penghuni_id?: string; penghuni: string; kamar: string; property_id: string }) =>
+    `${t.penghuni_id || t.penghuni}|${t.kamar}|${t.property_id}`
+  const existing = new Set(tagihan.items.filter(t => t.bulan === bulan).map(kunci))
+
+  const kamarAktif = new Set(
+    filterByProperty(penghuni.items).map(p => `${p.kamar}|${p.property_id}`),
   )
-  // Satu tagihan per KAMAR, bukan per orang. Dua penghuni sekamar menaikkan
-  // nominal lewat tambahan penghuni, bukan menghasilkan dua tagihan terpisah.
-  const perKamar = new Map<string, typeof aktif[number]>()
-  for (const p of aktif) {
-    const key = `${p.kamar}|${p.property_id}`
-    if (!perKamar.has(key)) perKamar.set(key, p)
+  const hasil: (DraftTagihan & { property_id: string })[] = []
+  for (const key of kamarAktif) {
+    const [nomor, property_id] = key.split('|')
+    for (const draft of tagihanUntukKamar(nomor, property_id, bulan)) {
+      if (existing.has(kunci({ ...draft, property_id }))) continue
+      hasil.push({ ...draft, property_id })
+    }
   }
-  return [...perKamar.values()]
+  return hasil
 })
 function askGenerate() {
   if (genPreview.value.length === 0) { toast(`Semua penghuni sudah punya tagihan ${activeBulan.value}`); return }
@@ -180,14 +185,9 @@ async function doGenerate() {
   const toCreate = genPreview.value
   let created = 0
   try {
-    for (const p of toCreate) {
-      // Lewat tagihanUntukKamar, sama seperti autoGenerateNextMonth — kalau
-      // dihitung terpisah di sini, tambahan penghuni dan prorata akan terlewat
-      // dan ada dua rumus tagihan yang berbeda di dalam satu aplikasi.
+    for (const draft of toCreate) {
       await tagihan.add({
-        ...tagihanUntukKamar(p.kamar, p.property_id, bulan, { prorata: true }),
-        status: 'belum', property_id: p.property_id,
-        createdAt: new Date().toISOString(),
+        ...draft, status: 'belum', createdAt: new Date().toISOString(),
       })
       created++
     }
