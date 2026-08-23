@@ -7,6 +7,7 @@ import { useTagihanCalc, kunciTagihan } from './useTagihanCalc'
 import type { DraftTagihan } from './useTagihanCalc'
 import { nilaiDibayar } from '../utils/saldo'
 import { bulanFromTgl, bulanKey } from '../utils/date'
+import { kamarDiBulan } from '../utils/riwayatKamar'
 import { fmt, fmtTgl } from '../utils/format'
 import type { Penghuni, Tagihan } from '../types'
 
@@ -108,12 +109,18 @@ export function useKeluarPenghuni() {
   const { kamarMasihTerisi } = useOccupancy()
   const { tagihanUntukKamar } = useTagihanCalc()
 
-  /** Bulan keluar, ditambah tiap bulan sesudahnya yang kamarnya sudah punya tagihan. */
+  /**
+   * Bulan keluar, ditambah tiap bulan sesudahnya yang kamarnya sudah punya tagihan.
+   *
+   * Kamar dibandingkan per bulan: penghuni yang pernah pindah punya kamar
+   * berbeda di bulan yang berbeda, dan memakai `p.kamar` untuk semuanya membuat
+   * bulan-bulan di kamar lama luput dari rekonsiliasi.
+   */
   function bulanDirapikan(p: Penghuni, bulanKeluar: string): string[] {
     const batas = bulanKey(bulanKeluar)
     const set = new Set<string>([bulanKeluar])
     for (const t of tagihan.items) {
-      if (t.property_id !== p.property_id || t.kamar !== p.kamar) continue
+      if (t.property_id !== p.property_id || t.kamar !== kamarDiBulan(p, t.bulan)) continue
       if (bulanKey(t.bulan) > batas) set.add(t.bulan)
     }
     return [...set].sort((a, b) => bulanKey(a).localeCompare(bulanKey(b)))
@@ -134,11 +141,12 @@ export function useKeluarPenghuni() {
     if (bulanKeluar) {
       const batas = bulanKey(bulanKeluar)
       for (const bulan of bulanDirapikan(p, bulanKeluar)) {
+        const nomor = kamarDiBulan(p, bulan)
         const existing = tagihan.items.filter(t =>
-          t.bulan === bulan && t.kamar === p.kamar && t.property_id === p.property_id)
+          t.bulan === bulan && t.kamar === nomor && t.property_id === p.property_id)
         const rencana = reconcileTagihanKamar({
           existing,
-          draft: tagihanUntukKamar(p.kamar, p.property_id, bulan),
+          draft: tagihanUntukKamar(nomor, p.property_id, bulan),
           setelahKeluar: bulanKey(bulan) > batas,
         })
         for (const u of rencana.perbarui) {

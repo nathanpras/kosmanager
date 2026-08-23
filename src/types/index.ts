@@ -1,3 +1,5 @@
+import type { EntriKamar } from '../utils/riwayatKamar'
+
 export interface Kamar {
   id: string
   nomor: string
@@ -26,6 +28,12 @@ export interface Penghuni {
   /** Tanggal penghuni keluar, inklusif. Diisi saat orangnya pamit — kos ini tidak berkontrak. */
   tgl_keluar?: string
   property_id: string
+  /**
+   * Jejak pindah kamar, terurut naik. Kosong berarti belum pernah pindah dan
+   * `kamar` berlaku untuk seluruh masa huni — dibaca lewat kamarPada() /
+   * kamarDiBulan() di utils/riwayatKamar.ts, jangan dibaca langsung.
+   */
+  riwayat_kamar?: EntriKamar[]
   ktp?: string
   pekerjaan?: string
   asal?: string

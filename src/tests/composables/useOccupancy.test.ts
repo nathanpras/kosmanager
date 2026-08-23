@@ -116,3 +116,49 @@ describe('penghuniDiBulan', () => {
     expect(useOccupancy().penghuniDiBulan('101', 'p1', 'Maret 2026').map(p => p.id)).toEqual(['a'])
   })
 })
+
+// Pindah kamar: bulan berjalan tetap dihitung di kamar lama, kamar baru mulai
+// tanggal 1 bulan berikutnya. Tanpa ini, mengganti `kamar` membuat penghuni
+// seolah-olah selalu tinggal di kamar baru — termasuk untuk bulan lampau.
+describe('penghuniDiBulan setelah pindah kamar', () => {
+  const pindah = huni({
+    id: 'a', kamar: '201', masuk: '2026-01-10',
+    riwayat_kamar: [
+      { kamar: '105', sejak: '2026-01-10' },
+      { kamar: '201', sejak: '2026-09-01' },
+    ],
+  })
+
+  it('bulan pindahan masih terhitung di kamar lama', () => {
+    usePenghuniStore().items = [pindah]
+    const { penghuniDiBulan } = useOccupancy()
+    expect(penghuniDiBulan('105', 'p1', 'Agustus 2026').map(p => p.id)).toEqual(['a'])
+    expect(penghuniDiBulan('201', 'p1', 'Agustus 2026')).toEqual([])
+  })
+
+  it('bulan berikutnya terhitung di kamar baru', () => {
+    usePenghuniStore().items = [pindah]
+    const { penghuniDiBulan } = useOccupancy()
+    expect(penghuniDiBulan('201', 'p1', 'September 2026').map(p => p.id)).toEqual(['a'])
+    expect(penghuniDiBulan('105', 'p1', 'September 2026')).toEqual([])
+  })
+
+  it('bulan lampau tidak ikut berpindah', () => {
+    usePenghuniStore().items = [pindah]
+    expect(useOccupancy().penghuniDiBulan('105', 'p1', 'Maret 2026').map(p => p.id)).toEqual(['a'])
+  })
+
+  it('roommate di kamar lama tetap menemukan si pindahan di bulan berjalan', () => {
+    // Inilah kasus yang bisa menghapus tagihan: saat roommate dikeluarkan,
+    // tagihan kamar lama direkonsiliasi. Kalau si pindahan hilang dari kamar
+    // lama, tagihannya tidak punya draft pasangan dan ikut terhapus.
+    usePenghuniStore().items = [pindah, huni({ id: 'b', kamar: '105', masuk: '2026-02-01' })]
+    expect(useOccupancy().penghuniDiBulan('105', 'p1', 'Agustus 2026').map(p => p.id))
+      .toEqual(['a', 'b'])
+  })
+
+  it('penghuni tanpa riwayat berperilaku persis seperti sebelumnya', () => {
+    usePenghuniStore().items = [huni({ id: 'c', kamar: '301' })]
+    expect(useOccupancy().penghuniDiBulan('301', 'p1', 'Agustus 2026').map(p => p.id)).toEqual(['c'])
+  })
+})

@@ -6,6 +6,7 @@ import { usePropertiesStore } from '../../stores/properties'
 import { useAppStore } from '../../stores/app'
 import { useLogStore } from '../../stores/log'
 import { useTagihanCalc, kunciTagihan } from '../../composables/useTagihanCalc'
+import { kamarDiBulan } from '../../utils/riwayatKamar'
 import type { DraftTagihan } from '../../composables/useTagihanCalc'
 import type { Tagihan } from '../../types'
 import { useProperty } from '../../composables/useProperty'
@@ -114,14 +115,17 @@ const baris = computed<BarisBatch[]>(() => {
   if (!p) return []
   const bulan = bulanBerurutan(bulanMulai.value, jumlahBulan.value)
   const dasar: BarisBatch[] = bulan.map(b => {
-    const draft = tagihanUntukKamar(p.kamar, p.property_id, b)
+    // Kamar diambil per bulan: kalau penghuni sudah menjadwalkan pindah, bulan
+    // sebelum pindahan tetap ditagihkan ke kamar lama.
+    const nomor = kamarDiBulan(p, b)
+    const draft = tagihanUntukKamar(nomor, p.property_id, b)
     // Tagihan kamar ini, bukan tagihan "milik" orang yang dipilih: kalau
     // dicari per orang, roommate yang bukan penanggung tidak pernah menemukan
     // tagihan kamarnya dan batch ini membuat tagihan kedua di bulan yang sama.
     const milikDia = draft.find(d => d.penghuni_id === p.id)
     const sasaranDraft = milikDia ?? draft[0]
     const calon = tagihan.items.filter(t =>
-      t.bulan === b && t.property_id === p.property_id && t.kamar === p.kamar
+      t.bulan === b && t.property_id === p.property_id && t.kamar === nomor
       && (t.penghuni_id === p.id || t.penghuni === p.nama
         || (sasaranDraft != null && cocokDraft(t, sasaranDraft))))
 

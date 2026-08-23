@@ -13,6 +13,7 @@ import { useSettingsStore }    from './stores/settings'
 import { useLogStore }         from './stores/log'
 import { useViewportInsets }   from './composables/useViewportInsets'
 import { useTagihanCalc, kunciTagihan } from './composables/useTagihanCalc'
+import { kamarDiBulan } from './utils/riwayatKamar'
 import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
 import { useBiometrik }        from './composables/useBiometrik'
 import { useSinkronPublik }    from './composables/useSinkronPublik'
@@ -90,8 +91,10 @@ async function autoGenerateNextMonth() {
     for (const k of kunciTagihan(t)) existing.add(k)
   }
 
+  // Kamar bulan depan, bukan kamar hari ini: pindahan berlaku tanggal 1, jadi
+  // tagihan yang digenerate di sini harus sudah memakai kamar barunya.
   const kamarBulanDepan = new Set(
-    penghuni.items.map(p => `${p.kamar}|${p.property_id}`),
+    penghuni.items.map(p => `${kamarDiBulan(p, nextBulan)}|${p.property_id}`),
   )
   for (const key of kamarBulanDepan) {
     const [nomor, property_id] = key.split('|')

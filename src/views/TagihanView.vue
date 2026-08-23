@@ -11,6 +11,7 @@ import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useWAReminder, DEFAULT_TEMPLATE, isValidPhone } from '../composables/useWAReminder'
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
+import { kamarDiBulan } from '../utils/riwayatKamar'
 import type { DraftTagihan }   from '../composables/useTagihanCalc'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
@@ -146,9 +147,12 @@ function onPenghuniChange() {
   prefillCatatan.value = ''
   const p = penghuni.items.find(x => x.nama === addForm.value.penghuni)
   if (!p) return
-  addForm.value.kamar = p.kamar
   const bulan = addForm.value.bulan ?? bulanIni()
-  const draft = tagihanUntukKamar(p.kamar, p.property_id, bulan)
+  // Kamar yang ditagihkan untuk bulan itu, bukan kamar yang ditempati sekarang:
+  // penghuni yang baru pindah masih ditagih kamar lama sampai akhir bulan.
+  const nomor = kamarDiBulan(p, bulan)
+  addForm.value.kamar = nomor
+  const draft = tagihanUntukKamar(nomor, p.property_id, bulan)
   const milikDia = draft.find(d => d.penghuni_id === p.id)
   // Selama tidak ada yang keluar di tengah bulan, satu kamar cuma punya satu
   // draft gabungan atas nama penanggung. Nominalnya tetap dipakai sebagai isian
@@ -158,7 +162,7 @@ function onPenghuniChange() {
   if (!dasar) return
   if (!milikDia) {
     prefillCatatan.value =
-      `Tagihan kamar ${p.kamar} bulan ${bulan} digabung atas nama ${dasar.penghuni} — `
+      `Tagihan kamar ${nomor} bulan ${bulan} digabung atas nama ${dasar.penghuni} — `
       + 'nominal di bawah adalah total kamar, bukan bagian orang ini.'
   }
   addForm.value.jumlah = dasar.jumlah

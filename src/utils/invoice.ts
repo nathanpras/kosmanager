@@ -86,7 +86,9 @@ export function rakitInvoice(input: {
     rekening: properti?.bank_rekening ?? '',
     an: properti?.bank_an ?? '',
     nama: penghuni?.nama ?? tagihan[0]?.penghuni ?? '',
-    kamar: penghuni?.kamar ?? tagihan[0]?.kamar ?? '',
+    // Kamar dibaca dari tagihannya, baru penghuni: invoice menagih bulan
+    // tertentu, dan penghuni yang sudah pindah kamarnya bukan lagi kamar itu.
+    kamar: tagihan[0]?.kamar ?? penghuni?.kamar ?? '',
     hpPenghuni: penghuni?.hp ?? '',
     baris,
     subtotal: total + diskon,

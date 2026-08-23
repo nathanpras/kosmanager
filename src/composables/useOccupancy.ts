@@ -1,6 +1,7 @@
 import { usePenghuniStore } from '../stores/penghuni'
 import { today } from '../utils/date'
 import { rentangHuni } from '../utils/billing'
+import { kamarDiBulan } from '../utils/riwayatKamar'
 import type { PenghuniBulan } from '../utils/billing'
 import type { Penghuni } from '../types'
 
@@ -53,10 +54,15 @@ export function useOccupancy() {
    * keluar. Inilah yang harus dipakai untuk menghitung tagihan —
    * `penghuniDiKamar` menyaring dengan tanggal hari ini, sehingga penghuni yang
    * sudah keluar hilang dari tagihan bulan lampau.
+   *
+   * Kamarnya dicari lewat kamarDiBulan(), bukan `p.kamar`: begitu seseorang
+   * pindah, field itu menunjuk kamar baru untuk **semua** bulan, termasuk yang
+   * sudah lampau — tagihan lama akan ikut berpindah kamar dan bisa terhapus
+   * saat kamar lama direkonsiliasi.
    */
   function penghuniDiBulan(nomor: string, property_id: string, bulan: string): Penghuni[] {
     return penghuni.items
-      .filter(p => p.kamar === nomor && p.property_id === property_id
+      .filter(p => kamarDiBulan(p, bulan) === nomor && p.property_id === property_id
         && rentangHuni(toPenghuniBulan(p), bulan) !== null)
       .sort((a, b) => (a.masuk ?? '').localeCompare(b.masuk ?? ''))
   }
