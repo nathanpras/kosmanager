@@ -128,8 +128,8 @@ function exportPDF() { window.print() }
     </div>
 
     <!-- Mode filter -->
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <div class="tabs-pill" style="padding:0;gap:6px">
+    <div class="mode-bar">
+      <div class="tabs-pill">
         <button class="tab-pill anim-pill" :class="{ active: laporanMode === 'bulan_ini' }" style="--i:0" @click="laporanMode = 'bulan_ini'">📅 Bulan Ini</button>
         <button class="tab-pill anim-pill" :class="{ active: laporanMode === 'all_time' }" style="--i:1" @click="laporanMode = 'all_time'">📊 All Time</button>
         <button class="tab-pill anim-pill" :class="{ active: laporanMode === 'pilih_bulan' }" style="--i:2" @click="laporanMode = 'pilih_bulan'">🗓 Pilih Bulan</button>

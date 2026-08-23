@@ -22,9 +22,22 @@ const { show: toast } = useToast()
 
 const allFiltered = computed(() => filterByProperty(pengeluaran.items))
 
-// Month filter
-const activeMonth = ref(bulanIni())
+/**
+ * Filter periode disamakan dengan Laporan: tiga pilihan tetap, dan daftar bulan
+ * baru muncul saat memang diminta. Sebelumnya di sini dideret satu pil per
+ * bulan, jadi barisnya makin panjang tiap bulan berlalu dan harus digeser-geser
+ * untuk sampai ke bulan yang dicari.
+ */
+type PeriodeMode = 'bulan_ini' | 'all_time' | 'pilih_bulan'
+const mode = ref<PeriodeMode>('bulan_ini')
+const bulanDipilih = ref(bulanIni())
 const { availableMonths } = useMonths()
+
+const activeMonth = computed(() =>
+  mode.value === 'all_time' ? 'all'
+  : mode.value === 'bulan_ini' ? bulanIni()
+  : bulanDipilih.value,
+)
 function tglMatchesBulan(tgl: string | undefined, bln: string) {
   return bulanFromTgl(tgl) === bln
 }
@@ -71,12 +84,18 @@ async function save() {
       await log.add(`Pengeluaran ${form.value.deskripsi} ${fmt(form.value.jumlah ?? 0)}`, 'red', form.value.property_id ?? '')
       toast('Pengeluaran ditambahkan', 'success')
     }
-    // Filter default ke bulan berjalan. Tanpa ini, menyimpan entri bertanggal
+    // Filter diikutkan ke bulan entri. Tanpa ini, menyimpan entri bertanggal
     // bulan lain membuatnya langsung hilang dari layar dan terbaca sebagai
-    // "tersimpan tapi tidak muncul".
+    // "tersimpan tapi tidak muncul". Mode All Time tidak diganggu — di sana
+    // entri barunya memang sudah kelihatan.
     const blnEntri = bulanFromTgl(form.value.tgl)
-    if (blnEntri && activeMonth.value !== 'all' && activeMonth.value !== blnEntri) {
-      activeMonth.value = blnEntri
+    if (blnEntri && mode.value !== 'all_time' && activeMonth.value !== blnEntri) {
+      if (blnEntri === bulanIni()) {
+        mode.value = 'bulan_ini'
+      } else {
+        bulanDipilih.value = blnEntri
+        mode.value = 'pilih_bulan'
+      }
     }
     showModal.value = false
   } catch { toast('Gagal menyimpan pengeluaran', 'error') }
@@ -102,19 +121,17 @@ async function doDelete() {
     </div>
 
     <!-- Period filter -->
-    <div class="tabs-pill" style="margin-bottom:14px">
-      <button
-        class="tab-pill"
-        :class="{ active: activeMonth === 'all' }"
-        @click="activeMonth = 'all'"
-      >📊 Semua Waktu</button>
-      <button
-        v-for="m in availableMonths"
-        :key="m"
-        class="tab-pill"
-        :class="{ active: activeMonth === m }"
-        @click="activeMonth = m"
-      >{{ m }}</button>
+    <div class="mode-bar">
+      <div class="tabs-pill">
+        <button class="tab-pill anim-pill" :class="{ active: mode === 'bulan_ini' }" style="--i:0" @click="mode = 'bulan_ini'">📅 Bulan Ini</button>
+        <button class="tab-pill anim-pill" :class="{ active: mode === 'all_time' }" style="--i:1" @click="mode = 'all_time'">📊 All Time</button>
+        <button class="tab-pill anim-pill" :class="{ active: mode === 'pilih_bulan' }" style="--i:2" @click="mode = 'pilih_bulan'">🗓 Pilih Bulan</button>
+      </div>
+      <div v-if="mode === 'pilih_bulan'" class="month-select-wrap">
+        <select :value="bulanDipilih" @change="bulanDipilih = ($event.target as HTMLSelectElement).value">
+          <option v-for="b in availableMonths" :key="b" :value="b">{{ b }}</option>
+        </select>
+      </div>
     </div>
 
     <!-- Category breakdown -->

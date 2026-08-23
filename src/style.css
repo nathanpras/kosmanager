@@ -341,6 +341,19 @@ textarea{resize:vertical;min-height:80px}
 .tab-pill:hover{border-color:var(--green);color:var(--green);transform:translateY(-1px)}
 .tab-pill.active{background:linear-gradient(135deg,var(--green),var(--green3));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(0,112,192,.35);transform:translateY(-1px)}
 
+/* Baris filter periode — dipakai bersama Dashboard, Laporan, dan Pengeluaran.
+   Dulu tiap view menyusun barisnya sendiri lewat style inline, jadi ketiganya
+   pelan-pelan jadi berbeda jarak dan berbeda perilaku saat layar disempitkan. */
+.mode-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+/* .tabs-pill memakai overflow-x:auto, dan overflow non-visible di satu sumbu
+   ikut mengunci sumbu satunya. Tanpa ruang vertikal, pil aktif terpotong tepat
+   di angkatan translateY(-1px) dan bayangannya — itu yang bikin barisnya
+   terlihat mepet ke header di atasnya. Padding di bawah dinolkan karena jarak
+   ke konten sudah diurus margin .mode-bar. */
+.mode-bar .tabs-pill{padding:6px 0;gap:6px}
+.mode-bar .month-select-wrap{flex:0 1 auto;min-width:0}
+.mode-bar .month-select-wrap select{max-width:100%}
+
 /* Month select */
 .month-select-wrap{position:relative;display:inline-flex;align-items:center}
 .month-select-wrap select{padding:10px 40px 10px 16px;border-radius:12px;border:2px solid var(--border2);font-size:14px;font-weight:700;font-family:inherit;background:var(--surf);color:var(--text);cursor:pointer;appearance:none;transition:all .2s;min-width:180px}

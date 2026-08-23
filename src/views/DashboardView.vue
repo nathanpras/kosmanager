@@ -210,7 +210,7 @@ const insightKolekt = computed(() => {
   <div v-else>
     <!-- Mode switcher -->
     <div class="mode-bar">
-      <div class="tabs-pill" style="padding:0;gap:6px">
+      <div class="tabs-pill">
         <button
           class="tab-pill anim-pill"
           :class="{ active: dashMode === 'bulan_ini' }"
@@ -417,13 +417,6 @@ const insightKolekt = computed(() => {
 </template>
 
 <style scoped>
-.mode-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
 .period-badge {
   font-size: 10px;
   font-weight: 600;
