@@ -102,12 +102,18 @@ function cetak() {
 </script>
 
 <template>
+  <!-- Di-teleport ke <body> supaya invoice bukan keturunan #app. Dengan begitu
+       aturan cetak cukup menyembunyikan #app, tanpa bergantung pada elemen mana
+       di antara #app dan invoice yang kebetulan position:relative — kebergantungan
+       itulah yang membuat teknik visibility sebelumnya rapuh. Style scoped tetap
+       berlaku: Vue ikut membawa atribut data-v lewat teleport. -->
+  <Teleport to="body">
   <div class="overlay" :class="{ open: props.open }" @click.self="emit('close')">
     <div class="modal">
       <div class="modal-handle"></div>
       <div class="modal-head"><h2>Invoice</h2><button class="close-btn" @click="emit('close')">✕</button></div>
       <div class="modal-body">
-        <div class="invoice-page invoice-print">
+        <div class="invoice-page">
           <div class="inv-kop">
             <div class="inv-kop-nama">{{ data.namaKos }}</div>
             <div class="inv-kop-alamat">{{ data.alamat }}</div>
@@ -182,6 +188,7 @@ function cetak() {
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -293,37 +300,40 @@ function cetak() {
 .inv-rekening-bank { font-weight: 700; color: var(--text); }
 
 @media print {
-  /* Penataan ulang chrome modal saja — elemen mana yang benar-benar tampil di
-     kertas ditentukan oleh aturan visibility non-scoped di bawah, bukan oleh
-     blok ini. .overlay/.modal dilonggarkan supaya .invoice-print (position:
-     absolute) tidak ikut terpotong overflow/posisi fixed punya modal. */
-  :global(body.printing-invoice) .overlay { position: static; background: none; }
-  :global(body.printing-invoice) .modal { box-shadow: none; max-height: none; width: 100%; overflow: visible; }
+  /* Bukan lagi soal lolos dari clipping — itu sudah diselesaikan teleport.
+     Yang tersisa murni urusan kertas: overlay dan modal dikembalikan ke aliran
+     normal supaya invoice mengalir dan berpindah halaman seperti dokumen biasa.
+     .overlay position:fixed cuma tercetak di halaman pertama, dan .modal
+     max-height:80vh + overflow-y:auto memotong invoice yang lebih panjang dari
+     satu layar; keduanya wajib dinetralkan berapa pun cara menyembunyikan
+     aplikasi di belakangnya. Chrome modal tidak ikut ke kertas. */
+  .overlay, .overlay.open { position: static; display: block; background: none; }
+  .modal {
+    box-shadow: none; border-radius: 0; max-height: none;
+    width: 100%; max-width: none; overflow: visible;
+  }
+  .modal-handle, .modal-head, .modal-foot { display: none; }
+  .modal-body { padding: 0; }
   .invoice-page { width: 100%; padding: 0; color: #000; background: #fff; }
 }
 </style>
 
 <style>
-/* Non-scoped dengan sengaja: mekanisme "apa yang tampil di kertas" ini pakai
-   visibility, bukan display:none pada leluhur tertentu — visibility mewarisi
-   ke bawah lalu bisa dinyalakan lagi per elemen, jadi tetap bekerja walau
-   .invoice-print bersarang berapa pun level di bawah #app (mis. #app > .shell
-   > ... > .overlay > .modal > ... > .invoice-print). Semuanya dikunci di
-   balik body.printing-invoice, yang hanya ada selama cetak() berjalan, supaya
-   tidak menyentuh cetak Laporan (LaporanView.exportPDF() juga window.print()
-   tapi tidak pernah memasang class ini). */
+/* Non-scoped dengan sengaja: aturan ini menyasar #app, elemen milik index.html,
+   yang tidak pernah kebagian atribut scoped komponen mana pun. Dikunci di balik
+   body.printing-invoice, yang cuma ada selama cetak() berjalan, supaya tidak
+   menyentuh cetak Laporan (LaporanView.exportPDF() juga window.print() tapi
+   tidak pernah memasang class ini). */
 @media print {
-  body.printing-invoice * { visibility: hidden !important; }
-  body.printing-invoice .invoice-print,
-  body.printing-invoice .invoice-print * { visibility: visible !important; }
-  body.printing-invoice .invoice-print {
-    position: absolute; left: 0; top: 0; width: 100%;
-  }
-  /* visibility:hidden menyembunyikan elemen tapi tetap memakan ruang, jadi
-     daftar Tagihan yang panjang di belakang modal masih menghasilkan
-     halaman-halaman kosong di ekor cetakan. #app dijepit habis supaya tidak
-     menyisakan tinggi; .invoice-print lolos dari jepitan itu karena
-     position:absolute dan #app bukan leluhur yang diposisikan. */
-  body.printing-invoice #app { height: 0; overflow: hidden; }
+  /* Invoice di-teleport ke <body>, jadi menyembunyikan #app tidak ikut
+     menyembunyikannya. Cara ini tidak bergantung pada ancestor mana yang
+     positioned — itu yang bikin pendekatan visibility sebelumnya rapuh.
+     display:none juga berarti #app tidak memakan tinggi sama sekali, jadi
+     halaman kosong di ekor cetakan tidak mungkin terjadi. */
+  body.printing-invoice > #app { display: none !important; }
+  /* body global memakai height:100% + overflow:hidden untuk mengunci scroll di
+     layar. Dibiarkan berlaku saat cetak, invoice yang lebih panjang dari satu
+     halaman berisiko terpotong; di kertas tidak ada yang perlu dikunci. */
+  body.printing-invoice { height: auto; overflow: visible; }
 }
 </style>
