@@ -73,13 +73,27 @@ watch([() => props.open, () => props.tagihanIds], () => {
 function cetak() {
   document.body.classList.add('printing-invoice')
 
+  // Judul dokumen ikut tercetak sebagai header halaman di sebagian browser
+  // (Safari selalu, Chrome bila penggunanya menyalakan "Headers and footers").
+  // Judul bawaan aplikasi tidak pantas muncul di dokumen yang dikirim ke
+  // penghuni, jadi selama mencetak judulnya adalah identitas invoice ini.
+  const judulAsli = document.title
+  const namaKos = data.value.namaKos || 'Invoice'
+  document.title = data.value.no ? `${namaKos} — Invoice ${data.value.no}` : namaKos
+
   // @page tidak bisa dicakup ke class body — ia mengatur kotak halaman, bukan
   // elemen — jadi kalau ditaruh statis di <style> komponen ini ia ikut ter-bundle
   // ke CSS global dan diam-diam memaksa A4/15mm ke exportPDF() di LaporanView
   // juga. Disuntik lewat elemen <style> sesaat sebelum print, dicabut lagi
   // sesudahnya, supaya cuma berlaku selagi invoice ini yang dicetak.
+  //
+  // margin 0, bukan 15mm: header/footer bawaan browser — judul dokumen, tanggal,
+  // URL aplikasi, nomor halaman — digambar di dalam margin halaman, dan satu-
+  // satunya cara menghilangkannya tanpa menyuruh penerima mengubah setelan print
+  // adalah tidak menyisakan ruang untuk digambari. Margin kertasnya dipindah ke
+  // padding .invoice-page di aturan @media print di bawah.
   const pageStyle = document.createElement('style')
-  pageStyle.textContent = '@page { size: A4; margin: 15mm }'
+  pageStyle.textContent = '@page { size: A4; margin: 0 }'
   document.head.appendChild(pageStyle)
 
   // Beres-beres lewat 'afterprint' (bukan cuma timeout) supaya tetap jalan
@@ -90,6 +104,7 @@ function cetak() {
     if (selesai) return
     selesai = true
     document.body.classList.remove('printing-invoice')
+    document.title = judulAsli
     pageStyle.remove()
     window.removeEventListener('afterprint', beresBeres)
     clearTimeout(fallback)
@@ -314,7 +329,10 @@ function cetak() {
   }
   .modal-handle, .modal-head, .modal-foot { display: none; }
   .modal-body { padding: 0; }
-  .invoice-page { width: 100%; padding: 0; color: #000; background: #fff; }
+  /* Margin kertas hidup di sini, bukan di @page: lihat alasannya di cetak().
+     Konsekuensi yang diterima sadar — invoice yang tumpah ke halaman kedua
+     hanya bermargin di atas halaman pertama dan di bawah halaman terakhir. */
+  .invoice-page { width: 100%; padding: 15mm; color: #000; background: #fff; }
 }
 </style>
 
