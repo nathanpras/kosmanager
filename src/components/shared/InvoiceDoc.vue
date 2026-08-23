@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue'
+import { computed, watch, ref, onBeforeUnmount } from 'vue'
 import { useTagihanStore } from '../../stores/tagihan'
 import { usePenghuniStore } from '../../stores/penghuni'
 import { usePropertiesStore } from '../../stores/properties'
@@ -70,50 +70,84 @@ watch([() => props.open, () => props.tagihanIds], () => {
   rantai = rantai.then(() => tetapkanNomor()).catch(e => console.error('Gagal menetapkan nomor invoice', e))
 })
 
-function cetak() {
+/**
+ * Satu jalur persiapan cetak untuk SEMUA cara invoice bisa sampai ke kertas:
+ * tombol Cetak maupun Cmd+P / Ctrl+P langsung dari dialog. Lewat pintasan
+ * keyboard, cetak() tidak pernah berjalan — tanpa 'beforeprint' di bawah,
+ * invoice yang dicetak begitu keluar sebagai tangkapan seluruh aplikasi,
+ * lengkap dengan header/footer bawaan browser yang justru ingin dihilangkan.
+ */
+let pageStyle: HTMLStyleElement | null = null
+let judulAsli = ''
+let fallback: ReturnType<typeof setTimeout> | null = null
+
+function siapkanCetak() {
+  // Idempoten: window.print() ikut memicu 'beforeprint', jadi jalur tombol
+  // selalu masuk ke sini dua kali.
+  if (pageStyle) return
+
   document.body.classList.add('printing-invoice')
 
   // Judul dokumen ikut tercetak sebagai header halaman di sebagian browser
   // (Safari selalu, Chrome bila penggunanya menyalakan "Headers and footers").
   // Judul bawaan aplikasi tidak pantas muncul di dokumen yang dikirim ke
   // penghuni, jadi selama mencetak judulnya adalah identitas invoice ini.
-  const judulAsli = document.title
+  judulAsli = document.title
   const namaKos = data.value.namaKos || 'Invoice'
   document.title = data.value.no ? `${namaKos} — Invoice ${data.value.no}` : namaKos
 
   // @page tidak bisa dicakup ke class body — ia mengatur kotak halaman, bukan
   // elemen — jadi kalau ditaruh statis di <style> komponen ini ia ikut ter-bundle
-  // ke CSS global dan diam-diam memaksa A4/15mm ke exportPDF() di LaporanView
-  // juga. Disuntik lewat elemen <style> sesaat sebelum print, dicabut lagi
-  // sesudahnya, supaya cuma berlaku selagi invoice ini yang dicetak.
+  // ke CSS global dan diam-diam memaksa ukuran halaman ke exportPDF() di
+  // LaporanView juga. Disuntik lewat elemen <style> sesaat sebelum print,
+  // dicabut lagi sesudahnya, supaya cuma berlaku selagi invoice yang dicetak.
   //
   // margin 0, bukan 15mm: header/footer bawaan browser — judul dokumen, tanggal,
   // URL aplikasi, nomor halaman — digambar di dalam margin halaman, dan satu-
   // satunya cara menghilangkannya tanpa menyuruh penerima mengubah setelan print
   // adalah tidak menyisakan ruang untuk digambari. Margin kertasnya dipindah ke
   // padding .invoice-page di aturan @media print di bawah.
-  const pageStyle = document.createElement('style')
+  pageStyle = document.createElement('style')
   pageStyle.textContent = '@page { size: A4; margin: 0 }'
   document.head.appendChild(pageStyle)
+}
 
-  // Beres-beres lewat 'afterprint' (bukan cuma timeout) supaya tetap jalan
-  // walau dialog print-nya dibatalkan atau baru ditutup lama kemudian; timeout
-  // di bawah cuma jaring pengaman untuk browser yang tidak memicu event ini.
-  let selesai = false
-  function beresBeres() {
-    if (selesai) return
-    selesai = true
-    document.body.classList.remove('printing-invoice')
-    document.title = judulAsli
-    pageStyle.remove()
-    window.removeEventListener('afterprint', beresBeres)
-    clearTimeout(fallback)
-  }
-  window.addEventListener('afterprint', beresBeres)
-  const fallback = setTimeout(beresBeres, 2000)
+function beresBeres() {
+  if (!pageStyle) return
+  document.body.classList.remove('printing-invoice')
+  document.title = judulAsli
+  pageStyle.remove()
+  pageStyle = null
+  if (fallback) { clearTimeout(fallback); fallback = null }
+}
 
+function cetak() {
+  siapkanCetak()
+  // Jaring pengaman untuk browser yang tidak memicu 'afterprint'; jalur
+  // normalnya tetap event itu, supaya beres-beres tetap jalan walau dialog
+  // print-nya dibatalkan atau baru ditutup lama kemudian.
+  fallback = setTimeout(beresBeres, 2000)
   window.print()
 }
+
+// Listener hanya hidup selagi dialog terbuka: di luar itu, Cmd+P milik halaman
+// lain (mis. ekspor PDF di Laporan) tidak boleh ikut disulap jadi cetak invoice.
+watch(() => props.open, (open) => {
+  if (open) {
+    window.addEventListener('beforeprint', siapkanCetak)
+    window.addEventListener('afterprint', beresBeres)
+  } else {
+    window.removeEventListener('beforeprint', siapkanCetak)
+    window.removeEventListener('afterprint', beresBeres)
+    beresBeres()
+  }
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeprint', siapkanCetak)
+  window.removeEventListener('afterprint', beresBeres)
+  beresBeres()
+})
 </script>
 
 <template>
@@ -322,17 +356,24 @@ function cetak() {
      max-height:80vh + overflow-y:auto memotong invoice yang lebih panjang dari
      satu layar; keduanya wajib dinetralkan berapa pun cara menyembunyikan
      aplikasi di belakangnya. Chrome modal tidak ikut ke kertas. */
-  .overlay, .overlay.open { position: static; display: block; background: none; }
-  .modal {
+  /* Semuanya dikunci di balik body.printing-invoice. Dialog ini tetap ada di
+     DOM saat tertutup (Teleport tanpa v-if), jadi tanpa kunci itu aturan
+     display:block di bawah memunculkannya di cetakan halaman lain — invoice
+     yang tidak diminta siapa pun ikut keluar dari printer. */
+  body.printing-invoice .overlay,
+  body.printing-invoice .overlay.open { position: static; display: block; background: none; }
+  body.printing-invoice .modal {
     box-shadow: none; border-radius: 0; max-height: none;
     width: 100%; max-width: none; overflow: visible;
   }
-  .modal-handle, .modal-head, .modal-foot { display: none; }
-  .modal-body { padding: 0; }
+  body.printing-invoice .modal-handle,
+  body.printing-invoice .modal-head,
+  body.printing-invoice .modal-foot { display: none; }
+  body.printing-invoice .modal-body { padding: 0; }
   /* Margin kertas hidup di sini, bukan di @page: lihat alasannya di cetak().
      Konsekuensi yang diterima sadar — invoice yang tumpah ke halaman kedua
      hanya bermargin di atas halaman pertama dan di bawah halaman terakhir. */
-  .invoice-page { width: 100%; padding: 15mm; color: #000; background: #fff; }
+  body.printing-invoice .invoice-page { width: 100%; padding: 15mm; color: #000; background: #fff; }
 }
 </style>
 
