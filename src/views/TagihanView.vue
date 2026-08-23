@@ -59,6 +59,20 @@ function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[
 }
 
 const filtered  = computed(() => filterByProperty(tagihan.items))
+
+/**
+ * Penghuni aktif untuk dropdown, urut nomor kamar (101–107, lalu 201–209, ...).
+ * `penghuni.items` datang dalam urutan dokumen Firestore yang praktis acak.
+ */
+const penghuniPilihan = computed(() => {
+  const urutProperti = new Map(properties.items.map((p, i) => [p.id, i]))
+  return filterByProperty(penghuni.items)
+    .slice()
+    .sort((a, b) =>
+      (urutProperti.get(a.property_id) ?? 999) - (urutProperti.get(b.property_id) ?? 999)
+      || (a.kamar ?? '').localeCompare(b.kamar ?? '', undefined, { numeric: true })
+      || (a.nama ?? '').localeCompare(b.nama ?? ''))
+})
 const byMonth   = computed(() => sortByKamar(filtered.value.filter(t => t.bulan === activeBulan.value)))
 
 const lunasCnt  = computed(() => byMonth.value.filter(t => t.status === 'lunas').length)
@@ -397,7 +411,7 @@ function bukaInvoice(t: Tagihan) {
               <label>Penghuni</label>
               <select v-model="addForm.penghuni" @change="onPenghuniChange">
                 <option value="">— Pilih —</option>
-                <option v-for="p in filterByProperty(penghuni.items)" :key="p.id" :value="p.nama">{{ p.nama }} ({{ p.kamar }})</option>
+                <option v-for="p in penghuniPilihan" :key="p.id" :value="p.nama">{{ p.kamar }} — {{ p.nama }}</option>
               </select>
             </div>
             <div class="fg"><label>Kamar</label><input v-model="addForm.kamar" readonly /></div>

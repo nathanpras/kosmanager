@@ -2,6 +2,8 @@
 import { ref, computed, watch } from 'vue'
 import { useTagihanStore } from '../../stores/tagihan'
 import { usePenghuniStore } from '../../stores/penghuni'
+import { usePropertiesStore } from '../../stores/properties'
+import { useAppStore } from '../../stores/app'
 import { useLogStore } from '../../stores/log'
 import { useTagihanCalc, kunciTagihan } from '../../composables/useTagihanCalc'
 import type { DraftTagihan } from '../../composables/useTagihanCalc'
@@ -19,6 +21,8 @@ const emit = defineEmits<{ close: []; saved: [ref: string] }>()
 
 const tagihan = useTagihanStore()
 const penghuni = usePenghuniStore()
+const properties = usePropertiesStore()
+const app = useAppStore()
 const log = useLogStore()
 const { tagihanUntukKamar } = useTagihanCalc()
 const { filterByProperty } = useProperty()
@@ -34,7 +38,49 @@ const menyimpan = ref(false)
 /** Pilihan bulan mulai: 12 bulan ke depan dari bulan berjalan. */
 const bulanOpsi = computed(() => bulanBerurutan(bulanIni(), 12))
 
-const kandidat = computed(() => filterByProperty(penghuni.items).filter(p => !sudahKeluar(p)))
+/**
+ * Penghuni aktif, urut nomor kamar: 101–107, lalu 201–209, lalu 301 dan
+ * seterusnya. `penghuni.items` datang dalam urutan dokumen Firestore, yang
+ * praktis acak — dalam daftar 20 orang, mencari satu nama jadi menyisir satu per
+ * satu, dan orang yang ada di daftar terasa seperti tidak ada.
+ *
+ * localeCompare numeric dipakai supaya "101" < "201" dibandingkan sebagai angka;
+ * perbandingan string biasa masih benar untuk nomor tiga digit, tapi langsung
+ * salah begitu ada kamar bernomor dua atau empat digit.
+ */
+const kandidat = computed(() => {
+  const urutProperti = new Map(properties.items.map((p, i) => [p.id, i]))
+  return filterByProperty(penghuni.items)
+    .filter(p => !sudahKeluar(p))
+    .sort((a, b) =>
+      (urutProperti.get(a.property_id) ?? 999) - (urutProperti.get(b.property_id) ?? 999)
+      || (a.kamar ?? '').localeCompare(b.kamar ?? '', undefined, { numeric: true })
+      || (a.nama ?? '').localeCompare(b.nama ?? ''))
+})
+
+/**
+ * Dikelompokkan per properti untuk mode "Semua Properti".
+ *
+ * Wajib: Waru Raya dan Citra 1 sama-sama punya kamar 101–107, jadi tanpa
+ * pengelompokan daftar itu memuat dua "101" yang tidak bisa dibedakan — dan
+ * salah pilih berarti pembayaran enam bulan tercatat ke orang di gedung lain.
+ */
+const kandidatGrup = computed(() => {
+  const grup = new Map<string, typeof penghuni.items>()
+  for (const p of kandidat.value) {
+    const isi = grup.get(p.property_id) ?? []
+    isi.push(p)
+    grup.set(p.property_id, isi)
+  }
+  return [...grup].map(([id, items]) => ({
+    id,
+    nama: properties.items.find(x => x.id === id)?.nama ?? 'Tanpa properti',
+    items,
+  }))
+})
+
+/** Daftar perlu dikelompokkan hanya bila memang menampilkan lebih dari satu properti. */
+const pakaiGrup = computed(() => app.currentPropertyId === 'all' && kandidatGrup.value.length > 1)
 const terpilih = computed(() => penghuni.items.find(p => p.id === penghuniId.value) ?? null)
 
 interface BarisBatch {
@@ -163,7 +209,14 @@ async function simpan() {
             <label>Penghuni</label>
             <select v-model="penghuniId">
               <option value="">— Pilih —</option>
-              <option v-for="p in kandidat" :key="p.id" :value="p.id">{{ p.nama }} ({{ p.kamar }})</option>
+              <template v-if="pakaiGrup">
+                <optgroup v-for="g in kandidatGrup" :key="g.id" :label="g.nama">
+                  <option v-for="p in g.items" :key="p.id" :value="p.id">{{ p.kamar }} — {{ p.nama }}</option>
+                </optgroup>
+              </template>
+              <template v-else>
+                <option v-for="p in kandidat" :key="p.id" :value="p.id">{{ p.kamar }} — {{ p.nama }}</option>
+              </template>
             </select>
           </div>
           <div class="fg">
