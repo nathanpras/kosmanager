@@ -11,8 +11,9 @@ import { useToast }           from '../composables/useToast'
 import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupancy'
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { useKeluarPenghuni }  from '../composables/useKeluarPenghuni'
+import { kamarDiBulan, catatPindah, koreksiKamar, awalBulanBerikutnya } from '../utils/riwayatKamar'
 import { fmtTgl, fmt }        from '../utils/format'
-import { today, bulanFromTgl, bulanKey } from '../utils/date'
+import { today, bulanIni, bulanFromTgl, bulanKey } from '../utils/date'
 import type { Penghuni }      from '../types'
 import ConfirmDialog          from '../components/shared/ConfirmDialog.vue'
 
@@ -130,7 +131,7 @@ async function buatTagihanBulanMasuk(p: Penghuni) {
   for (const t of tagihan.items.filter(t => t.bulan === bln && t.property_id === p.property_id)) {
     for (const k of kunciTagihan(t)) existing.add(k)
   }
-  for (const draft of tagihanUntukKamar(p.kamar, p.property_id, bln)) {
+  for (const draft of tagihanUntukKamar(kamarDiBulan(p, bln), p.property_id, bln)) {
     if (kunciTagihan({ ...draft, property_id: p.property_id }).some(k => existing.has(k))) continue
     await tagihan.add({
       ...draft, status: 'belum', property_id: p.property_id,
@@ -167,7 +168,14 @@ async function save() {
   try {
     if (editId.value) {
       const original = penghuni.items.find(p => p.id === editId.value)
-      await penghuni.update(editId.value, form.value)
+      const data: Partial<Penghuni> = { ...form.value }
+      // Mengganti kamar di sini adalah pembetulan salah input, bukan pindahan:
+      // entri riwayat terakhir ikut ditulis ulang supaya tidak lahir pindahan
+      // palsu. Pindah sungguhan lewat tombol Pindah (🔁).
+      if (original && original.kamar !== data.kamar && (original.riwayat_kamar?.length ?? 0) > 0) {
+        data.riwayat_kamar = koreksiKamar(original, data.kamar ?? '')
+      }
+      await penghuni.update(editId.value, data)
       if (original && original.kamar !== form.value.kamar) {
         // Kamar lama hanya dikosongkan bila tidak ada roommate yang tertinggal.
         if (!kamarMasihTerisi(original.kamar, original.property_id, original.id)) {
@@ -207,6 +215,81 @@ async function doEvict() {
     toast(`${p.nama} dikeluarkan`, 'success')
     confirmEvict.value = false; evictTarget.value = null
   } catch { toast('Gagal mengeluarkan penghuni', 'error') }
+}
+
+/**
+ * Pindah kamar.
+ *
+ * Aturan yang dipilih pemilik: pindah tengah bulan tidak diprorata. Bulan
+ * berjalan tetap ditagih kamar lama sebulan penuh, kamar baru mulai ditagih
+ * tanggal 1 bulan berikutnya, dan sisa hari di kamar baru tidak ditagih.
+ * Karena itu `riwayat_kamar` yang menentukan kamar mana yang ditagih, bukan
+ * `penghuni.kamar` — field itu langsung menunjuk kamar baru supaya daftar dan
+ * status kamar mencerminkan tempat orangnya benar-benar tidur.
+ */
+const showPindah   = ref(false)
+const pindahTarget = ref<Penghuni | null>(null)
+const pindahTujuan = ref('')
+const pindahTgl    = ref(today())
+
+const pindahEfektif = computed(() => awalBulanBerikutnya(pindahTgl.value))
+const bulanBerjalan = computed(() => bulanFromTgl(pindahTgl.value) ?? '')
+const bulanEfektif  = computed(() => bulanFromTgl(pindahEfektif.value) ?? '')
+
+/** Kamar kosong di properti yang sama — kamar yang ditempati sekarang tidak dihitung. */
+const kamarTujuan = computed(() => {
+  const p = pindahTarget.value
+  if (!p) return []
+  return kamar.items.filter(k =>
+    k.property_id === p.property_id && k.status === 'kosong' && k.nomor !== p.kamar)
+})
+
+/**
+ * Kamar yang masih ditagihkan bulan ini bila berbeda dengan kamar yang
+ * ditempati — satu-satunya tanda kasat mata bahwa ada pindahan yang tagihannya
+ * baru berlaku bulan depan.
+ */
+function kamarTagihanBulanIni(p: Penghuni): string | null {
+  const nomor = kamarDiBulan(p, bulanIni())
+  return nomor === p.kamar ? null : nomor
+}
+
+function askPindah(p: Penghuni) {
+  pindahTarget.value = p
+  pindahTujuan.value = ''
+  pindahTgl.value = today()
+  showPindah.value = true
+}
+
+async function doPindah() {
+  const p = pindahTarget.value
+  if (!p) return
+  const tujuan = pindahTujuan.value
+  const efektif = pindahEfektif.value
+  if (!tujuan || !efektif) { toast('Kamar tujuan dan tanggal pindah wajib diisi', 'error'); return }
+  if (tujuan === p.kamar) { toast('Kamar tujuan sama dengan kamar sekarang', 'error'); return }
+  // Dibaca sebelum update: store memutakhirkan objek yang sama, jadi setelah
+  // ini p.kamar sudah berisi kamar tujuan.
+  const kamarLama = p.kamar
+  showPindah.value = false
+  try {
+    await penghuni.update(p.id, {
+      kamar: tujuan,
+      riwayat_kamar: catatPindah(p, tujuan, efektif),
+    })
+    // Kamar lama hanya dikosongkan bila tidak ada roommate yang tertinggal.
+    if (!kamarMasihTerisi(kamarLama, p.property_id, p.id)) {
+      const lama = findKamar(kamarLama, p.property_id)
+      if (lama) await kamar.update(lama.id, { status: 'kosong' })
+    }
+    const baru = findKamar(tujuan, p.property_id)
+    if (baru && baru.status === 'kosong') await kamar.update(baru.id, { status: 'terisi' })
+    await log.add(
+      `${p.nama} pindah dari kamar ${kamarLama} ke ${tujuan} — tagihan kamar ${tujuan} mulai ${bulanFromTgl(efektif)}`,
+      'blue', p.property_id,
+    )
+    toast('Penghuni dipindahkan', 'success')
+  } catch { toast('Gagal memindahkan penghuni', 'error') }
 }
 
 const showKeluar   = ref(false)
@@ -271,7 +354,12 @@ function openWA(p: Penghuni) {
               <div class="avatar avatar-sm" :style="{ background: `linear-gradient(135deg, ${avatarBg(i)}, ${avatarBg(i)}CC)` }">{{ getInitials(p.nama) }}</div>
             </td>
             <td><strong>{{ p.nama }}</strong></td>
-            <td><span class="badge bg" style="font-size:11px">{{ p.kamar }}</span></td>
+            <td>
+              <span class="badge bg" style="font-size:11px">{{ p.kamar }}</span>
+              <div v-if="kamarTagihanBulanIni(p)" style="font-size:10px;color:var(--text3);margin-top:3px">
+                tagihan {{ bulanIni() }}: kamar {{ kamarTagihanBulanIni(p) }}
+              </div>
+            </td>
             <td style="color:var(--text2)">{{ p.hp }}</td>
             <td style="color:var(--text2)">{{ fmtTgl(p.masuk) }}</td>
             <td style="color:var(--text2)">{{ fmtTgl(tglKeluar(p) ?? '') }}</td>
@@ -280,6 +368,7 @@ function openWA(p: Penghuni) {
               <div style="display:flex;gap:4px">
                 <button class="action-btn wa" @click="openWA(p)" title="WhatsApp">💬</button>
                 <button class="action-btn primary" @click="openEdit(p)" title="Edit">✏️</button>
+                <button class="action-btn" @click="askPindah(p)" title="Pindah kamar">🔁</button>
                 <button class="action-btn amber" @click="askKeluar(p)" title="Keluarkan">📦</button>
                 <button class="action-btn danger" @click="askEvict(p)" title="Hapus">🗑</button>
               </div>
@@ -301,6 +390,9 @@ function openWA(p: Penghuni) {
             <div>
               <div class="mc-name">{{ p.nama }}</div>
               <span class="badge bg" style="font-size:10px">Kamar {{ p.kamar }}</span>
+              <div v-if="kamarTagihanBulanIni(p)" style="font-size:10px;color:var(--text3);margin-top:3px">
+                tagihan {{ bulanIni() }}: kamar {{ kamarTagihanBulanIni(p) }}
+              </div>
             </div>
           </div>
           <span class="badge" :class="statusPenghuni(p).cls">{{ statusPenghuni(p).label }}</span>
@@ -313,6 +405,7 @@ function openWA(p: Penghuni) {
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="action-btn wa" style="flex:1;justify-content:center" @click="openWA(p)">💬 WA</button>
           <button class="action-btn primary" style="flex:1;justify-content:center" @click="openEdit(p)">✏️ Edit</button>
+          <button class="action-btn" style="flex:1;justify-content:center" @click="askPindah(p)">🔁 Pindah</button>
           <button class="action-btn amber" style="flex:1;justify-content:center" @click="askKeluar(p)">📦 Keluar</button>
           <button class="action-btn danger" style="flex:1;justify-content:center" @click="askEvict(p)">🗑 Hapus</button>
         </div>
@@ -388,6 +481,10 @@ function openWA(p: Penghuni) {
                 <option value="">— Pilih Kamar —</option>
                 <option v-for="k in kamarPilihan" :key="k.id" :value="k.nomor">{{ k.nomor }} ({{ k.tipe }})</option>
               </select>
+              <small v-if="editId" style="font-size:11px;color:var(--text3)">
+                Mengubah kamar di sini membetulkan salah input — tagihan bulan lampau ikut pindah.
+                Untuk pindah kamar sungguhan pakai tombol Pindah (🔁).
+              </small>
             </div>
             <div class="fg"><label>No HP / WA</label><input v-model="form.hp" placeholder="08xxxxxxxxxx" /></div>
             <div class="fg"><label>Tanggal Masuk</label><input v-model="form.masuk" type="date" /></div>
@@ -420,6 +517,38 @@ function openWA(p: Penghuni) {
       ok-label="Hapus" :danger="true"
       @confirm="doEvict" @cancel="confirmEvict = false"
     />
+
+    <!-- Pindah Kamar -->
+    <div class="overlay" :class="{ open: showPindah }" @click.self="showPindah = false">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-head"><h2>Pindah Kamar</h2><button class="close-btn" @click="showPindah = false">✕</button></div>
+        <div class="modal-body" v-if="pindahTarget">
+          <p style="color:var(--text2)">{{ pindahTarget.nama }} — sekarang di kamar {{ pindahTarget.kamar }}</p>
+          <div class="fg"><label>Kamar Tujuan</label>
+            <select v-model="pindahTujuan">
+              <option value="">— Pilih Kamar —</option>
+              <option v-for="k in kamarTujuan" :key="k.id" :value="k.nomor">{{ k.nomor }} ({{ k.tipe }}) — {{ fmt(k.harga) }}</option>
+            </select>
+            <small v-if="kamarTujuan.length === 0" style="font-size:11px;color:var(--text3)">
+              Tidak ada kamar kosong di properti ini.
+            </small>
+          </div>
+          <div class="fg"><label>Tanggal Pindah</label><input v-model="pindahTgl" type="date" /></div>
+          <p v-if="pindahTujuan && bulanEfektif" style="color:var(--text2);font-size:13px">
+            {{ bulanBerjalan }} tetap ditagih kamar {{ pindahTarget.kamar }} sebulan penuh.
+            Kamar {{ pindahTujuan }} mulai ditagih {{ bulanEfektif }} — sisa hari di kamar baru bulan ini tidak ditagih.
+          </p>
+          <p style="color:var(--text2);font-size:13px">
+            Tagihan yang sudah kemasukan uang tidak diubah dan tidak dihapus.
+          </p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="showPindah = false">Batal</button>
+          <button class="btn btn-primary" :disabled="!pindahTujuan || !pindahTgl" @click="doPindah">Pindahkan</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Keluarkan Penghuni -->
     <div class="overlay" :class="{ open: showKeluar }" @click.self="showKeluar = false">
