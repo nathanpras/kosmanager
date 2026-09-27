@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# potret mockup (dibuat ulang lewat docs/superpowers/mockups/_shots.cjs)
+docs/superpowers/mockups/_shots/

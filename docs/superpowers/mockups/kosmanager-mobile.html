@@ -1,112 +1,135 @@
 <title>Kosmanager Mobile</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 
 <style>
 @layer tokens, components, screens;
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════
    TOKENS — lapis ini disalin utuh ke src/style.css saat port
-   ───────────────────────────────────────────── */
+   ═══════════════════════════════════════════════════════════ */
 @layer tokens {
   :root {
-    /* kanvas bernada biru, bukan abu netral */
-    --ground:      #EDF2F8;
-    --surface:     #FFFFFF;
-    --surface-2:   #E3EBF3;
-    --line:        #DBE5EF;
-    --line-soft:   #EAF0F6;
+    /* Permukaan — putih murni di atas kanvas bernada biru */
+    --ground:     #EFF2F7;
+    --ground-2:   #E6ECF3;
+    --surface:    #FFFFFF;
+    --sunken:     #F3F6FA;
 
-    --ink:         #16232E;
-    --ink-2:       #5C6E7D;
-    --ink-3:       #93A4B3;
+    /* Tinta — biru-hitam, bukan abu netral */
+    --ink:        #0E1A23;
+    --ink-2:      #556673;
+    --ink-3:      #8798A5;
 
-    --brand:       #0070C0;
-    --brand-deep:  #004E86;
-    --brand-tint:  #E1EFFB;
+    /* Garis rambut, selalu transparan supaya menyatu */
+    --hair:       rgba(14,26,35,.07);
+    --hair-2:     rgba(14,26,35,.12);
 
-    --gold:        #FFC000;
-    --gold-tint:   #FFF3D4;
-    --gold-ink:    #8A6400;
+    /* Merek */
+    --brand:      #0070C0;
+    --brand-deep: #00456F;
+    --brand-tint: #E3EFFA;
+    --gold:       #FFC000;
+    --gold-tint:  #FCF1D6;
+    --gold-ink:   #7A5600;
 
-    --ok:          #0D8A5F;  --ok-tint:   #DFF3EA;
-    --warn:        #A97400;  --warn-tint: #FFF1CF;
-    --bad:         #D4443F;  --bad-tint:  #FBE9E8;
+    /* Semantik — terpisah dari warna merek supaya status terbaca sekilas */
+    --ok:   #0A7B54;  --ok-tint:   #DFF1E9;
+    --warn: #96680A;  --warn-tint: #FBEED2;
+    --bad:  #C23D38;  --bad-tint:  #FAE7E6;
 
-    --r-card:  18px;
-    --r-field: 14px;
+    /* Huruf */
+    --f-ui:      'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --f-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+    --f-mono:    'DM Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    /* Radius */
+    --r-card:  20px;
+    --r-soft:  15px;
     --r-pill:  999px;
 
-    --sh-1: 0 1px 2px rgba(22,35,46,.04), 0 1px 3px rgba(22,35,46,.05);
-    --sh-2: 0 6px 22px rgba(22,35,46,.10);
-    --sh-fab: 0 8px 24px rgba(0,78,134,.34);
-    --sh-sheet: 0 -10px 46px rgba(22,35,46,.22);
+    /* Bayangan berlapis: kontak rapat + bayangan sekitar yang lebar */
+    --sh-card: 0 1px 2px rgba(14,26,35,.04), 0 10px 28px -16px rgba(14,26,35,.20);
+    --sh-lift: 0 2px 4px rgba(14,26,35,.05), 0 18px 44px -20px rgba(14,26,35,.30);
+    --sh-fab:  0 3px 8px rgba(0,69,111,.22), 0 16px 34px -12px rgba(0,69,111,.45);
+    --sh-dock: 0 2px 10px rgba(14,26,35,.06), 0 18px 46px -16px rgba(14,26,35,.30);
+    --sh-sheet:0 -2px 10px rgba(14,26,35,.05), 0 -30px 70px -20px rgba(14,26,35,.35);
 
-    --ease:  cubic-bezier(.32,.72,0,1);
-    --t-nav: 260ms;
-    --t-tab: 220ms;
-    --t-sheet: 320ms;
+    /* Gerak — tiap peran punya kurva sendiri, bukan satu kurva untuk semua */
+    --e-glide:  cubic-bezier(.22, 1, .36, 1);      /* pindah layar     */
+    --e-spring: cubic-bezier(.16, 1, .30, 1);      /* sheet            */
+    --e-snap:   cubic-bezier(.34, 1.26, .40, 1);   /* indikator tab    */
+    --e-press:  cubic-bezier(.20, .80, .30, 1);    /* balik dari tekan */
+
+    --t-nav: 420ms;
+    --t-tab: 340ms;
+    --t-sheet: 480ms;
+    --t-rise: 520ms;
   }
 }
 
-/* ─────────────────────────────────────────────
-   COMPONENTS — lapis ini juga ikut pindah saat port
-   ───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTS — ikut pindah saat port
+   ═══════════════════════════════════════════════════════════ */
 @layer components {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html { background: #0E1D28; }
+  html { background: #0B1620; }
 
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    background: #0E1D28;
-    background-image: radial-gradient(120% 80% at 50% 0%, #163141 0%, #0E1D28 62%);
+    font-family: var(--f-ui);
+    font-size: 15px;
+    line-height: 1.45;
     color: var(--ink);
+    background: #0B1620;
+    background-image: radial-gradient(130% 75% at 50% -10%, #17303F 0%, #0B1620 60%);
     min-height: 100dvh;
     display: grid;
     place-items: center;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     -webkit-tap-highlight-color: transparent;
   }
 
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 8px; }
 
-  /* Perangkat */
+  /* ── Perangkat ─────────────────────────────── */
   .phone {
     position: relative;
-    width: 390px;
-    height: 844px;
+    width: 390px; height: 844px;
     background: var(--ground);
-    border-radius: 44px;
+    border-radius: 46px;
     overflow: hidden;
-    box-shadow: 0 0 0 10px #1B2E3B, 0 0 0 11px #2C4353, 0 40px 90px rgba(0,0,0,.55);
     isolation: isolate;
+    box-shadow: 0 0 0 9px #162834, 0 0 0 10px rgba(255,255,255,.07), 0 50px 110px -20px rgba(0,0,0,.7);
+  }
+  /* Butiran film tipis — hanya terasa, tidak terlihat */
+  .phone::after {
+    content: ''; position: absolute; inset: 0; z-index: 90; pointer-events: none;
+    opacity: .028;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   @media (max-width: 480px) {
     body { display: block; }
-    .phone {
-      width: 100vw; height: 100dvh;
-      border-radius: 0; box-shadow: none;
-    }
+    .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
     .statusbar { display: none !important; }
-    .topbar { padding-top: calc(12px + env(safe-area-inset-top)); }
-    .tabbar { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+    .topbar { padding-top: calc(10px + env(safe-area-inset-top)); }
+    .dock   { bottom: calc(12px + env(safe-area-inset-bottom)); }
   }
 
-  /* Status bar palsu — hanya saat dilihat di desktop */
   .statusbar {
-    position: absolute; inset: 0 0 auto 0; height: 46px; z-index: 60;
+    position: absolute; inset: 0 0 auto 0; height: 48px; z-index: 60;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 30px; font-size: 14px; font-weight: 700; letter-spacing: .2px;
-    color: var(--ink); pointer-events: none;
+    padding: 0 32px; pointer-events: none;
+    font-family: var(--f-mono); font-size: 13px; font-weight: 500; color: var(--ink);
   }
-  .statusbar .sb-r { display: flex; align-items: center; gap: 6px; }
+  .statusbar .sb-r { display: flex; align-items: center; gap: 7px; }
 
-  /* Tumpukan layar */
+  /* ── Tumpukan layar ────────────────────────── */
   .stack { position: absolute; inset: 0; overflow: hidden; }
 
   .screen {
@@ -115,436 +138,574 @@
     background: var(--ground);
     will-change: transform;
   }
-  .screen[data-depth="0"] .scroll { padding-top: 0; }
+  /* Selubung gelap tipis pada layar yang terdorong ke belakang */
+  .screen::before {
+    content: ''; position: absolute; inset: 0; z-index: 40; pointer-events: none;
+    background: #0E1A23; opacity: 0;
+    transition: opacity var(--t-nav) var(--e-glide);
+  }
+  .screen.is-behind::before { opacity: .10; }
 
+  /* ── Bilah atas dengan judul yang menyusut ── */
   .topbar {
-    flex: none; z-index: 20;
-    display: flex; align-items: center; gap: 10px;
-    padding: 46px 18px 12px;
+    position: relative; z-index: 20; flex: none;
+    display: flex; align-items: center; gap: 4px;
+    padding: 48px 14px 10px;
     background: var(--ground);
-    transition: box-shadow 180ms linear, background 180ms linear;
   }
-  .topbar.is-stuck {
-    background: color-mix(in srgb, var(--ground) 86%, white);
-    box-shadow: 0 1px 0 var(--line);
-    backdrop-filter: saturate(1.4) blur(10px);
+  .topbar::after {
+    content: ''; position: absolute; inset: auto 0 0 0; height: 1px;
+    background: var(--hair); opacity: 0;
+    transition: opacity 220ms linear;
   }
-  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: -.5px; flex: 1; text-wrap: balance; }
-  .topbar h1.sm { font-size: 19px; }
+  .topbar.is-stuck { background: color-mix(in srgb, var(--ground) 78%, white); backdrop-filter: saturate(1.5) blur(14px); }
+  .topbar.is-stuck::after { opacity: 1; }
+
+  .tb-title {
+    flex: 1; min-width: 0;
+    font-family: var(--f-display); font-weight: 400; font-size: 19px;
+    letter-spacing: -.1px; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 0 6px;
+    opacity: 0; transform: translateY(9px);
+    transition: opacity 260ms linear, transform 320ms var(--e-glide);
+  }
+  .topbar.is-stuck .tb-title { opacity: 1; transform: none; }
 
   .iconbtn {
     flex: none; display: grid; place-items: center;
-    width: 44px; height: 44px; margin: -11px 0; border-radius: 50%;
-    color: var(--ink); transition: background 140ms linear, transform 120ms var(--ease);
+    width: 44px; height: 44px; border-radius: 50%;
+    color: var(--ink);
+    transition: background 160ms linear, transform 260ms var(--e-press);
   }
-  .iconbtn:hover { background: var(--surface-2); }
-  .iconbtn:active { transform: scale(.9); }
-  .iconbtn.lead { margin-left: -11px; }
+  .iconbtn:hover { background: var(--ground-2); }
+  .iconbtn:active { transform: scale(.86); transition-duration: 90ms; }
 
+  /* ── Area gulir ────────────────────────────── */
   .scroll {
     flex: 1; overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
-    padding: 4px 18px 120px;
+    padding: 0 20px 150px;
     scrollbar-width: none;
   }
   .scroll::-webkit-scrollbar { width: 0; }
 
-  /* Kartu */
+  .bigtitle {
+    font-family: var(--f-display); font-weight: 400; font-size: 33px;
+    line-height: 1.08; letter-spacing: -.6px;
+    padding: 6px 0 20px;
+    text-wrap: balance;
+    transition: opacity 200ms linear, transform 300ms var(--e-glide);
+  }
+  /* Instrument Serif tidak dipakai untuk angka — "1"-nya mirip huruf "l".
+     Setiap deret angka di dalam judul serif dialihkan ke huruf mono. */
+  .num {
+    font-family: var(--f-ui); font-weight: 500; font-size: .8em;
+    letter-spacing: -.02em; padding-left: .08em;
+    font-variant-numeric: tabular-nums;
+  }
+  .scroll.is-scrolled .bigtitle { opacity: 0; transform: translateY(-6px); }
+
+  /* ── Kartu ─────────────────────────────────── */
   .card {
     background: var(--surface);
     border-radius: var(--r-card);
-    box-shadow: var(--sh-1);
-    padding: 16px;
+    box-shadow: var(--sh-card);
+    padding: 18px;
   }
   .card.flush { padding: 0; overflow: hidden; }
 
   .tap {
-    width: 100%; text-align: left;
-    transition: transform 100ms var(--ease), box-shadow 160ms linear;
+    display: block; width: 100%; text-align: left;
+    transition: transform 260ms var(--e-press), box-shadow 260ms var(--e-press);
   }
-  .tap:active { transform: scale(.98); box-shadow: 0 0 0 1px var(--line); }
+  .tap:active {
+    transform: scale(.975);
+    box-shadow: 0 1px 1px rgba(14,26,35,.05), 0 4px 10px -8px rgba(14,26,35,.3);
+    transition-duration: 90ms;
+  }
 
   .stack-v { display: flex; flex-direction: column; gap: 10px; }
-  .stack-v.tight { gap: 8px; }
-  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .divide > * + * { border-top: 1px solid var(--hair); }
 
-  /* Judul seksi */
+  /* ── Judul seksi ───────────────────────────── */
   .sechead {
-    display: flex; align-items: center; gap: 10px;
-    padding: 22px 2px 12px;
+    display: flex; align-items: baseline; gap: 9px;
+    padding: 26px 2px 12px;
   }
-  .sechead h2 { font-size: 17px; font-weight: 800; letter-spacing: -.35px; }
-  .count {
-    display: grid; place-items: center; min-width: 26px; height: 24px; padding: 0 8px;
-    border-radius: var(--r-pill); background: var(--surface-2);
-    font-size: 12px; font-weight: 700; color: var(--ink-2);
+  .sechead h2 {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .sechead .count {
+    font-size: 11.5px; font-weight: 600; color: var(--ink-3);
     font-variant-numeric: tabular-nums;
   }
   .sechead .link { margin-left: auto; }
 
   .link {
-    color: var(--brand); font-size: 14px; font-weight: 700;
-    padding: 8px 4px; margin: -8px -4px; border-radius: 8px;
+    color: var(--brand); font-size: 13.5px; font-weight: 600; letter-spacing: -.1px;
+    padding: 6px 6px; margin: -6px -6px; border-radius: 9px;
+    transition: background 160ms linear;
   }
   .link:active { background: var(--brand-tint); }
 
-  /* Chip status */
-  .chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 26px; padding: 0 10px; border-radius: var(--r-pill);
-    font-size: 12px; font-weight: 700; letter-spacing: -.1px; white-space: nowrap;
+  /* ── Label mikro & nilai ───────────────────── */
+  .mlabel {
+    font-family: var(--f-mono); font-size: 10.5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3);
   }
-  .chip svg { width: 13px; height: 13px; }
+  /* Label huruf-besar yang memuat angka — Instrument Sans, bukan mono */
+  .mlabel.fig {
+    font-family: var(--f-ui); font-size: 10.5px; font-weight: 700;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .mval {
+    font-size: 15px; font-weight: 600; letter-spacing: -.2px; margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .mval .sub {
+    display: block; font-size: 13px; font-weight: 400; color: var(--ink-2);
+    letter-spacing: 0; margin-top: 1px;
+  }
+  .mval.muted { color: var(--ink-3); font-weight: 400; }
+
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 14px; }
+  .kv > * { min-width: 0; }
+
+  /* ── Chip status ───────────────────────────── */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 25px; padding: 0 10px; border-radius: var(--r-pill);
+    font-size: 12px; font-weight: 600; letter-spacing: -.05px; white-space: nowrap;
+    max-width: 100%; overflow: hidden;
+  }
+  .chip .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
   .chip.ok    { background: var(--ok-tint);    color: var(--ok); }
   .chip.warn  { background: var(--warn-tint);  color: var(--warn); }
   .chip.bad   { background: var(--bad-tint);   color: var(--bad); }
   .chip.brand { background: var(--brand-tint); color: var(--brand-deep); }
-  .chip.gold  { background: var(--gold-tint);  color: var(--gold-ink); }
-  .chip.mute  { background: var(--surface-2);  color: var(--ink-2); }
+  .chip.mute  { background: var(--ground-2);   color: var(--ink-2); }
+  .chip.fig   { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-  /* Chip statistik yang bisa ditekan */
+  /* ── Chip statistik ────────────────────────── */
+  .statgrid { display: flex; flex-wrap: wrap; gap: 7px; }
   .statchip {
-    display: inline-flex; align-items: center; gap: 8px;
-    height: 40px; padding: 0 8px 0 14px; border-radius: var(--r-pill);
-    border: 1px solid var(--line); background: var(--surface);
-    font-size: 14px; font-weight: 600; color: var(--ink);
-    transition: transform 100ms var(--ease), border-color 140ms linear, background 140ms linear;
+    display: inline-flex; align-items: center; gap: 9px;
+    height: 40px; padding: 0 13px; border-radius: 13px;
+    background: var(--sunken); color: var(--ink);
+    font-size: 13.5px; font-weight: 500; letter-spacing: -.15px;
+    transition: transform 260ms var(--e-press), background 180ms linear;
   }
-  .statchip:active { transform: scale(.95); background: var(--surface-2); }
+  .statchip:active { transform: scale(.93); transition-duration: 90ms; }
   .statchip b {
-    display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 7px;
-    border-radius: var(--r-pill); background: var(--brand-tint); color: var(--brand-deep);
-    font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+    font-size: 13.5px; font-weight: 700;
+    color: var(--brand-deep); font-variant-numeric: tabular-nums;
   }
-  .statchip.is-bad  { border-color: color-mix(in srgb, var(--bad) 32%, var(--line)); color: var(--bad); }
-  .statchip.is-bad b  { background: var(--bad-tint);  color: var(--bad); }
-  .statchip.is-warn { border-color: color-mix(in srgb, var(--warn) 34%, var(--line)); color: var(--warn); }
-  .statchip.is-warn b { background: var(--warn-tint); color: var(--warn); }
+  .statchip.is-bad  { background: var(--bad-tint);  color: var(--bad); }
+  .statchip.is-bad b  { color: var(--bad); }
+  .statchip.is-warn { background: var(--warn-tint); color: var(--warn); }
+  .statchip.is-warn b { color: var(--warn); }
   .statchip.is-zero { color: var(--ink-3); }
-  .statchip.is-zero b { background: var(--surface-2); color: var(--ink-3); }
+  .statchip.is-zero b { color: var(--ink-3); }
 
-  /* Avatar */
+  /* ── Avatar & nomor kamar ──────────────────── */
   .av {
     flex: none; display: grid; place-items: center;
     width: 44px; height: 44px; border-radius: 50%;
     background: var(--brand-tint); color: var(--brand-deep);
-    font-size: 15px; font-weight: 800; letter-spacing: -.3px;
-    font-variant-numeric: tabular-nums;
+    font-size: 14px; font-weight: 600; letter-spacing: -.2px;
   }
+  .av.sq   { border-radius: 14px; }
+  .av.sm   { width: 38px; height: 38px; border-radius: 12px; }
+  .av.lg   { width: 80px; height: 80px; font-family: var(--f-display); font-weight: 400; font-size: 30px; letter-spacing: 0; }
   .av.gold { background: var(--gold-tint); color: var(--gold-ink); }
-  .av.sq { border-radius: 14px; }
-  .av.lg { width: 76px; height: 76px; font-size: 26px; }
-  .av.ghost { background: var(--surface-2); color: var(--ink-3); }
-
-  /* Tab pil dengan indikator yang bergeser */
-  .ptabs {
-    position: relative; display: flex; gap: 2px;
-    background: var(--surface); border-radius: var(--r-pill);
-    padding: 4px; box-shadow: var(--sh-1);
-    margin: 4px 0 6px;
-  }
-  .ptabs-ind {
-    position: absolute; top: 4px; bottom: 4px; left: 0;
-    border-radius: var(--r-pill); background: var(--brand-tint);
-    transition: transform var(--t-tab) var(--ease), width var(--t-tab) var(--ease);
-    will-change: transform, width;
-  }
-  .ptab {
-    position: relative; flex: 1; height: 40px; border-radius: var(--r-pill);
-    font-size: 14px; font-weight: 700; color: var(--ink-2); letter-spacing: -.2px;
-    transition: color var(--t-tab) var(--ease);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .ptab.is-on { color: var(--brand-deep); }
-
-  /* Chip filter */
-  .filterbar { display: flex; gap: 8px; overflow-x: auto; padding: 4px 18px 8px; margin: 0 -18px; scrollbar-width: none; }
-  .filterbar::-webkit-scrollbar { height: 0; }
-  .fchip {
-    flex: none; height: 38px; padding: 0 14px; border-radius: var(--r-pill);
-    background: var(--surface); border: 1px solid var(--line);
-    font-size: 13px; font-weight: 700; color: var(--ink-2);
-    transition: transform 100ms var(--ease), background 140ms linear, color 140ms linear, border-color 140ms linear;
-  }
-  .fchip:active { transform: scale(.94); }
-  .fchip.is-on { background: var(--brand); border-color: var(--brand); color: #fff; }
-
-  /* Kolom cari */
-  .search {
-    display: flex; align-items: center; gap: 10px;
-    height: 46px; padding: 0 14px; border-radius: var(--r-field);
-    background: var(--surface); box-shadow: var(--sh-1); color: var(--ink-3);
-  }
-  .search input {
-    flex: 1; border: 0; background: none; font: inherit; font-size: 15px;
-    color: var(--ink); outline: none; min-width: 0;
-  }
-  .search input::placeholder { color: var(--ink-3); font-weight: 500; }
-
-  /* Baris daftar */
-  .lrow { display: flex; align-items: center; gap: 13px; padding: 14px 16px; }
-  .lrow-body { flex: 1; min-width: 0; }
-  .lrow-title { font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
-  .lrow-sub { font-size: 13.5px; color: var(--ink-2); margin-top: 2px; font-weight: 500; }
-  .lrow-meta { display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
-  .lrow .chev { color: var(--ink-3); flex: none; }
-
-  .divide > * + * { border-top: 1px solid var(--line-soft); }
-
-  /* Grid label/nilai */
-  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
-  .kv-k { font-size: 12px; font-weight: 700; color: var(--ink-3); letter-spacing: .3px; text-transform: uppercase; }
-  .kv-v { font-size: 15.5px; font-weight: 700; margin-top: 3px; letter-spacing: -.2px; }
-  .kv-v.soft { font-weight: 600; color: var(--ink-2); }
-  .kv-v small { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); margin-top: 1px; }
-
-  /* Tombol */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    height: 40px; padding: 0 16px; border-radius: var(--r-pill);
-    font-size: 14px; font-weight: 700; letter-spacing: -.2px;
-    background: var(--surface-2); color: var(--ink);
-    transition: transform 100ms var(--ease), background 140ms linear;
-  }
-  .btn:active { transform: scale(.95); }
-  .btn.primary { background: var(--brand); color: #fff; }
-  .btn.brandsoft { background: var(--brand-tint); color: var(--brand-deep); }
-  .btn.sm { height: 34px; padding: 0 13px; font-size: 13px; }
-
-  /* FAB */
-  .fab {
-    position: absolute; right: 18px; bottom: 26px; z-index: 30;
-    display: inline-flex; align-items: center; gap: 9px;
-    height: 54px; padding: 0 22px 0 18px; border-radius: var(--r-pill);
-    background: var(--brand-deep); color: #fff;
-    font-size: 15px; font-weight: 700; letter-spacing: -.2px; white-space: nowrap;
-    box-shadow: var(--sh-fab);
-    transition: padding var(--t-tab) var(--ease), transform 160ms var(--ease);
-  }
-  .fab .fab-label {
-    max-width: 120px; overflow: hidden;
-    transition: max-width var(--t-tab) var(--ease), opacity 160ms linear;
-  }
-  .fab.is-tucked { padding: 0; width: 54px; justify-content: center; }
-  .fab.is-tucked .fab-label { max-width: 0; opacity: 0; }
-  .fab:active { transform: scale(.93); }
-  .screen[data-depth="0"] .fab { bottom: 84px; }
-
-  /* Tab bawah */
-  .tabbar {
-    position: absolute; inset: auto 0 0 0; z-index: 40;
-    display: flex; padding: 6px 10px;
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
-    backdrop-filter: saturate(1.6) blur(18px);
-    border-top: 1px solid var(--line-soft);
-    transition: transform var(--t-nav) var(--ease), opacity 200ms linear;
-  }
-  .tabbar.is-hidden { transform: translateY(102%); opacity: 0; pointer-events: none; }
-  .tabitem {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 8px 0 6px; border-radius: 16px; color: var(--ink-3);
-    font-size: 11.5px; font-weight: 700; letter-spacing: -.1px;
-  }
-  .tabitem .tabicon {
-    display: grid; place-items: center; width: 56px; height: 30px; border-radius: var(--r-pill);
-    transition: background var(--t-tab) var(--ease), color var(--t-tab) var(--ease);
-  }
-  .tabitem.is-on { color: var(--brand-deep); }
-  .tabitem.is-on .tabicon { background: var(--brand-tint); }
-  .tabitem:active .tabicon { transform: scale(.9); }
-
-  /* Bottom sheet */
-  .scrim {
-    position: absolute; inset: 0; z-index: 50;
-    background: rgba(12,26,36,.42);
-    animation: fadeIn 220ms linear both;
-  }
-  .scrim.is-out { animation: fadeOut 200ms linear both; }
-
-  .sheet {
-    position: absolute; inset: auto 0 0 0; z-index: 51;
-    background: var(--surface);
-    border-radius: 26px 26px 0 0;
-    box-shadow: var(--sh-sheet);
-    padding-bottom: max(14px, env(safe-area-inset-bottom));
-    max-height: 82%;
-    display: flex; flex-direction: column;
-    animation: sheetUp var(--t-sheet) var(--ease) both;
-    will-change: transform;
-  }
-  .sheet.is-out { animation: sheetDown 240ms var(--ease) both; }
-  .sheet.is-dragging { animation: none; transition: none; }
-  .sheet.is-settling { animation: none; transition: transform 300ms var(--ease); }
-
-  .sheet-grab { flex: none; padding: 10px 0 4px; display: grid; place-items: center; cursor: grab; touch-action: none; }
-  .sheet-grab::before { content: ''; width: 38px; height: 4px; border-radius: 4px; background: var(--surface-2); }
-  .sheet-head { flex: none; padding: 6px 20px 12px; touch-action: none; }
-  .sheet-title { font-size: 17px; font-weight: 800; letter-spacing: -.35px; }
-  .sheet-sub { font-size: 13.5px; color: var(--ink-2); font-weight: 500; margin-top: 2px; }
-  .sheet-body { overflow-y: auto; padding: 0 12px 10px; scrollbar-width: none; }
-  .sheet-body::-webkit-scrollbar { width: 0; }
-
-  .aitem {
-    display: flex; align-items: center; gap: 14px; width: 100%;
-    padding: 13px 12px; border-radius: 15px; text-align: left;
-    transition: background 120ms linear, transform 100ms var(--ease);
-  }
-  .aitem:active { background: var(--surface-2); transform: scale(.985); }
-  .aitem-ic {
-    flex: none; display: grid; place-items: center; width: 40px; height: 40px;
-    border-radius: 13px; background: var(--brand-tint); color: var(--brand-deep);
-  }
-  .aitem-t { flex: 1; font-size: 15.5px; font-weight: 700; letter-spacing: -.2px; }
-  .aitem-t small { display: block; font-size: 13px; font-weight: 500; color: var(--ink-2); margin-top: 1px; letter-spacing: 0; }
-  .aitem.danger .aitem-ic { background: var(--bad-tint); color: var(--bad); }
-  .aitem.danger .aitem-t { color: var(--bad); }
-
-  /* Kotak peringatan */
-  .note {
-    display: flex; gap: 11px; padding: 13px 14px; border-radius: 15px;
-    font-size: 13.5px; font-weight: 600; line-height: 1.45;
-  }
-  .note.bad  { background: var(--bad-tint);  color: #8E2622; }
-  .note.info { background: var(--brand-tint); color: var(--brand-deep); }
-  .note svg { flex: none; margin-top: 1px; }
-
-  /* Keadaan kosong */
-  .empty { text-align: center; padding: 34px 22px; }
-  .empty-art { display: grid; place-items: center; margin-bottom: 16px; }
-  .empty h3 { font-size: 18px; font-weight: 800; letter-spacing: -.35px; }
-  .empty p { font-size: 14px; color: var(--ink-2); margin-top: 7px; line-height: 1.5; font-weight: 500; }
-
-  /* Toast */
-  .toast {
-    position: absolute; left: 50%; bottom: 96px; z-index: 70;
-    transform: translateX(-50%);
-    background: var(--ink); color: #fff;
-    padding: 11px 18px; border-radius: var(--r-pill);
-    font-size: 13.5px; font-weight: 600; white-space: nowrap;
-    box-shadow: 0 10px 30px rgba(0,0,0,.3);
-    animation: toastIn 240ms var(--ease) both;
-  }
-  .toast.is-out { animation: toastOut 200ms var(--ease) both; }
-
-  /* Animasi */
-  @keyframes pushIn   { from { transform: translateX(100%); } to { transform: translateX(0); } }
-  @keyframes pushBack { from { transform: translateX(0); filter: brightness(1); }
-                        to   { transform: translateX(-24%); filter: brightness(.94); } }
-  @keyframes popFwd   { from { transform: translateX(-24%); filter: brightness(.94); }
-                        to   { transform: translateX(0); filter: brightness(1); } }
-  @keyframes popOut   { from { transform: translateX(0); } to { transform: translateX(100%); } }
-  @keyframes fadeUp   { from { opacity: 0; transform: translateY(6px) scale(.995); } to { opacity: 1; transform: none; } }
-  @keyframes fadeGone { from { opacity: 1; } to { opacity: 0; } }
-  @keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes fadeOut  { from { opacity: 1; } to { opacity: 0; } }
-  @keyframes sheetUp  { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes sheetDown{ from { transform: translateY(0); } to { transform: translateY(100%); } }
-  @keyframes rise     { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  @keyframes toastIn  { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
-  @keyframes toastOut { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 8px); } }
-
-  .anim-pushIn   { animation: pushIn   var(--t-nav) var(--ease) both; z-index: 12; }
-  .anim-pushBack { animation: pushBack var(--t-nav) var(--ease) both; z-index: 11; }
-  .anim-popFwd   { animation: popFwd   var(--t-nav) var(--ease) both; z-index: 11; }
-  .anim-popOut   { animation: popOut   var(--t-nav) var(--ease) both; z-index: 12; }
-  .anim-fadeUp   { animation: fadeUp   240ms var(--ease) both; z-index: 12; }
-  .anim-fadeGone { animation: fadeGone 180ms linear both; z-index: 11; }
-
-  .stagger > * { animation: rise 380ms var(--ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 1ms !important;
-      animation-delay: 0ms !important;
-      transition-duration: 1ms !important;
-    }
-  }
-}
-
-/* ─────────────────────────────────────────────
-   SCREENS — tata letak khusus, ditulis ulang saat port
-   ───────────────────────────────────────────── */
-@layer screens {
-  .greet { padding: 18px 18px 16px; }
-  .greet-top { display: flex; align-items: flex-start; gap: 12px; }
-  .greet h2 { font-size: 21px; font-weight: 800; letter-spacing: -.5px; }
-  .greet p { font-size: 13.5px; color: var(--ink-2); font-weight: 500; margin-top: 2px; }
-  .greet-badge {
-    flex: none; display: grid; place-items: center; width: 46px; height: 46px;
-    border-radius: 50%; background: var(--gold-tint); color: var(--gold-ink);
-    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 45%, transparent);
-  }
-  .statgrid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-
-  .proprow .av.sq { width: 46px; height: 46px; font-size: 14px; }
+  .av.ghost{ background: var(--sunken);    color: var(--ink-3); }
+  .av.pos  { background: var(--ok-tint);   color: var(--ok); }
 
   .roomno {
     flex: none; display: grid; place-items: center;
     width: 46px; height: 46px; border-radius: 50%;
     background: var(--brand-tint); color: var(--brand-deep);
-    font-size: 14.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+    font-size: 14px; font-weight: 700; letter-spacing: -.3px;
+    font-variant-numeric: tabular-nums;
   }
-  .roomno.vacant { background: var(--surface-2); color: var(--ink-3); }
+  .roomno.vacant { background: var(--sunken); color: var(--ink-3); }
 
-  .leasecard { padding: 0; overflow: hidden; }
-  .leasecard-top { display: flex; align-items: center; gap: 13px; padding: 16px; }
-  .leasecard-grid { padding: 0 16px 16px; }
-  .leasecard-grid .kv { padding-top: 16px; border-top: 1px dashed var(--line); }
+  /* ── Baris daftar ──────────────────────────── */
+  .lrow { display: flex; align-items: center; gap: 13px; padding: 14px 16px; }
+  .lrow-body { flex: 1; min-width: 0; }
+  .lrow-title {
+    display: block; font-size: 15.5px; font-weight: 600; letter-spacing: -.25px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lrow-sub {
+    display: block; font-size: 13px; color: var(--ink-2); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lrow-meta { display: flex; align-items: center; gap: 6px; margin-top: 9px; min-width: 0; }
+  .lrow-meta > * { flex: none; }
+  .lrow-trail { flex: none; display: flex; align-items: center; gap: 10px; }
+  .lrow .chev { flex: none; color: var(--ink-3); opacity: .7; }
 
-  .pricecard { margin-top: 10px; }
-  .pricehead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .pricehead .kv-k { margin-bottom: 4px; }
-  .price { font-size: 21px; font-weight: 800; letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
-  .price small { font-size: 14px; font-weight: 600; color: var(--ink-2); letter-spacing: -.2px; }
+  /* Baris label kiri / nilai kanan — tidak pernah bertabrakan */
+  .drow { display: flex; align-items: baseline; gap: 16px; padding: 14px 16px; }
+  .drow dt { flex: 1 1 auto; min-width: 0; font-size: 13.5px; color: var(--ink-2); }
+  .drow dd {
+    flex: 0 1 auto; min-width: 0; max-width: 62%;
+    font-size: 14.5px; font-weight: 600; letter-spacing: -.2px; text-align: right;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+  .drow dd.act { flex: none; max-width: none; }
 
-  .billrow {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    margin-top: 14px; padding: 13px 14px; border-radius: 15px;
+  /* ── Tab pil bergeser ──────────────────────── */
+  .tabdock {
+    position: sticky; top: 0; z-index: 6;
+    margin: 0 -20px 4px; padding: 2px 20px 12px;
     background: var(--ground);
   }
-  .billrow-t { font-size: 13.5px; color: var(--ink-2); font-weight: 600; }
-  .billrow-v { font-size: 16px; font-weight: 800; letter-spacing: -.3px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .ptabs {
+    position: relative; display: flex; gap: 2px;
+    background: var(--surface); border-radius: var(--r-pill);
+    padding: 4px; box-shadow: var(--sh-card);
+  }
+  .ptabs-ind {
+    position: absolute; top: 4px; bottom: 4px; left: 0;
+    border-radius: var(--r-pill); background: var(--brand-tint);
+    transition: transform var(--t-tab) var(--e-snap), width var(--t-tab) var(--e-snap);
+    will-change: transform, width;
+  }
+  .ptab {
+    position: relative; flex: 1; min-width: 0; height: 38px; border-radius: var(--r-pill);
+    font-size: 13px; font-weight: 600; color: var(--ink-2); letter-spacing: -.15px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px;
+    transition: color var(--t-tab) var(--e-snap);
+  }
+  .ptab.is-on { color: var(--brand-deep); }
 
+  /* ── Chip filter ───────────────────────────── */
+  .filterbar {
+    display: flex; gap: 7px; overflow-x: auto;
+    margin: 0 -20px; padding: 2px 20px 4px; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent);
+  }
+  .filterbar::-webkit-scrollbar { height: 0; }
+  .fchip {
+    flex: none; display: inline-flex; align-items: center; gap: 7px;
+    height: 38px; padding: 0 14px; border-radius: 12px;
+    background: var(--surface); box-shadow: var(--sh-card);
+    font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap;
+    transition: transform 260ms var(--e-press), background 200ms linear, color 200ms linear;
+  }
+  .fchip i { font-style: normal; font-size: 11.5px; font-weight: 700; opacity: .55; font-variant-numeric: tabular-nums; }
+  .fchip:active { transform: scale(.93); transition-duration: 90ms; }
+  .fchip.is-on { background: var(--brand-deep); color: #fff; }
+  .fchip.is-on i { opacity: .75; }
+
+  /* ── Kolom cari ────────────────────────────── */
+  .search {
+    display: flex; align-items: center; gap: 11px;
+    height: 48px; padding: 0 15px; border-radius: var(--r-soft);
+    background: var(--surface); box-shadow: var(--sh-card); color: var(--ink-3);
+  }
+  .search input {
+    flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: 14.5px;
+    color: var(--ink); outline: none;
+  }
+  .search input::placeholder { color: var(--ink-3); }
+
+  /* ── Tombol ────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    height: 42px; padding: 0 17px; border-radius: var(--r-pill);
+    font-size: 14px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap;
+    background: var(--sunken); color: var(--ink);
+    transition: transform 260ms var(--e-press), background 180ms linear;
+  }
+  .btn:active { transform: scale(.94); transition-duration: 90ms; }
+  .btn.primary   { background: var(--brand-deep); color: #fff; }
+  .btn.brandsoft { background: var(--brand-tint); color: var(--brand-deep); }
+  .btn.sm { height: 36px; padding: 0 14px; font-size: 13px; }
+  .btn.block { width: 100%; }
+
+  /* ── FAB ───────────────────────────────────── */
+  .fab {
+    position: absolute; right: 18px; bottom: 26px; z-index: 30;
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 54px; padding: 0 22px 0 18px; border-radius: var(--r-pill);
+    background: var(--brand-deep); color: #fff;
+    font-size: 14.5px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap;
+    box-shadow: var(--sh-fab);
+    transition: padding var(--t-tab) var(--e-glide), transform 300ms var(--e-press);
+  }
+  .fab .fab-label {
+    max-width: 130px; overflow: hidden;
+    transition: max-width var(--t-tab) var(--e-glide), opacity 200ms linear;
+  }
+  .fab.is-tucked { padding: 0; width: 54px; justify-content: center; }
+  .fab.is-tucked .fab-label { max-width: 0; opacity: 0; }
+  .fab:active { transform: scale(.9); transition-duration: 90ms; }
+
+
+  /* ── Dok navigasi mengambang ───────────────── */
+  .dock {
+    position: absolute; left: 16px; right: 16px; bottom: 18px; z-index: 40;
+    display: flex; gap: 4px; padding: 6px;
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter: saturate(1.8) blur(22px);
+    box-shadow: var(--sh-dock), inset 0 0 0 1px rgba(255,255,255,.6);
+    transition: transform var(--t-nav) var(--e-glide), opacity 240ms linear;
+  }
+  .dock.is-hidden { transform: translateY(150%); opacity: 0; pointer-events: none; }
+  .tabitem {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 7px 0 6px; border-radius: 18px; color: var(--ink-3);
+    font-size: 10.5px; font-weight: 600; letter-spacing: -.05px;
+    transition: color var(--t-tab) var(--e-snap), background var(--t-tab) var(--e-snap);
+  }
+  .tabitem .tabicon {
+    display: grid; place-items: center; height: 26px;
+    transition: transform 320ms var(--e-snap);
+  }
+  .tabitem.is-on { color: var(--brand-deep); background: var(--brand-tint); }
+  .tabitem.is-on .tabicon { transform: translateY(-1px); }
+  .tabitem:active .tabicon { transform: scale(.85); }
+
+  /* ── Bottom sheet ──────────────────────────── */
+  .scrim {
+    position: absolute; inset: 0; z-index: 50;
+    background: rgba(10,20,28,.40);
+    backdrop-filter: blur(3px);
+    animation: scrimIn 300ms linear both;
+  }
+  .scrim.is-out { animation: scrimOut 220ms linear both; }
+
+  .sheet {
+    position: absolute; inset: auto 8px 8px; z-index: 51;
+    background: var(--surface);
+    border-radius: 28px;
+    box-shadow: var(--sh-sheet);
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    max-height: 80%;
+    display: flex; flex-direction: column;
+    animation: sheetUp var(--t-sheet) var(--e-spring) both;
+    will-change: transform;
+  }
+  .sheet.is-out     { animation: sheetDown 260ms var(--e-glide) both; }
+  .sheet.is-dragging{ animation: none; transition: none; }
+  .sheet.is-settling{ animation: none; transition: transform 420ms var(--e-spring); }
+
+  .sheet-grab { flex: none; padding: 11px 0 3px; display: grid; place-items: center; touch-action: none; cursor: grab; }
+  .sheet-grab::before { content: ''; width: 36px; height: 4px; border-radius: 4px; background: var(--ground-2); }
+  .sheet-head { flex: none; padding: 8px 22px 14px; touch-action: none; }
+  .sheet-title { font-family: var(--f-display); font-size: 22px; font-weight: 400; letter-spacing: -.3px; line-height: 1.15; }
+  .sheet-sub {
+    font-size: 13px; color: var(--ink-2); margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sheet-body { overflow-y: auto; padding: 0 10px 8px; scrollbar-width: none; }
+  .sheet-body::-webkit-scrollbar { width: 0; }
+
+  .aitem {
+    display: flex; align-items: center; gap: 14px; width: 100%;
+    padding: 12px 12px; border-radius: 16px; text-align: left;
+    transition: background 160ms linear, transform 260ms var(--e-press);
+  }
+  .aitem:active { background: var(--sunken); transform: scale(.985); transition-duration: 90ms; }
+  .aitem-ic {
+    flex: none; display: grid; place-items: center; width: 40px; height: 40px;
+    border-radius: 13px; background: var(--brand-tint); color: var(--brand-deep);
+  }
+  .aitem-t { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  .aitem-t small {
+    display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-2);
+    letter-spacing: 0; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .aitem.danger .aitem-ic { background: var(--bad-tint); color: var(--bad); }
+  .aitem.danger .aitem-t  { color: var(--bad); }
+
+  /* ── Keadaan kosong ────────────────────────── */
+  .emptystate { text-align: center; padding: 38px 24px 34px; }
+  .emptystate-art { display: grid; place-items: center; margin-bottom: 18px; }
+  .emptystate h3 { font-family: var(--f-display); font-size: 22px; font-weight: 400; letter-spacing: -.3px; }
+  .emptystate p  { font-size: 13.5px; color: var(--ink-2); margin-top: 8px; line-height: 1.55; max-width: 27ch; margin-inline: auto; }
+
+  /* ── Toast ─────────────────────────────────── */
+  .toast {
+    position: absolute; left: 50%; bottom: 104px; z-index: 70;
+    background: var(--ink); color: #fff;
+    padding: 11px 19px; border-radius: var(--r-pill);
+    font-size: 13px; font-weight: 500; white-space: nowrap;
+    box-shadow: 0 14px 34px -10px rgba(0,0,0,.5);
+    animation: toastIn 340ms var(--e-spring) both;
+  }
+  .toast.is-out { animation: toastOut 220ms var(--e-glide) both; }
+
+  /* ── Animasi ───────────────────────────────── */
+  @keyframes pushIn   { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @keyframes pushBack { from { transform: translateX(0) scale(1); } to { transform: translateX(-20%) scale(.965); } }
+  @keyframes popFwd   { from { transform: translateX(-20%) scale(.965); } to { transform: translateX(0) scale(1); } }
+  @keyframes popOut   { from { transform: translateX(0); } to { transform: translateX(100%); } }
+  @keyframes fadeUp   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes fadeGone { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes scrimIn  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes scrimOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes sheetUp  { from { transform: translateY(104%); } to { transform: translateY(0); } }
+  @keyframes sheetDown{ from { transform: translateY(0); } to { transform: translateY(104%); } }
+  @keyframes dockUp   { from { opacity: 0; transform: translateY(140%); } to { opacity: 1; transform: none; } }
+  @keyframes toastIn  { from { opacity: 0; transform: translate(-50%, 16px) scale(.94); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+  @keyframes toastOut { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 10px); } }
+
+  /* Masuk berurutan: naik + fokus menajam */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); filter: blur(9px); }
+    60%  { filter: blur(0); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+  }
+
+  .anim-pushIn   { animation: pushIn   var(--t-nav) var(--e-glide) both; z-index: 12; }
+  .anim-pushBack { animation: pushBack var(--t-nav) var(--e-glide) both; z-index: 11; }
+  .anim-popFwd   { animation: popFwd   var(--t-nav) var(--e-glide) both; z-index: 11; }
+  .anim-popOut   { animation: popOut   var(--t-nav) var(--e-glide) both; z-index: 12; }
+  .anim-fadeUp   { animation: fadeUp   300ms var(--e-glide) both; z-index: 12; }
+  .anim-fadeGone { animation: fadeGone 200ms linear both; z-index: 11; }
+
+  .stagger > * { animation: rise var(--t-rise) var(--e-glide) both; animation-delay: calc(var(--i, 0) * 34ms); }
+  .dock.is-boot { animation: dockUp 620ms var(--e-spring) 180ms both; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important; animation-delay: 0ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCREENS — tata letak khusus, ditulis ulang saat port
+   ═══════════════════════════════════════════════════════════ */
+@layer screens {
+  /* Kartu sambutan */
+  .hero {
+    background: linear-gradient(168deg, #FFFFFF 0%, #FBFCFE 40%, var(--brand-tint) 190%);
+    padding: 20px;
+  }
+  .hero-top { display: flex; align-items: flex-start; gap: 14px; }
+  .hero-txt { flex: 1; min-width: 0; }
+  .hero h2 {
+    font-family: var(--f-display); font-weight: 400; font-size: 25px;
+    line-height: 1.12; letter-spacing: -.4px;
+  }
+  .hero h2 em { font-style: italic; }
+  .hero p {
+    font-size: 11px; font-weight: 700; color: var(--ink-3);
+    margin-top: 7px; letter-spacing: .1em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-mark {
+    flex: none; display: grid; place-items: center; width: 44px; height: 44px;
+    border-radius: 14px; background: var(--gold-tint); color: var(--gold-ink);
+    box-shadow: inset 0 0 0 1px rgba(122,86,0,.14);
+  }
+  .hero-rule { height: 1px; background: var(--hair); margin: 18px 0 16px; }
+
+  /* Kartu masa tinggal */
+  .lease-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; padding: 0 16px 12px;
+  }
+  .lease-grid { padding: 0 16px 18px; }
+
+  /* Kartu harga */
+  .price-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+  .price-head > div:first-child { flex: 1; min-width: 0; }
+  /* Nominal selalu huruf sans: angka 1 pada Instrument Serif mirip huruf l */
+  .price {
+    font-size: 27px; font-weight: 600; line-height: 1.12;
+    letter-spacing: -.8px; margin-top: 7px;
+    font-variant-numeric: tabular-nums;
+  }
+  .price .per { font-size: 13.5px; font-weight: 400; color: var(--ink-2); letter-spacing: -.1px; }
+
+  .bill {
+    margin-top: 16px; padding: 14px 15px; border-radius: var(--r-soft);
+    background: var(--sunken);
+  }
+  .bill + .bill { margin-top: 8px; }
+  .bill-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .bill-top .mlabel { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bill-amt { font-size: 17px; font-weight: 600; letter-spacing: -.35px; margin-top: 7px; font-variant-numeric: tabular-nums; }
+
+  /* Nilai transaksi */
+  .txn-amt {
+    flex: none; font-size: 14.5px; font-weight: 600; letter-spacing: -.2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .txn-amt.in  { color: var(--ok); }
+  .txn-amt.out { color: var(--ink); }
+
+  /* Ringkasan dua kolom */
+  .summary { display: flex; }
+  .summary > div { flex: 1; min-width: 0; padding: 18px 16px; }
+  .summary > div + div { border-left: 1px solid var(--hair); }
+  .summary .amt { font-size: 19px; font-weight: 600; letter-spacing: -.4px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+  /* Profil penghuni */
+  .profile { text-align: center; padding: 26px 18px 20px; }
+  .profile .av { margin: 0 auto 15px; }
+  .profile h2 { font-family: var(--f-display); font-size: 26px; font-weight: 400; letter-spacing: -.4px; line-height: 1.1; }
+  .profile-chips { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .profile-btns { display: flex; gap: 9px; margin-top: 20px; }
+  .profile-btns .btn { flex: 1; min-width: 0; height: 46px; }
+
+  /* Dokumen */
   .docgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .doc {
-    position: relative; aspect-ratio: 4 / 3; border-radius: 15px;
-    background: var(--ground); display: grid; place-items: center; gap: 6px;
-    align-content: center; color: var(--ink-3);
-    border: 1.5px dashed var(--line);
-    transition: transform 100ms var(--ease), border-color 140ms linear, color 140ms linear;
+    position: relative; aspect-ratio: 4 / 3; border-radius: var(--r-soft);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    background: var(--surface); box-shadow: var(--sh-card); color: var(--ink-3);
+    transition: transform 260ms var(--e-press), color 200ms linear;
   }
-  .doc:active { transform: scale(.97); }
-  .doc span { font-size: 12.5px; font-weight: 700; }
-  .doc.filled {
-    border-style: solid; border-color: transparent; color: var(--brand-deep);
-    background: linear-gradient(145deg, var(--brand-tint), color-mix(in srgb, var(--brand-tint) 55%, var(--surface)));
-  }
+  .doc:active { transform: scale(.96); transition-duration: 90ms; }
+  .doc span { font-size: 12.5px; font-weight: 600; letter-spacing: -.1px; }
+  .doc.filled { color: var(--brand-deep); background: linear-gradient(160deg, #FFFFFF, var(--brand-tint)); }
+  /* Penanda pojok berupa titik, tidak menutupi ikon di tengah */
   .doc.filled::after {
-    content: 'Terisi'; position: absolute; top: 8px; right: 8px;
-    font-size: 10.5px; font-weight: 800; letter-spacing: .3px;
-    background: var(--surface); color: var(--brand-deep);
-    padding: 3px 7px; border-radius: var(--r-pill);
+    content: ''; position: absolute; top: 11px; right: 11px;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 18%, transparent);
   }
+  .doc.add { background: none; box-shadow: inset 0 0 0 1.5px var(--hair-2); }
 
-  .cal { padding: 4px 2px 0; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .cal-dow { font-size: 11px; font-weight: 800; color: var(--ink-3); text-align: center; padding: 8px 0; letter-spacing: .4px; }
+  /* Kalender */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-dow {
+    font-family: var(--f-mono); font-size: 10px; font-weight: 500; color: var(--ink-3);
+    text-align: center; padding: 6px 0 10px; letter-spacing: .06em;
+  }
   .cal-day {
     position: relative; aspect-ratio: 1; border-radius: 13px;
-    display: grid; place-items: center; font-size: 14px; font-weight: 600;
-    color: var(--ink); font-variant-numeric: tabular-nums;
-    transition: background 140ms linear, transform 100ms var(--ease);
+    display: grid; place-items: center;
+    font-size: 13.5px; font-weight: 500; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    transition: background 200ms linear, transform 260ms var(--e-press);
   }
-  .cal-day:active { transform: scale(.9); }
-  .cal-day.mute { color: var(--ink-3); }
-  .cal-day.today { background: var(--brand); color: #fff; font-weight: 800; }
-  .cal-dots { position: absolute; bottom: 7px; display: flex; gap: 3px; }
-  .cal-dots i { width: 5px; height: 5px; border-radius: 50%; display: block; }
-  .cal-day.today .cal-dots i { box-shadow: 0 0 0 1.5px var(--brand); }
+  .cal-day:active { transform: scale(.88); transition-duration: 90ms; }
+  .cal-day.blank { pointer-events: none; }
+  .cal-day.today { background: var(--brand-deep); color: #fff; font-weight: 500; }
+  .cal-dots { position: absolute; bottom: 6px; display: flex; gap: 3px; }
+  .cal-dots i { width: 4.5px; height: 4.5px; border-radius: 50%; display: block; }
+  .cal-day.today .cal-dots i { box-shadow: 0 0 0 1.5px var(--brand-deep); }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 18px 4px 0; }
-  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .legend i { width: 9px; height: 9px; border-radius: 50%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 7px 16px; padding: 18px 4px 2px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 }
 </style>
 
@@ -552,62 +713,58 @@
   <div class="statusbar">
     <span>9.41</span>
     <span class="sb-r">
-      <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.6" y="5.5" width="3" height="6.5" rx="1"/><rect x="9.2" y="3" width="3" height="9" rx="1"/><rect x="13.8" y="0" width="3" height="12" rx="1" opacity=".3"/></svg>
-      <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1 4.2a10 10 0 0 1 14 0"/><path d="M3.6 7a6.4 6.4 0 0 1 8.8 0"/><circle cx="8" cy="10.2" r="1.1" fill="currentColor" stroke="none"/></svg>
-      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".7" y=".7" width="21" height="10.6" rx="3.2" stroke="currentColor" stroke-opacity=".38" stroke-width="1.2"/><rect x="2.4" y="2.4" width="11" height="7.2" rx="1.9" fill="currentColor"/><path d="M23.2 4.3v3.4a2 2 0 0 0 0-3.4z" fill="currentColor" fill-opacity=".4"/></svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect y="8" width="3" height="4" rx="1"/><rect x="4.6" y="5.5" width="3" height="6.5" rx="1"/><rect x="9.2" y="3" width="3" height="9" rx="1"/><rect x="13.8" width="3" height="12" rx="1" opacity=".3"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 4.2a10 10 0 0 1 14 0"/><path d="M3.6 7a6.4 6.4 0 0 1 8.8 0"/><circle cx="8" cy="10.2" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".7" y=".7" width="21" height="10.6" rx="3.2" stroke="currentColor" stroke-opacity=".35" stroke-width="1.2"/><rect x="2.4" y="2.4" width="11" height="7.2" rx="1.9" fill="currentColor"/><path d="M23.2 4.3v3.4a2 2 0 0 0 0-3.4z" fill="currentColor" fill-opacity=".4"/></svg>
     </span>
   </div>
 
   <div class="stack" id="stack"></div>
 
-  <nav class="tabbar" id="tabbar"></nav>
+  <nav class="dock is-boot" id="tabbar"></nav>
 </div>
 
 <script>
 'use strict';
 
-/* ══════════════════════════════════════════════
-   1. IKON
-   ══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   1. IKON — garis 1.6, konsisten di seluruh app
+   ═══════════════════════════════════════════════ */
 const P = {
   back:   '<path d="M15 19l-7-7 7-7"/>',
-  chev:   '<path d="M9 18l6-6-6-6"/>',
-  more:   '<circle cx="12" cy="5"  r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none"/>',
+  chev:   '<path d="M9.5 18l6-6-6-6"/>',
+  more:   '<circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none"/>',
   bell:   '<path d="M18.2 8.5a6.2 6.2 0 1 0-12.4 0c0 6.8-2.8 8.8-2.8 8.8h18s-2.8-2-2.8-8.8"/><path d="M13.7 20.8a2 2 0 0 1-3.4 0"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
-  door:   '<path d="M5 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17"/><path d="M3.5 21h17"/><circle cx="13" cy="12.6" r="1" fill="currentColor" stroke="none"/>',
-  cal:    '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10.5h18"/>',
-  users:  '<path d="M16.5 20.5v-1.2a4 4 0 0 0-4-4h-5a4 4 0 0 0-4 4v1.2"/><circle cx="10" cy="7.5" r="3.4"/><path d="M21.5 20.5v-1.2a4 4 0 0 0-3-3.9"/><path d="M16 4.2a3.4 3.4 0 0 1 0 6.6"/>',
-  plus:   '<path d="M12 5.5v13M5.5 12h13"/>',
+  door:   '<path d="M5 21V4.2a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1V21"/><path d="M3.4 21h17.2"/><circle cx="13" cy="12.6" r=".95" fill="currentColor" stroke="none"/>',
+  cal:    '<rect x="3" y="5" width="18" height="16" rx="3.4"/><path d="M8 3v4M16 3v4M3 10.6h18"/>',
+  users:  '<path d="M16.5 20.5v-1.2a4 4 0 0 0-4-4h-5a4 4 0 0 0-4 4v1.2"/><circle cx="10" cy="7.5" r="3.3"/><path d="M21.5 20.5v-1.2a4 4 0 0 0-3-3.9"/><path d="M16 4.3a3.3 3.3 0 0 1 0 6.4"/>',
+  plus:   '<path d="M12 5.4v13.2M5.4 12h13.2"/>',
   edit:   '<path d="M12.5 20.5H21"/><path d="M16.8 3.6a2.2 2.2 0 0 1 3.1 3.1L8 18.6l-4.2 1.1 1.1-4.2z"/>',
-  note:   '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8.5 8.5h7M8.5 12.5h7M8.5 16.5h4"/>',
-  info:   '<circle cx="12" cy="12" r="9"/><path d="M12 11.2v5"/><path d="M12 7.8h.01"/>',
-  home:   '<path d="M3.2 10.6 12 3.4l8.8 7.2"/><path d="M5.6 9.4V20.6h12.8V9.4"/>',
+  note:   '<rect x="4" y="3" width="16" height="18" rx="3.4"/><path d="M8.4 8.4h7.2M8.4 12.4h7.2M8.4 16.4h4"/>',
+  info:   '<circle cx="12" cy="12" r="9"/><path d="M12 11.2v5"/><path d="M12 7.7h.01"/>',
   wa:     '<path d="M21.8 16.7v2.8a2 2 0 0 1-2.2 2 19.6 19.6 0 0 1-8.5-3 19.2 19.2 0 0 1-5.9-5.9 19.6 19.6 0 0 1-3-8.6 2 2 0 0 1 2-2.2h2.8a2 2 0 0 1 2 1.7c.13 1 .36 1.9.7 2.8a2 2 0 0 1-.46 2.1L8.1 9.6a15.8 15.8 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.45c.9.33 1.8.56 2.8.69a2 2 0 0 1 1.7 2z"/>',
-  wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10.5h18"/><circle cx="16.8" cy="14.8" r="1.3" fill="currentColor" stroke="none"/>',
-  receipt:'<path d="M6 3h12v18l-2.4-1.5L13.2 21 12 19.9 10.8 21l-2.4-1.5L6 21z"/><path d="M9.2 8.4h5.6M9.2 12.4h5.6"/>',
-  money:  '<rect x="2.5" y="6" width="19" height="12" rx="3"/><circle cx="12" cy="12" r="2.7"/><path d="M6 12h.01M18 12h.01"/>',
-  camera: '<path d="M4 8.2h2.8L8.3 6h7.4l1.5 2.2H20a1 1 0 0 1 1 1v8.6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.2a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.3" r="3.2"/>',
-  idcard: '<rect x="2.5" y="5" width="19" height="14" rx="3"/><circle cx="8.6" cy="11" r="2.1"/><path d="M5.4 16c.6-1.4 1.8-2.1 3.2-2.1s2.6.7 3.2 2.1"/><path d="M15 10.2h4M15 14h3"/>',
-  file:   '<path d="M14 3.2V8h4.8"/><path d="M6 3.2h8L19 8v12.8H6z"/>',
-  sliders:'<path d="M4 7.5h9M18.5 7.5h1.5M4 16.5h3.5M13 16.5h7"/><circle cx="15.5" cy="7.5" r="2.4"/><circle cx="10" cy="16.5" r="2.4"/>',
-  trash:  '<path d="M4 6.8h16"/><path d="M9.2 6.8V4.6h5.6v2.2"/><path d="M6.4 6.8 7.4 20.2h9.2L17.6 6.8"/>',
-  move:   '<path d="M5.5 9 2.8 12l2.7 3M9 5.5 12 2.8l3 2.7M15 18.5 12 21.2l-3-2.7M18.5 9l2.7 3-2.7 3M2.8 12h18.4M12 2.8v18.4"/>',
-  warn:   '<path d="M12 3.6 22 20H2z"/><path d="M12 9.8v4.4M12 17h.01"/>',
-  clock:  '<circle cx="12" cy="12" r="9"/><path d="M12 6.8V12l3.2 2.1"/>',
-  build:  '<path d="M4 21V5.5a1 1 0 0 1 1-1h6V21"/><path d="M11 10h8a1 1 0 0 1 1 1v10"/><path d="M7 9h1M7 13h1M7 17h1M15 14h1M15 18h1"/><path d="M2.5 21h19"/>',
-  in:     '<path d="M15 4.5h3.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H15"/><path d="M10.5 8 14.5 12l-4 4"/><path d="M14 12H4"/>',
-  out:    '<path d="M9 4.5H5.5A1.5 1.5 0 0 0 4 6v12a1.5 1.5 0 0 0 1.5 1.5H9"/><path d="M15.5 8 19.5 12l-4 4"/><path d="M19 12H9"/>',
-  check:  '<path d="M20 6.5 9.2 17.3 4 12.1"/>',
-  x:      '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
-  key:    '<circle cx="8" cy="15" r="4.2"/><path d="M11 12 20 3"/><path d="M17.4 5.6 19.6 7.8M15 8l2.2 2.2"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="3.4"/><path d="M3 10.6h18"/><circle cx="16.8" cy="14.9" r="1.25" fill="currentColor" stroke="none"/>',
+  receipt:'<path d="M6.2 3h11.6v18l-2.3-1.5-2.3 1.5L12 19.9l-1.2 1.1-2.3-1.5L6.2 21z"/><path d="M9.3 8.4h5.4M9.3 12.4h5.4"/>',
+  money:  '<rect x="2.6" y="6" width="18.8" height="12" rx="3.4"/><circle cx="12" cy="12" r="2.6"/><path d="M6.1 12h.01M17.9 12h.01"/>',
+  camera: '<path d="M4 8.2h2.8L8.3 6h7.4l1.5 2.2H20a1 1 0 0 1 1 1v8.6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.2a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.3" r="3.1"/>',
+  idcard: '<rect x="2.6" y="5" width="18.8" height="14" rx="3.4"/><circle cx="8.6" cy="11" r="2.05"/><path d="M5.5 16c.6-1.35 1.75-2.05 3.1-2.05S11.1 14.65 11.7 16"/><path d="M15 10.2h4M15 14h3"/>',
+  file:   '<path d="M14 3.2V8h4.8"/><path d="M6.2 3.2H14L19 8v12.8H6.2z"/>',
+  sliders:'<path d="M4 7.5h9M18.6 7.5h1.4M4 16.5h3.4M13 16.5h7"/><circle cx="15.5" cy="7.5" r="2.3"/><circle cx="10" cy="16.5" r="2.3"/>',
+  trash:  '<path d="M4.2 6.8h15.6"/><path d="M9.3 6.8V4.7h5.4v2.1"/><path d="M6.5 6.8 7.5 20.1h9L17.5 6.8"/>',
+  move:   '<path d="M5.6 9 3 12l2.6 3M9 5.6 12 3l3 2.6M15 18.4 12 21l-3-2.6M18.4 9 21 12l-2.6 3M3.2 12h17.6M12 3.2v17.6"/>',
+  clock:  '<circle cx="12" cy="12" r="9"/><path d="M12 6.9V12l3.1 2"/>',
+  in:     '<path d="M15 4.6h3.4A1.6 1.6 0 0 1 20 6.2v11.6a1.6 1.6 0 0 1-1.6 1.6H15"/><path d="M10.6 8 14.6 12l-4 4"/><path d="M14.2 12H4"/>',
+  out:    '<path d="M9 4.6H5.6A1.6 1.6 0 0 0 4 6.2v11.6a1.6 1.6 0 0 0 1.6 1.6H9"/><path d="M15.4 8 19.4 12l-4 4"/><path d="M19 12H8.8"/>',
+  key:    '<circle cx="8.2" cy="15.2" r="4"/><path d="M11 12.4 19.8 3.6"/><path d="M17.2 6.2 19.4 8.4M14.9 8.5l2.2 2.2"/>',
 };
-const ic = (n, s = 22) =>
-  `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
+const ic = (n, s = 21) =>
+  '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[n] || '') + '</svg>';
 
-/* ══════════════════════════════════════════════
-   2. DATA CONTOH (nama properti asli, data dummy)
-   ══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   2. DATA CONTOH (nama properti asli, isi dummy)
+   ═══════════════════════════════════════════════ */
 const TODAY = new Date(2026, 8, 27);   // 27 Sep 2026
 
 const PROPS = [
@@ -649,12 +806,12 @@ const ROOMS = [
   ['p2','B4','Vina Kusuma',     1450000,'lunas','2026-06-21','15:00',1,'P','Karawang',   'Bidan'],
   ['p2','B5','Reza Fadillah',   1400000,'lunas','2026-08-17','12:30',1,'L','Purwakarta', 'Montir'],
   ['p2','B6','',                      0,'kosong','','',0,'',''],
-].map(([prop, no, nama, harga, status, masuk, jam, orang, kelamin, asal, kerja], i) => ({
-  id: prop + '-' + no, prop, no, nama, harga, status, masuk, jam, orang,
+].map(([pr, no, nama, harga, status, masuk, jam, orang, kelamin, asal, kerja], i) => ({
+  id: pr + '-' + no, prop: pr, no, nama, harga, status, masuk, jam, orang,
   kelamin, asal, kerja,
-  hp: nama ? '0812' + String(34567890 + i * 137).slice(0, 8) : '',
+  hp: nama ? '0812 ' + String(34567890 + i * 137).slice(0, 4) + ' ' + String(34567890 + i * 137).slice(4, 8) : '',
   darurat: nama ? ['Orang tua', 'Kakak', 'Saudara', 'Teman'][i % 4] : '',
-  daruratHp: nama ? '0813' + String(21098765 - i * 211).slice(0, 8) : '',
+  daruratHp: nama ? '0813 ' + String(21098765 - i * 211).slice(0, 4) + ' ' + String(21098765 - i * 211).slice(4, 8) : '',
   tglTagih: nama ? ((i % 4) * 5 + 5) : 0,
   deposit: nama ? (harga >= 1700000 ? 1000000 : 500000) : 0,
   dok: { wajah: i % 3 !== 2, ktp: i % 2 === 0, berkas: i % 5 === 0 },
@@ -662,33 +819,33 @@ const ROOMS = [
 
 const TXN = {
   p1: [
-    { t: 'Sewa 205 · Putri Ayu',   d: '2026-09-26', n:  1700000, k: 'in'  },
-    { t: 'Sewa 101 · Hizkia Nogie',d: '2026-09-24', n:  1800000, k: 'in'  },
-    { t: 'Token listrik lantai 2', d: '2026-09-22', n:  -450000, k: 'out' },
-    { t: 'Sewa 111 · Clara Wijaya',d: '2026-09-20', n:  1900000, k: 'in'  },
-    { t: 'Servis pompa air',       d: '2026-09-14', n:  -680000, k: 'out' },
-    { t: 'Gaji penjaga kos',       d: '2026-09-01', n: -1500000, k: 'out' },
+    { t: 'Sewa 205 · Putri Ayu',    d: '2026-09-26', n:  1700000 },
+    { t: 'Sewa 101 · Hizkia Nogie', d: '2026-09-24', n:  1800000 },
+    { t: 'Token listrik lantai 2',  d: '2026-09-22', n:  -450000 },
+    { t: 'Sewa 111 · Clara Wijaya', d: '2026-09-20', n:  1900000 },
+    { t: 'Servis pompa air',        d: '2026-09-14', n:  -680000 },
+    { t: 'Gaji penjaga kos',        d: '2026-09-01', n: -1500000 },
   ],
   p2: [],
 };
 
-const room   = id => ROOMS.find(r => r.id === id);
-const prop   = id => PROPS.find(p => p.id === id);
-const roomsOf= pid => ROOMS.filter(r => r.prop === pid);
-const tenants= () => ROOMS.filter(r => r.nama && r.status !== 'booked');
+const room    = id  => ROOMS.find(r => r.id === id);
+const prop    = id  => PROPS.find(p => p.id === id);
+const roomsOf = pid => ROOMS.filter(r => r.prop === pid);
+const tenants = ()  => ROOMS.filter(r => r.nama && r.status !== 'booked');
 
-/* ══════════════════════════════════════════════
-   3. PEMBANTU FORMAT
-   ══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   3. FORMAT
+   ═══════════════════════════════════════════════ */
 const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-const rp   = n => 'Rp' + Math.abs(n).toLocaleString('id-ID');
-const esc  = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const rp  = n => 'Rp' + Math.abs(n).toLocaleString('id-ID');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 const inisial = n => n.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
 function tgl(iso) {
   if (!iso) return '–';
   const [y, m, d] = iso.split('-').map(Number);
-  return `${String(d).padStart(2, '0')} ${BLN[m - 1]} ${y}`;
+  return String(d).padStart(2, '0') + ' ' + BLN[m - 1] + ' ' + y;
 }
 
 function durasi(iso) {
@@ -699,25 +856,22 @@ function durasi(iso) {
   const hari = Math.floor((TODAY - mulai) / 864e5);
   if (hari < 31) {
     const w = Math.floor(hari / 7), s = hari % 7;
-    return (w ? `${w} minggu` : '') + (w && s ? ' ' : '') + (s || !w ? `${s} hari` : '');
+    return (w ? w + ' minggu' : '') + (w && s ? ' ' : '') + (s || !w ? s + ' hari' : '');
   }
   let bulan = (TODAY.getFullYear() - y) * 12 + (TODAY.getMonth() - (m - 1));
-  const anchor = new Date(TODAY.getFullYear(), TODAY.getMonth(), d);
-  if (anchor > TODAY) bulan--;
-  const ref = new Date(y, m - 1 + bulan, d);
-  const sisa = Math.floor((TODAY - ref) / 864e5);
-  return `${bulan} bulan` + (sisa ? ` ${sisa} hari` : '');
+  if (new Date(TODAY.getFullYear(), TODAY.getMonth(), d) > TODAY) bulan--;
+  const sisa = Math.floor((TODAY - new Date(y, m - 1 + bulan, d)) / 864e5);
+  return bulan + ' bulan' + (sisa ? ' ' + sisa + ' hari' : '');
 }
 
-/* Periode tagihan berjalan, dipatok ke tanggal masuk */
 function periode(r) {
-  if (!r.masuk) return null;
+  if (!r.masuk) return '';
   const d = Number(r.masuk.split('-')[2]);
   let awal = new Date(TODAY.getFullYear(), TODAY.getMonth(), d);
   if (awal > TODAY) awal = new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, d);
   const akhir = new Date(awal.getFullYear(), awal.getMonth() + 1, d);
-  const f = x => `${String(x.getDate()).padStart(2, '0')} ${BLN[x.getMonth()]}`;
-  return `${f(awal)} – ${f(akhir)}`;
+  const f = x => String(x.getDate()).padStart(2, '0') + ' ' + BLN[x.getMonth()];
+  return f(awal) + ' – ' + f(akhir);
 }
 
 const STATUS = {
@@ -727,554 +881,485 @@ const STATUS = {
   booked: { label: 'Booked', cls: 'brand' },
   kosong: { label: 'Kosong', cls: 'mute'  },
 };
-const statusChip = s => `<span class="chip ${STATUS[s].cls}">${STATUS[s].label}</span>`;
+const statusChip = s =>
+  '<span class="chip ' + STATUS[s].cls + '"><i class="dot"></i>' + STATUS[s].label + '</span>';
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    4. STATISTIK BERANDA
-   ══════════════════════════════════════════════ */
-function stats() {
-  const all = ROOMS;
-  return [
-    { k: 'terisi',  label: 'Terisi',      n: all.filter(r => ['lunas','belum','telat'].includes(r.status)).length },
-    { k: 'kosong',  label: 'Kosong',      n: all.filter(r => r.status === 'kosong').length },
-    { k: 'telat',   label: 'Telat',       n: all.filter(r => r.status === 'telat').length,  tone: 'is-bad'  },
-    { k: 'belum',   label: 'Jatuh tempo', n: all.filter(r => r.status === 'belum').length,  tone: 'is-warn' },
-    { k: 'booked',  label: 'Booked',      n: all.filter(r => r.status === 'booked').length },
-    { k: 'checkin', label: 'Check-in',    n: all.filter(r => r.masuk === '2026-09-27').length },
-    { k: 'checkout',label: 'Check-out',   n: 0 },
-  ];
-}
-
-const FILTER_DEF = {
-  terisi:  { judul: 'Kamar terisi',        f: r => ['lunas','belum','telat'].includes(r.status) },
-  kosong:  { judul: 'Kamar kosong',        f: r => r.status === 'kosong' },
-  telat:   { judul: 'Pembayaran telat',    f: r => r.status === 'telat' },
-  belum:   { judul: 'Jatuh tempo',         f: r => r.status === 'belum' },
-  booked:  { judul: 'Kamar booked',        f: r => r.status === 'booked' },
-  checkin: { judul: 'Check-in hari ini',   f: r => r.masuk === '2026-09-27' },
-  checkout:{ judul: 'Check-out hari ini',  f: () => false },
+   ═══════════════════════════════════════════════ */
+const HITUNG = {
+  terisi:   r => ['lunas', 'belum', 'telat'].includes(r.status),
+  kosong:   r => r.status === 'kosong',
+  telat:    r => r.status === 'telat',
+  belum:    r => r.status === 'belum',
+  booked:   r => r.status === 'booked',
+  checkin:  r => r.masuk === '2026-09-27',
+  checkout: () => false,
+};
+const STAT_META = [
+  ['terisi',   'Terisi',      ''],
+  ['kosong',   'Kosong',      ''],
+  ['telat',    'Telat',       'is-bad'],
+  ['belum',    'Jatuh tempo', 'is-warn'],
+  ['booked',   'Booked',      ''],
+  ['checkin',  'Check-in',    ''],
+  ['checkout', 'Check-out',   ''],
+];
+const JUDUL_FILTER = {
+  terisi: 'Kamar terisi', kosong: 'Kamar kosong', telat: 'Pembayaran telat',
+  belum: 'Jatuh tempo', booked: 'Kamar booked',
+  checkin: 'Check-in hari ini', checkout: 'Check-out hari ini',
 };
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    5. POTONGAN UI
-   ══════════════════════════════════════════════ */
-function topbar({ back, title, small, actions = [] }) {
-  return `<header class="topbar">
-    ${back ? `<button class="iconbtn lead" data-back aria-label="Kembali">${ic('back')}</button>` : ''}
-    <h1 class="${small ? 'sm' : ''}">${esc(title)}</h1>
-    ${actions.map(a => `<button class="iconbtn" data-act="${a.act}" aria-label="${esc(a.label)}">${ic(a.icon)}</button>`).join('')}
-  </header>`;
+   ═══════════════════════════════════════════════ */
+/* Alihkan tiap deret angka ke huruf mono — dipakai di semua judul serif */
+const numify = s => esc(s).replace(/\d[\d.]*/g, m => '<span class="num">' + m + '</span>');
+
+function chrome(o) {
+  return '<header class="topbar">' +
+    (o.back ? '<button class="iconbtn" data-back aria-label="Kembali">' + ic('back') + '</button>' : '') +
+    '<h1 class="tb-title">' + numify(o.title) + '</h1>' +
+    (o.actions || []).map(a =>
+      '<button class="iconbtn" data-act="' + a.act + '" aria-label="' + esc(a.label) + '">' + ic(a.icon) + '</button>'
+    ).join('') +
+  '</header>';
 }
+
+const bigtitle = t => '<h1 class="bigtitle">' + numify(t) + '</h1>';
 
 function ptabs(tabs, active) {
-  return `<div class="ptabs" data-ptabs>
-    <span class="ptabs-ind"></span>
-    ${tabs.map((t, i) => `<button class="ptab ${i === active ? 'is-on' : ''}" data-tab="${i}">${esc(t)}</button>`).join('')}
-  </div>`;
+  return '<div class="tabdock"><div class="ptabs" data-ptabs><span class="ptabs-ind"></span>' +
+    tabs.map((t, i) =>
+      '<button class="ptab' + (i === active ? ' is-on' : '') + '" data-tab="' + i + '">' + t + '</button>'
+    ).join('') +
+  '</div></div>';
 }
 
-function roomRow(r) {
+function roomRow(r, tampilProp) {
   const kosong = r.status === 'kosong';
-  return `<button class="card tap lrow" data-go="room/${r.id}">
-    <span class="roomno ${kosong ? 'vacant' : ''}">${esc(r.no)}</span>
-    <span class="lrow-body">
-      <span class="lrow-title">${esc(kosong ? 'Kamar ' + r.no : r.nama)}</span>
-      <span class="lrow-sub">${kosong ? 'Belum ada penghuni' : rp(r.harga) + ' / bulan'}</span>
-      <span class="lrow-meta">${statusChip(r.status)}${r.orang > 1 ? `<span class="chip mute">${ic('users', 13)}${r.orang} orang</span>` : ''}</span>
-    </span>
-    <span class="chev">${ic('chev', 20)}</span>
-  </button>`;
+  const sub = kosong ? 'Belum ada penghuni'
+    : tampilProp ? esc(prop(r.prop).nama)
+    : r.orang > 1 ? rp(r.harga) + ' · ' + r.orang + ' orang'
+    : rp(r.harga) + ' / bulan';
+  return '<button class="card tap lrow" data-go="room/' + r.id + '">' +
+    '<span class="roomno' + (kosong ? ' vacant' : '') + '">' + esc(r.no) + '</span>' +
+    '<span class="lrow-body">' +
+      '<span class="lrow-title">' + esc(kosong ? 'Kamar ' + r.no : r.nama) + '</span>' +
+      '<span class="lrow-sub">' + sub + '</span>' +
+    '</span>' +
+    '<span class="lrow-trail">' + statusChip(r.status) +
+      '<span class="chev">' + ic('chev', 18) + '</span></span>' +
+  '</button>';
 }
 
-function roomRowWithProp(r) {
-  const p = prop(r.prop);
-  return `<button class="card tap lrow" data-go="room/${r.id}">
-    <span class="roomno ${r.status === 'kosong' ? 'vacant' : ''}">${esc(r.no)}</span>
-    <span class="lrow-body">
-      <span class="lrow-title">${esc(r.nama || 'Kamar ' + r.no)}</span>
-      <span class="lrow-sub">${esc(p.nama)}</span>
-      <span class="lrow-meta">${statusChip(r.status)}${r.harga ? `<span class="chip mute">${rp(r.harga)}</span>` : ''}</span>
-    </span>
-    <span class="chev">${ic('chev', 20)}</span>
-  </button>`;
+const navRow = (icon, judul, sub) =>
+  '<button class="card tap lrow" data-act="soon">' +
+    '<span class="av sq ghost">' + ic(icon, 19) + '</span>' +
+    '<span class="lrow-body"><span class="lrow-title">' + judul + '</span>' +
+    '<span class="lrow-sub">' + sub + '</span></span>' +
+    '<span class="chev">' + ic('chev', 18) + '</span>' +
+  '</button>';
+
+function emptyArt() {
+  return '<svg width="132" height="96" viewBox="0 0 132 96" fill="none" aria-hidden="true">' +
+    '<rect x="16" y="20" width="36" height="46" rx="6" fill="var(--sunken)"/>' +
+    '<rect x="46" y="10" width="42" height="56" rx="7" fill="var(--brand-tint)"/>' +
+    '<rect x="82" y="24" width="34" height="42" rx="6" fill="var(--sunken)"/>' +
+    '<path d="M54 25h26M54 34h26M54 43h17" stroke="var(--brand)" stroke-opacity=".38" stroke-width="2.2" stroke-linecap="round"/>' +
+    '<path d="M24 32h20M24 41h20M24 50h12" stroke="var(--ink-3)" stroke-opacity=".38" stroke-width="2.2" stroke-linecap="round"/>' +
+    '<path d="M90 36h18M90 45h18M90 54h11" stroke="var(--ink-3)" stroke-opacity=".38" stroke-width="2.2" stroke-linecap="round"/>' +
+    '<circle cx="66" cy="80" r="4.5" fill="var(--gold)"/>' +
+    '<path d="M30 80h26M76 80h26" stroke="var(--ink-3)" stroke-opacity=".25" stroke-width="2.2" stroke-linecap="round"/>' +
+  '</svg>';
 }
 
-/* ══════════════════════════════════════════════
+const emptyBox = (judul, teks) =>
+  '<div class="card emptystate"><div class="emptystate-art">' + emptyArt() + '</div>' +
+  '<h3>' + judul + '</h3><p>' + teks + '</p></div>';
+
+/* ═══════════════════════════════════════════════
    6. LAYAR
-   ══════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 const VIEWS = {};
 
-/* ── Beranda: daftar properti ─────────────────── */
 VIEWS.home = () => {
-  const jam = new Date().getHours();
-  const sapa = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 19 ? 'Selamat sore' : 'Selamat malam';
-  return topbar({
+  const j = new Date().getHours();
+  const sapa = j < 11 ? 'Selamat pagi' : j < 15 ? 'Selamat siang' : j < 19 ? 'Selamat sore' : 'Selamat malam';
+
+  return chrome({
     title: 'Daftar properti',
     actions: [{ icon: 'bell', act: 'soon', label: 'Notifikasi' }, { icon: 'search', act: 'soon', label: 'Cari' }],
-  }) + `<div class="scroll">
-    <div class="stagger">
-      <section class="card greet">
-        <div class="greet-top">
-          <div style="flex:1">
-            <h2>${sapa}, Jonathan</h2>
-            <p>Ringkasan hari ini · ${tgl('2026-09-27')}</p>
-          </div>
-          <span class="greet-badge">${ic('key', 22)}</span>
-        </div>
-        <div class="statgrid">
-          ${stats().map(s => `<button class="statchip ${s.n ? (s.tone || '') : 'is-zero'}" data-go="filter/${s.k}">
-            ${esc(s.label)} <b data-count="${s.n}">0</b>
-          </button>`).join('')}
-        </div>
-      </section>
+  }) + '<div class="scroll">' + bigtitle('Daftar properti') + '<div class="stagger">' +
 
-      <div class="sechead"><h2>Properti</h2><span class="count">${PROPS.length}</span>
-        <button class="link" data-act="soon">+ Properti</button></div>
+    '<section class="card hero">' +
+      '<div class="hero-top"><div class="hero-txt">' +
+        '<h2>' + sapa + ',<br><em>Jonathan</em></h2>' +
+        '<p>' + tgl('2026-09-27').toUpperCase() + '</p>' +
+      '</div><span class="hero-mark">' + ic('key', 21) + '</span></div>' +
+      '<div class="hero-rule"></div>' +
+      '<div class="statgrid">' + STAT_META.map(([k, label, tone]) => {
+        const n = ROOMS.filter(HITUNG[k]).length;
+        return '<button class="statchip ' + (n ? tone : 'is-zero') + '" data-go="filter/' + k + '">' +
+          label + ' <b data-count="' + n + '">0</b></button>';
+      }).join('') + '</div>' +
+    '</section>' +
 
-      <div class="stack-v">
-        ${PROPS.map(p => {
-          const rs = roomsOf(p.id);
-          const isi = rs.filter(r => r.status !== 'kosong').length;
-          const masalah = rs.filter(r => r.status === 'telat').length;
-          return `<button class="card tap lrow proprow" data-go="prop/${p.id}">
-            <span class="av sq ${p.tone}">${esc(p.init)}</span>
-            <span class="lrow-body">
-              <span class="lrow-title">${esc(p.nama)}</span>
-              <span class="lrow-sub">${esc(p.daerah)}</span>
-              <span class="lrow-meta">
-                <span class="chip mute">Sewa per kamar</span>
-                <span class="chip ${masalah ? 'bad' : 'ok'}">${isi}/${rs.length} terisi</span>
-              </span>
-            </span>
-            <span class="chev">${ic('chev', 20)}</span>
-          </button>`;
-        }).join('')}
-      </div>
-    </div>
-  </div>`;
+    '<div class="sechead"><h2>Properti</h2><span class="count">' + PROPS.length + '</span>' +
+      '<button class="link" data-act="soon">Tambah</button></div>' +
+
+    '<div class="stack-v">' + PROPS.map(p => {
+      const rs = roomsOf(p.id);
+      const isi = rs.filter(r => r.status !== 'kosong').length;
+      const telat = rs.filter(r => r.status === 'telat').length;
+      return '<button class="card tap lrow" data-go="prop/' + p.id + '">' +
+        '<span class="av sq ' + p.tone + '">' + esc(p.init) + '</span>' +
+        '<span class="lrow-body">' +
+          '<span class="lrow-title">' + esc(p.nama) + '</span>' +
+          '<span class="lrow-sub">' + esc(p.daerah) + '</span>' +
+          '<span class="lrow-meta">' +
+            '<span class="chip mute fig">' + isi + '/' + rs.length + ' terisi</span>' +
+            (telat ? '<span class="chip bad"><i class="dot"></i>' + telat + ' telat</span>' : '') +
+          '</span>' +
+        '</span>' +
+        '<span class="chev">' + ic('chev', 18) + '</span>' +
+      '</button>';
+    }).join('') + '</div>' +
+
+  '</div></div>';
 };
 
-/* ── Hasil filter dari chip beranda ───────────── */
 VIEWS.filter = key => {
-  const def = FILTER_DEF[key] || { judul: 'Hasil', f: () => false };
-  const hasil = ROOMS.filter(def.f);
-  return topbar({ back: true, title: def.judul, small: true }) + `<div class="scroll">
-    ${hasil.length
-      ? `<div class="stack-v stagger">${hasil.map(roomRowWithProp).join('')}</div>`
-      : `<div class="card empty"><div class="empty-art">${emptyArt()}</div>
-          <h3>Tidak ada yang cocok</h3><p>Belum ada kamar dengan kondisi ini hari ini.</p></div>`}
-  </div>`;
+  const judul = JUDUL_FILTER[key] || 'Hasil';
+  const hasil = ROOMS.filter(HITUNG[key] || (() => false));
+  return chrome({ back: true, title: judul }) +
+    '<div class="scroll">' + bigtitle(judul) +
+      (hasil.length
+        ? '<div class="stack-v stagger">' + hasil.map(r => roomRow(r, true)).join('') + '</div>'
+        : emptyBox('Tidak ada yang cocok', 'Belum ada kamar dengan kondisi ini hari ini.')) +
+    '</div>';
 };
 
-/* ── Detail properti ──────────────────────────── */
 VIEWS.prop = (pid, tab = 0) => {
   const p = prop(pid);
   const rs = roomsOf(pid);
-  const isi = [
-    /* Kamar */
-    `<div class="sechead"><h2>Kamar</h2><span class="count">${rs.length}</span></div>
-     <div class="stack-v stagger">${rs.map(roomRow).join('')}</div>`,
 
-    /* Transaksi */
-    (() => {
-      const t = TXN[pid] || [];
-      if (!t.length) return `<div class="sechead"><h2>Transaksi</h2></div>
-        <div class="card empty"><div class="empty-art">${emptyArt()}</div>
-        <h3>Belum ada transaksi</h3>
-        <p>Catat pemasukan dan pengeluaran properti ini — perbaikan, listrik, air — lewat tombol + Transaksi.</p></div>`;
-      const masuk = t.filter(x => x.n > 0).reduce((a, b) => a + b.n, 0);
-      const keluar = t.filter(x => x.n < 0).reduce((a, b) => a + b.n, 0);
-      return `<div class="sechead"><h2>September 2026</h2></div>
-      <div class="card stagger" style="padding:0">
-        <div class="lrow" style="gap:0">
-          <div style="flex:1">
-            <div class="kv-k">Masuk</div>
-            <div class="kv-v" style="color:var(--ok)">${rp(masuk)}</div>
-          </div>
-          <div style="flex:1">
-            <div class="kv-k">Keluar</div>
-            <div class="kv-v" style="color:var(--bad)">${rp(keluar)}</div>
-          </div>
-        </div>
-      </div>
-      <div class="sechead"><h2>Riwayat</h2><span class="count">${t.length}</span>
-        <button class="link" data-act="soon">+ Transaksi</button></div>
-      <div class="card flush divide stagger">
-        ${t.map(x => `<div class="lrow">
-          <span class="av ${x.k === 'in' ? '' : 'ghost'}" style="width:38px;height:38px">${ic(x.k === 'in' ? 'in' : 'out', 18)}</span>
-          <span class="lrow-body">
-            <span class="lrow-title" style="font-size:15px">${esc(x.t)}</span>
-            <span class="lrow-sub">${tgl(x.d)}</span>
-          </span>
-          <span class="lrow-title" style="font-size:15px;color:${x.n > 0 ? 'var(--ok)' : 'var(--bad)'};font-variant-numeric:tabular-nums">
-            ${x.n > 0 ? '+' : '−'}${rp(x.n)}</span>
-        </div>`).join('')}
-      </div>`;
-    })(),
+  const tabKamar = '<div class="sechead"><h2>Kamar</h2><span class="count">' + rs.length + '</span></div>' +
+    '<div class="stack-v stagger">' + rs.map(r => roomRow(r)).join('') + '</div>';
 
-    /* Lainnya */
-    `<div class="sechead"><h2>Lainnya</h2></div>
-     <div class="stack-v stagger">
-      ${[
-        ['note',  'Catatan internal', 'Belum ada catatan'],
-        ['users', 'Riwayat penghuni', 'Lihat penghuni yang pernah tinggal di sini'],
-        ['info',  'Info properti',    esc(p.daerah)],
-      ].map(([i, t, s]) => `<button class="card tap lrow" data-act="soon">
-        <span class="av sq" style="width:42px;height:42px">${ic(i, 20)}</span>
-        <span class="lrow-body"><span class="lrow-title" style="font-size:15.5px">${t}</span>
-        <span class="lrow-sub">${s}</span></span>
-        <span class="chev">${ic('chev', 20)}</span>
-      </button>`).join('')}
-     </div>`,
-  ][tab];
+  const t = TXN[pid] || [];
+  const tabTxn = !t.length
+    ? '<div class="sechead"><h2>Transaksi</h2></div>' +
+      emptyBox('Belum ada transaksi',
+        'Catat pemasukan dan pengeluaran properti ini — perbaikan, listrik, air — lewat tombol Transaksi.')
+    : (() => {
+        const masuk  = t.filter(x => x.n > 0).reduce((a, b) => a + b.n, 0);
+        const keluar = t.filter(x => x.n < 0).reduce((a, b) => a + b.n, 0);
+        return '<div class="sechead"><h2>September 2026</h2></div>' +
+          '<div class="stagger">' +
+            '<section class="card flush summary">' +
+              '<div><div class="mlabel">Masuk</div><div class="amt" style="color:var(--ok)">' + rp(masuk) + '</div></div>' +
+              '<div><div class="mlabel">Keluar</div><div class="amt" style="color:var(--bad)">' + rp(keluar) + '</div></div>' +
+            '</section>' +
+            '<div class="sechead"><h2>Riwayat</h2><span class="count">' + t.length + '</span></div>' +
+            '<div class="card flush divide">' + t.map(x =>
+              '<div class="lrow">' +
+                '<span class="av sm ' + (x.n > 0 ? 'pos' : 'ghost') + '">' + ic(x.n > 0 ? 'in' : 'out', 17) + '</span>' +
+                '<span class="lrow-body">' +
+                  '<span class="lrow-title" style="font-size:14.5px">' + esc(x.t) + '</span>' +
+                  '<span class="lrow-sub">' + tgl(x.d) + '</span>' +
+                '</span>' +
+                '<span class="txn-amt ' + (x.n > 0 ? 'in' : 'out') + '">' +
+                  (x.n > 0 ? '+' : '−') + rp(x.n) + '</span>' +
+              '</div>').join('') + '</div>' +
+          '</div>';
+      })();
 
-  const fab = ['+ Kamar', '+ Transaksi', ''][tab];
+  const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
+    navRow('note',  'Catatan internal', 'Belum ada catatan') +
+    navRow('users', 'Riwayat penghuni', 'Penghuni yang pernah tinggal di sini') +
+    navRow('info',  'Info properti',    esc(p.daerah)) +
+  '</div>';
 
-  return topbar({
-    back: true, title: p.nama, small: true,
-    actions: [{ icon: 'more', act: 'soon', label: 'Menu properti' }],
-  }) + `<div class="scroll">
-    ${ptabs(['Kamar', 'Transaksi', 'Lainnya'], tab)}
-    <div data-tabbody>${isi}</div>
-  </div>` + (fab ? `<button class="fab" data-act="soon">${ic('plus', 21)}<span class="fab-label">${fab.slice(2)}</span></button>` : '');
+  const fab = ['Kamar', 'Transaksi', ''][tab];
+
+  return chrome({ back: true, title: p.nama, actions: [{ icon: 'more', act: 'soon', label: 'Menu properti' }] }) +
+    '<div class="scroll">' + bigtitle(p.nama) +
+      ptabs(['Kamar', 'Transaksi', 'Lainnya'], tab) +
+      '<div data-tabbody>' + [tabKamar, tabTxn, tabLain][tab] + '</div>' +
+    '</div>' +
+    (fab ? '<button class="fab" data-act="soon">' + ic('plus', 20) +
+           '<span class="fab-label">' + fab + '</span></button>' : '');
 };
 
-/* ── Detail kamar ─────────────────────────────── */
 VIEWS.room = (rid, tab = 0) => {
   const r = room(rid);
-  const p = prop(r.prop);
   const kosong = r.status === 'kosong';
 
   const tabPenghuni = kosong
-    ? `<div class="sechead"><h2>Penghuni aktif</h2></div>
-       <div class="card empty"><div class="empty-art">${emptyArt()}</div>
-       <h3>Kamar ini kosong</h3><p>Tambahkan penghuni untuk mulai mencatat sewa dan tagihan kamar ${esc(r.no)}.</p></div>`
-    : `<div class="sechead"><h2>Penghuni aktif</h2></div>
-    <div class="stagger">
-      <section class="card leasecard">
-        <button class="lrow leasecard-top tap" style="padding:16px" data-go="tenant/${r.id}">
-          <span class="av">${esc(inisial(r.nama))}</span>
-          <span class="lrow-body">
-            <span class="lrow-title">${esc(r.nama)}</span>
-            <span class="lrow-sub">${esc(r.hp)}</span>
-          </span>
-          <span class="chev">${ic('chev', 20)}</span>
-        </button>
-        <div class="leasecard-grid">
-          <div class="kv">
-            <div><div class="kv-k">Check-in</div><div class="kv-v">${tgl(r.masuk)}<small>${esc(r.jam)}</small></div></div>
-            <div style="position:relative">
-              <div class="kv-k">Check-out</div><div class="kv-v soft">–</div>
-              <button class="iconbtn" data-act="soon" aria-label="Ubah masa tinggal"
-                style="position:absolute;top:-10px;right:-10px;width:38px;height:38px">${ic('edit', 18)}</button>
-            </div>
-            <div><div class="kv-k">Durasi</div><div class="kv-v">${durasi(r.masuk)}<small>${r.status === 'booked' ? 'belum mulai' : 'berjalan'}</small></div></div>
-            <div><div class="kv-k">Jumlah orang</div><div class="kv-v">${r.orang} orang</div></div>
-          </div>
-        </div>
-      </section>
+    ? '<div class="sechead"><h2>Penghuni aktif</h2></div>' +
+      emptyBox('Kamar ini kosong',
+        'Tambahkan penghuni untuk mulai mencatat sewa dan tagihan kamar ' + esc(r.no) + '.')
+    : '<div class="sechead"><h2>Penghuni aktif</h2></div><div class="stagger">' +
 
-      <section class="card pricecard">
-        <div class="pricehead">
-          <div>
-            <div class="kv-k">Harga sewa</div>
-            <div class="price">${rp(r.harga)}<small> / bulan</small></div>
-          </div>
-          <button class="btn brandsoft sm" data-sheet="aksi:${r.id}">Aksi ${ic('chev', 15)}</button>
-        </div>
-        <div class="billrow">
-          <div>
-            <div class="billrow-t">Sewa (${periode(r)})</div>
-            <div class="billrow-v">${rp(r.harga)}</div>
-          </div>
-          ${statusChip(r.status === 'booked' ? 'booked' : r.status)}
-        </div>
-        <div class="billrow" style="margin-top:8px">
-          <div>
-            <div class="billrow-t">Tagih tiap tanggal</div>
-            <div class="billrow-v">${r.tglTagih}</div>
-          </div>
-          <span class="chip mute">${ic('clock', 13)}Otomatis</span>
-        </div>
-      </section>
+      '<section class="card flush">' +
+        '<button class="lrow tap" data-go="tenant/' + r.id + '">' +
+          '<span class="av">' + esc(inisial(r.nama)) + '</span>' +
+          '<span class="lrow-body">' +
+            '<span class="lrow-title">' + esc(r.nama) + '</span>' +
+            '<span class="lrow-sub">' + esc(r.hp) + '</span>' +
+          '</span>' +
+          '<span class="chev">' + ic('chev', 18) + '</span>' +
+        '</button>' +
+        '<div class="lease-head" style="padding-top:14px;border-top:1px solid var(--hair)">' +
+          '<span class="mlabel">Masa tinggal</span>' +
+          '<button class="link" data-act="soon">Ubah</button>' +
+        '</div>' +
+        '<div class="lease-grid"><div class="kv">' +
+          '<div><div class="mlabel">Check-in</div><div class="mval">' + tgl(r.masuk) +
+            '<span class="sub">' + esc(r.jam) + '</span></div></div>' +
+          '<div><div class="mlabel">Check-out</div><div class="mval muted">Terbuka' +
+            '<span class="sub">tanpa batas</span></div></div>' +
+          '<div><div class="mlabel">Durasi</div><div class="mval">' + durasi(r.masuk) +
+            '<span class="sub">' + (r.status === 'booked' ? 'belum mulai' : 'berjalan') + '</span></div></div>' +
+          '<div><div class="mlabel">Jumlah orang</div><div class="mval">' + r.orang + ' orang</div></div>' +
+        '</div></div>' +
+      '</section>' +
 
-      <div class="sechead"><h2>Penghuni sebelumnya</h2></div>
-      <button class="card tap lrow" data-act="soon">
-        <span class="av ghost sq" style="width:42px;height:42px">${ic('users', 20)}</span>
-        <span class="lrow-body"><span class="lrow-title" style="font-size:15.5px">Riwayat penghuni</span>
-        <span class="lrow-sub">Lihat siapa saja yang pernah menempati kamar ini</span></span>
-        <span class="chev">${ic('chev', 20)}</span>
-      </button>
-    </div>`;
+      '<section class="card" style="margin-top:10px">' +
+        '<div class="price-head">' +
+          '<div><div class="mlabel">Harga sewa</div>' +
+            '<div class="price">' + rp(r.harga) + '<span class="per"> / bulan</span></div></div>' +
+          '<button class="btn brandsoft sm" data-sheet="aksi:' + r.id + '">Aksi ' + ic('chev', 14) + '</button>' +
+        '</div>' +
+        '<div class="bill"><div class="bill-top">' +
+            '<span class="mlabel fig">Sewa · ' + periode(r) + '</span>' +
+            statusChip(r.status === 'booked' ? 'booked' : r.status) +
+          '</div><div class="bill-amt">' + rp(r.harga) + '</div></div>' +
+        '<div class="bill"><div class="bill-top">' +
+            '<span class="mlabel">Jadwal tagihan</span>' +
+            '<span class="chip mute">Otomatis</span>' +
+          '</div><div class="bill-amt">Setiap tanggal ' + r.tglTagih + '</div></div>' +
+      '</section>' +
 
-  const tabHarga = `<div class="sechead"><h2>Harga &amp; komponen</h2></div>
-    <div class="card flush divide stagger">
-      ${[
-        ['Harga sewa',      kosong ? '—' : rp(r.harga) + ' / bulan'],
-        ['Deposit',         kosong ? '—' : rp(r.deposit)],
-        ['Biaya tambahan',  'Belum ada'],
-        ['Tagih tiap tanggal', kosong ? '—' : String(r.tglTagih)],
-        ['Tipe kamar',      r.harga >= 1750000 ? 'Kamar mandi dalam' : 'Kamar mandi luar'],
-      ].map(([k, v]) => `<div class="lrow" style="padding:15px 16px">
-        <span class="lrow-body"><span class="lrow-sub" style="margin:0">${k}</span></span>
-        <span class="lrow-title" style="font-size:15px">${v}</span>
-      </div>`).join('')}
-    </div>
-    <div class="sechead"><h2></h2></div>
-    <button class="btn brandsoft" data-act="soon" style="width:100%;height:46px">${ic('edit', 18)} Ubah harga kamar</button>`;
+      '<div class="sechead"><h2>Penghuni sebelumnya</h2></div>' +
+      navRow('users', 'Riwayat penghuni', 'Siapa saja yang pernah menempati kamar ini') +
+    '</div>';
+
+  const tabHarga = '<div class="sechead"><h2>Harga &amp; komponen</h2></div>' +
+    '<dl class="card flush divide stagger">' + [
+      ['Harga sewa',         kosong ? '–' : rp(r.harga) + ' / bulan'],
+      ['Deposit',            kosong ? '–' : rp(r.deposit)],
+      ['Biaya tambahan',     'Belum ada'],
+      ['Tagih tiap tanggal', kosong ? '–' : String(r.tglTagih)],
+      ['Tipe kamar',         r.harga >= 1750000 ? 'Kamar mandi dalam' : 'Kamar mandi luar'],
+    ].map(([k, v]) => '<div class="drow"><dt>' + k + '</dt><dd>' + v + '</dd></div>').join('') + '</dl>' +
+    '<div style="height:16px"></div>' +
+    '<button class="btn brandsoft block" data-act="soon">' + ic('edit', 17) + ' Ubah harga kamar</button>';
 
   const tabTxn = kosong
-    ? `<div class="sechead"><h2>Transaksi</h2></div>
-       <div class="card empty"><div class="empty-art">${emptyArt()}</div>
-       <h3>Belum ada transaksi</h3><p>Transaksi muncul di sini setelah kamar ini punya penghuni.</p></div>`
-    : `<div class="sechead"><h2>Tagihan kamar ${esc(r.no)}</h2></div>
-    <div class="card flush divide stagger">
-      ${[0, 1, 2].map(i => {
+    ? '<div class="sechead"><h2>Transaksi</h2></div>' +
+      emptyBox('Belum ada transaksi', 'Transaksi muncul di sini setelah kamar punya penghuni.')
+    : '<div class="sechead"><h2>Tagihan kamar ' + esc(r.no) + '</h2></div>' +
+      '<div class="card flush divide stagger">' + [0, 1, 2].map(i => {
         const d = new Date(TODAY.getFullYear(), TODAY.getMonth() - i, Number(r.masuk.split('-')[2]));
-        const st = i === 0 ? r.status : 'lunas';
-        return `<div class="lrow">
-          <span class="av ${st === 'lunas' ? '' : 'ghost'}" style="width:38px;height:38px">${ic('receipt', 18)}</span>
-          <span class="lrow-body">
-            <span class="lrow-title" style="font-size:15px">Sewa ${BLN[d.getMonth()]} ${d.getFullYear()}</span>
-            <span class="lrow-sub">${rp(r.harga)}</span>
-          </span>
-          ${statusChip(st === 'booked' ? 'belum' : st)}
-        </div>`;
-      }).join('')}
-    </div>`;
+        const st = i === 0 ? (r.status === 'booked' ? 'belum' : r.status) : 'lunas';
+        return '<div class="lrow">' +
+          '<span class="av sm ' + (st === 'lunas' ? '' : 'ghost') + '">' + ic('receipt', 17) + '</span>' +
+          '<span class="lrow-body">' +
+            '<span class="lrow-title" style="font-size:14.5px">Sewa ' + BLN[d.getMonth()] + ' ' + d.getFullYear() + '</span>' +
+            '<span class="lrow-sub">' + rp(r.harga) + '</span>' +
+          '</span>' + statusChip(st) + '</div>';
+      }).join('') + '</div>';
 
-  const tabLain = `<div class="sechead"><h2>Lainnya</h2></div>
-    <div class="stack-v stagger">
-      ${[
-        ['note',  'Catatan kamar',    'Belum ada catatan'],
-        ['camera','Foto kamar',       'Belum ada foto'],
-        ['users', 'Riwayat penghuni', 'Lihat penghuni sebelumnya'],
-      ].map(([i, t, s]) => `<button class="card tap lrow" data-act="soon">
-        <span class="av sq" style="width:42px;height:42px">${ic(i, 20)}</span>
-        <span class="lrow-body"><span class="lrow-title" style="font-size:15.5px">${t}</span>
-        <span class="lrow-sub">${s}</span></span>
-        <span class="chev">${ic('chev', 20)}</span>
-      </button>`).join('')}
-    </div>`;
+  const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
+    navRow('note',   'Catatan kamar',    'Belum ada catatan') +
+    navRow('camera', 'Foto kamar',       'Belum ada foto') +
+    navRow('users',  'Riwayat penghuni', 'Penghuni sebelumnya') +
+  '</div>';
 
-  return topbar({
-    back: true, title: 'Kamar ' + r.no, small: true,
-    actions: [{ icon: 'more', act: 'soon', label: 'Menu kamar' }],
-  }) + `<div class="scroll">
-    ${ptabs(['Penghuni', 'Harga', 'Transaksi', 'Lainnya'], tab)}
-    <div data-tabbody>${[tabPenghuni, tabHarga, tabTxn, tabLain][tab]}</div>
-  </div>
-  ${tab === 0 && kosong ? `<button class="fab" data-act="soon">${ic('plus', 21)}<span class="fab-label">Penghuni</span></button>` : ''}`;
+  return chrome({ back: true, title: 'Kamar ' + r.no, actions: [{ icon: 'more', act: 'soon', label: 'Menu kamar' }] }) +
+    '<div class="scroll">' + bigtitle('Kamar ' + r.no) +
+      ptabs(['Penghuni', 'Harga', 'Transaksi', 'Lainnya'], tab) +
+      '<div data-tabbody>' + [tabPenghuni, tabHarga, tabTxn, tabLain][tab] + '</div>' +
+    '</div>' +
+    (tab === 0 && kosong
+      ? '<button class="fab" data-act="soon">' + ic('plus', 20) + '<span class="fab-label">Penghuni</span></button>'
+      : '');
 };
 
-/* ── Info penghuni ────────────────────────────── */
 VIEWS.tenant = rid => {
   const r = room(rid);
   const p = prop(r.prop);
-  const baris = [
-    ['Nama lengkap',   r.nama],
-    ['Jenis kelamin',  r.kelamin === 'L' ? 'Laki-laki' : 'Perempuan'],
-    ['Asal',           r.asal],
-    ['Pekerjaan',      r.kerja],
-    ['Tinggal di',     `${p.nama} · ${r.no}`],
-  ];
-  return topbar({
-    back: true, title: r.nama, small: true,
-    actions: [{ icon: 'edit', act: 'soon', label: 'Ubah data penghuni' }],
-  }) + `<div class="scroll">
-    <div class="stagger">
-      <section class="card" style="text-align:center;padding:24px 16px">
-        <div class="av lg" style="margin:0 auto 14px">${esc(inisial(r.nama))}</div>
-        <div style="font-size:20px;font-weight:800;letter-spacing:-.4px">${esc(r.nama)}</div>
-        <div style="margin-top:10px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap">
-          <span class="chip brand">${ic('door', 13)}Kamar ${esc(r.no)}</span>
-          ${statusChip(r.status)}
-        </div>
-        <div style="display:flex;gap:8px;margin-top:16px">
-          <button class="btn primary" data-act="soon" style="flex:1;height:44px">${ic('wa', 18)} WhatsApp</button>
-          <button class="btn" data-sheet="aksi:${r.id}" style="flex:1;height:44px">${ic('sliders', 18)} Aksi</button>
-        </div>
-      </section>
+  return chrome({ back: true, title: r.nama, actions: [{ icon: 'edit', act: 'soon', label: 'Ubah data penghuni' }] }) +
+    '<div class="scroll" style="padding-top:8px"><div class="stagger">' +
 
-      <div class="sechead"><h2>Data diri</h2></div>
-      <div class="card flush divide">
-        ${baris.map(([k, v]) => `<div class="lrow" style="padding:14px 16px">
-          <span class="lrow-body"><span class="lrow-sub" style="margin:0">${k}</span></span>
-          <span class="lrow-title" style="font-size:15px;text-align:right">${esc(v)}</span>
-        </div>`).join('')}
-      </div>
+      '<section class="card profile">' +
+        '<div class="av lg">' + esc(inisial(r.nama)) + '</div>' +
+        '<h2>' + esc(r.nama) + '</h2>' +
+        '<div class="profile-chips">' +
+          '<span class="chip brand">Kamar ' + esc(r.no) + '</span>' + statusChip(r.status) +
+        '</div>' +
+        '<div class="profile-btns">' +
+          '<button class="btn primary" data-act="soon">' + ic('wa', 17) + ' WhatsApp</button>' +
+          '<button class="btn" data-sheet="aksi:' + r.id + '">' + ic('sliders', 17) + ' Aksi</button>' +
+        '</div>' +
+      '</section>' +
 
-      <div class="sechead"><h2>Kontak</h2></div>
-      <div class="card flush divide">
-        <div class="lrow" style="padding:14px 16px">
-          <span class="lrow-body"><span class="lrow-sub" style="margin:0">No. HP</span>
-          <span class="lrow-title" style="font-size:15px;margin-top:2px">${esc(r.hp)}</span></span>
-          <button class="btn sm brandsoft" data-act="soon">${ic('wa', 15)} Chat</button>
-        </div>
-        <div class="lrow" style="padding:14px 16px">
-          <span class="lrow-body"><span class="lrow-sub" style="margin:0">Kontak darurat · ${esc(r.darurat)}</span>
-          <span class="lrow-title" style="font-size:15px;margin-top:2px">${esc(r.daruratHp)}</span></span>
-        </div>
-      </div>
+      '<div class="sechead"><h2>Data diri</h2></div>' +
+      '<dl class="card flush divide">' + [
+        ['Nama lengkap',  r.nama],
+        ['Jenis kelamin', r.kelamin === 'L' ? 'Laki-laki' : 'Perempuan'],
+        ['Asal',          r.asal],
+        ['Pekerjaan',     r.kerja],
+        ['Tinggal di',    p.nama],
+      ].map(([k, v]) => '<div class="drow"><dt>' + k + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl>' +
 
-      <div class="sechead"><h2>Foto &amp; dokumen</h2>
-        <button class="link" data-act="soon">Kelola</button></div>
-      <div class="docgrid">
-        ${[
-          ['camera', 'Foto wajah', r.dok.wajah],
-          ['idcard', 'KTP',        r.dok.ktp],
-          ['file',   'Berkas lain',r.dok.berkas],
-        ].map(([i, t, ada]) => `<button class="doc ${ada ? 'filled' : ''}" data-act="soon">
-          ${ic(i, 26)}<span>${t}</span>
-        </button>`).join('')}
-        <button class="doc" data-act="soon">${ic('plus', 26)}<span>Tambah</span></button>
-      </div>
-    </div>
-  </div>`;
+      '<div class="sechead"><h2>Kontak</h2></div>' +
+      '<dl class="card flush divide">' +
+        '<div class="drow"><dt>No. HP<br><span style="font-size:14.5px;font-weight:600;color:var(--ink);' +
+          'font-variant-numeric:tabular-nums">' + esc(r.hp) + '</span></dt>' +
+          '<dd class="act"><button class="btn sm brandsoft" data-act="soon">' + ic('wa', 15) + ' Chat</button></dd></div>' +
+        '<div class="drow"><dt>Kontak darurat · ' + esc(r.darurat) + '<br>' +
+          '<span style="font-size:14.5px;font-weight:600;color:var(--ink);' +
+          'font-variant-numeric:tabular-nums">' + esc(r.daruratHp) + '</span></dt></div>' +
+      '</dl>' +
+
+      '<div class="sechead"><h2>Foto &amp; dokumen</h2>' +
+        '<button class="link" data-act="soon">Kelola</button></div>' +
+      '<div class="docgrid">' + [
+        ['camera', 'Foto wajah',  r.dok.wajah],
+        ['idcard', 'KTP',         r.dok.ktp],
+        ['file',   'Berkas lain', r.dok.berkas],
+      ].map(([i, t, ada]) =>
+        '<button class="doc' + (ada ? ' filled' : '') + '" data-act="soon">' + ic(i, 25) + '<span>' + t + '</span></button>'
+      ).join('') +
+        '<button class="doc add" data-act="soon">' + ic('plus', 25) + '<span>Tambah</span></button>' +
+      '</div>' +
+
+    '</div></div>';
 };
 
-/* ── Tab penghuni ─────────────────────────────── */
 let tenantFilter = 'semua';
-VIEWS.tenants = () => {
-  const F = {
-    semua: () => true,
-    lunas: r => r.status === 'lunas',
-    belum: r => r.status === 'belum',
-    telat: r => r.status === 'telat',
-  };
-  const list = tenants().filter(F[tenantFilter]);
-  return topbar({ title: 'Penghuni', actions: [{ icon: 'search', act: 'soon', label: 'Cari' }] })
-  + `<div class="scroll">
-    <div class="search">${ic('search', 19)}<input placeholder="Cari nama atau nomor kamar" data-search></div>
-    <div class="filterbar" data-tfilter>
-      ${[['semua', 'Semua'], ['lunas', 'Lunas'], ['belum', 'Jatuh tempo'], ['telat', 'Telat']]
-        .map(([k, l]) => `<button class="fchip ${tenantFilter === k ? 'is-on' : ''}" data-f="${k}">${l}
-          <span style="opacity:.6">${tenants().filter(F[k]).length}</span></button>`).join('')}
-    </div>
-    <div data-tabbody>
-    <div class="sechead"><h2>Penghuni aktif</h2><span class="count">${list.length}</span></div>
-    <div class="stack-v stagger" data-tlist>
-      ${list.length ? list.map(r => `<button class="card tap lrow" data-go="tenant/${r.id}">
-        <span class="av">${esc(inisial(r.nama))}</span>
-        <span class="lrow-body">
-          <span class="lrow-title">${esc(r.nama)}</span>
-          <span class="lrow-sub">${esc(prop(r.prop).nama)} · ${esc(r.no)}</span>
-          <span class="lrow-meta">${statusChip(r.status)}<span class="chip mute">${durasi(r.masuk)}</span></span>
-        </span>
-        <span class="chev">${ic('chev', 20)}</span>
-      </button>`).join('')
-      : `<div class="card empty"><div class="empty-art">${emptyArt()}</div>
-         <h3>Tidak ada penghuni</h3><p>Belum ada penghuni pada filter ini.</p></div>`}
-    </div>
-    </div>
-  </div>
-  <button class="fab" data-act="soon">${ic('plus', 21)}<span class="fab-label">Penghuni</span></button>`;
+const TFILTER = {
+  semua: () => true,
+  lunas: r => r.status === 'lunas',
+  belum: r => r.status === 'belum',
+  telat: r => r.status === 'telat',
 };
 
-/* ── Tab kalender ─────────────────────────────── */
+VIEWS.tenants = () => {
+  const list = tenants().filter(TFILTER[tenantFilter]);
+  return chrome({ title: 'Penghuni', actions: [{ icon: 'search', act: 'soon', label: 'Cari' }] }) +
+    '<div class="scroll">' + bigtitle('Penghuni') +
+      '<div class="search">' + ic('search', 18) +
+        '<input placeholder="Cari nama atau nomor kamar" data-search aria-label="Cari penghuni"></div>' +
+      '<div style="height:12px"></div>' +
+      '<div class="filterbar" data-tfilter>' +
+        [['semua','Semua'], ['lunas','Lunas'], ['belum','Jatuh tempo'], ['telat','Telat']].map(([k, l]) =>
+          '<button class="fchip' + (tenantFilter === k ? ' is-on' : '') + '" data-f="' + k + '">' +
+          l + '<i>' + tenants().filter(TFILTER[k]).length + '</i></button>').join('') +
+      '</div>' +
+      '<div data-tabbody>' +
+        '<div class="sechead"><h2>Penghuni aktif</h2><span class="count">' + list.length + '</span>' +
+          '<button class="link" data-act="soon">Tambah</button></div>' +
+        '<div class="stack-v stagger" data-tlist>' + (list.length
+          ? list.map(r => '<button class="card tap lrow" data-go="tenant/' + r.id + '">' +
+              '<span class="av">' + esc(inisial(r.nama)) + '</span>' +
+              '<span class="lrow-body">' +
+                '<span class="lrow-title">' + esc(r.nama) + '</span>' +
+                '<span class="lrow-sub">' + esc(r.no) + ' · ' + durasi(r.masuk) + '</span>' +
+              '</span>' +
+              '<span class="lrow-trail">' + statusChip(r.status) +
+                '<span class="chev">' + ic('chev', 18) + '</span></span>' +
+            '</button>').join('')
+          : emptyBox('Tidak ada penghuni', 'Belum ada penghuni pada filter ini.')) + '</div>' +
+      '</div>' +
+    '</div>';
+};
+
 VIEWS.calendar = () => {
-  const Y = 2026, M = 8;                       // September 2026
-  const pertama = new Date(Y, M, 1).getDay();  // 0 = Minggu
-  const offset = (pertama + 6) % 7;            // pekan mulai Senin
+  const Y = 2026, M = 8;
+  const offset = (new Date(Y, M, 1).getDay() + 6) % 7;      // pekan mulai Senin
   const jml = new Date(Y, M + 1, 0).getDate();
 
   const tanda = {};
   const tandai = (d, w) => { (tanda[d] = tanda[d] || new Set()).add(w); };
   ROOMS.forEach(r => {
-    if (r.masuk) {
-      const [y, m, d] = r.masuk.split('-').map(Number);
-      if (y === Y && m - 1 === M) tandai(d, 'in');
-      if (r.tglTagih) tandai(r.tglTagih, r.status === 'telat' ? 'late' : 'due');
-    }
+    if (!r.masuk) return;
+    const [y, m, d] = r.masuk.split('-').map(Number);
+    if (y === Y && m - 1 === M) tandai(d, 'in');
+    if (r.tglTagih) tandai(r.tglTagih, r.status === 'telat' ? 'late' : 'due');
   });
   const WARNA = { in: 'var(--ok)', due: 'var(--brand)', late: 'var(--bad)' };
 
   let sel = '';
-  for (let i = 0; i < offset; i++) sel += '<span class="cal-day mute"></span>';
+  for (let i = 0; i < offset; i++) sel += '<span class="cal-day blank"></span>';
   for (let d = 1; d <= jml; d++) {
     const t = tanda[d] ? [...tanda[d]] : [];
-    sel += `<button class="cal-day ${d === 27 ? 'today' : ''}" data-act="soon">${d}
-      ${t.length ? `<span class="cal-dots">${t.map(k => `<i style="background:${WARNA[k]}"></i>`).join('')}</span>` : ''}
-    </button>`;
+    sel += '<button class="cal-day' + (d === 27 ? ' today' : '') + '" data-act="soon">' + d +
+      (t.length ? '<span class="cal-dots">' +
+        t.map(k => '<i style="background:' + WARNA[k] + '"></i>').join('') + '</span>' : '') +
+    '</button>';
   }
 
-  return topbar({ title: 'Kalender', actions: [{ icon: 'more', act: 'soon', label: 'Menu kalender' }] })
-  + `<div class="scroll">
-    <section class="card cal stagger" style="padding:14px">
-      <div class="row-between" style="padding:2px 6px 10px">
-        <button class="iconbtn" data-act="soon" aria-label="Bulan sebelumnya" style="transform:rotate(0)">${ic('back', 20)}</button>
-        <strong style="font-size:16px;letter-spacing:-.3px">September 2026</strong>
-        <button class="iconbtn" data-act="soon" aria-label="Bulan berikutnya">${ic('chev', 20)}</button>
-      </div>
-      <div class="cal-grid">
-        ${['S','S','R','K','J','S','M'].map(d => `<span class="cal-dow">${d}</span>`).join('')}
-        ${sel}
-      </div>
-      <div class="legend">
-        <span><i style="background:var(--ok)"></i>Check-in</span>
-        <span><i style="background:var(--brand)"></i>Jatuh tempo</span>
-        <span><i style="background:var(--bad)"></i>Telat</span>
-      </div>
-    </section>
-
-    <div class="sechead"><h2>Agenda hari ini</h2><span class="count">1</span></div>
-    <div class="stack-v stagger">
-      ${ROOMS.filter(r => r.masuk === '2026-09-27').map(r => `<button class="card tap lrow" data-go="room/${r.id}">
-        <span class="av" style="background:var(--ok-tint);color:var(--ok)">${ic('in', 20)}</span>
-        <span class="lrow-body">
-          <span class="lrow-title">Check-in ${esc(r.nama)}</span>
-          <span class="lrow-sub">${esc(prop(r.prop).nama)} · Kamar ${esc(r.no)} · ${esc(r.jam)}</span>
-        </span>
-        <span class="chev">${ic('chev', 20)}</span>
-      </button>`).join('')}
-    </div>
-  </div>`;
+  return chrome({ title: 'Kalender', actions: [{ icon: 'more', act: 'soon', label: 'Menu kalender' }] }) +
+    '<div class="scroll">' + bigtitle('Kalender') + '<div class="stagger">' +
+      '<section class="card" style="padding:16px 14px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
+          '<button class="iconbtn" data-act="soon" aria-label="Bulan sebelumnya">' + ic('back', 19) + '</button>' +
+          '<strong style="font-family:var(--f-display);font-weight:400;font-size:19px;letter-spacing:-.2px">' +
+            numify('September 2026') + '</strong>' +
+          '<button class="iconbtn" data-act="soon" aria-label="Bulan berikutnya">' + ic('chev', 19) + '</button>' +
+        '</div>' +
+        '<div class="cal-grid">' +
+          ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(d => '<span class="cal-dow">' + d + '</span>').join('') +
+          sel +
+        '</div>' +
+        '<div class="legend">' +
+          '<span><i style="background:var(--ok)"></i>Check-in</span>' +
+          '<span><i style="background:var(--brand)"></i>Jatuh tempo</span>' +
+          '<span><i style="background:var(--bad)"></i>Telat</span>' +
+        '</div>' +
+      '</section>' +
+      '<div class="sechead"><h2>Agenda hari ini</h2><span class="count">' +
+        ROOMS.filter(HITUNG.checkin).length + '</span></div>' +
+      ROOMS.filter(HITUNG.checkin).map(r =>
+        '<button class="card tap lrow" data-go="room/' + r.id + '">' +
+          '<span class="av" style="background:var(--ok-tint);color:var(--ok)">' + ic('in', 19) + '</span>' +
+          '<span class="lrow-body">' +
+            '<span class="lrow-title">Check-in ' + esc(r.nama) + '</span>' +
+            '<span class="lrow-sub">' + esc(prop(r.prop).nama) + ' · Kamar ' + esc(r.no) + ' · ' + esc(r.jam) + '</span>' +
+          '</span>' +
+          '<span class="chev">' + ic('chev', 18) + '</span>' +
+        '</button>').join('') +
+    '</div></div>';
 };
 
-function emptyArt() {
-  return `<svg width="120" height="92" viewBox="0 0 120 92" fill="none" aria-hidden="true">
-    <rect x="12" y="16" width="34" height="44" rx="4" fill="var(--surface-2)"/>
-    <rect x="40" y="8" width="40" height="52" rx="4" fill="var(--brand-tint)" stroke="var(--brand)" stroke-opacity=".28" stroke-width="1.5"/>
-    <rect x="74" y="20" width="32" height="40" rx="4" fill="var(--surface-2)"/>
-    <path d="M48 22h24M48 30h24M48 38h16" stroke="var(--brand)" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
-    <path d="M20 28h18M20 36h18M20 44h11" stroke="var(--ink-3)" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
-    <path d="M82 32h16M82 40h16M82 48h10" stroke="var(--ink-3)" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="60" cy="72" r="4" fill="var(--gold)"/>
-    <path d="M30 76h60" stroke="var(--ink-3)" stroke-opacity=".28" stroke-width="2" stroke-linecap="round"/>
-  </svg>`;
-}
-
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    7. BOTTOM SHEET
-   ══════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 const SHEETS = {
   aksi: rid => {
     const r = room(rid);
-    return {
-      title: 'Pilih aksi',
-      sub: `${r.nama} · Kamar ${r.no}`,
-      items: [
-        { i: 'money',   t: 'Catat pembayaran', s: 'Tandai sewa periode ini sudah dibayar' },
-        { i: 'receipt', t: 'Tambah tagihan',   s: 'Buat tagihan baru di luar sewa bulanan' },
-        { i: 'wallet',  t: 'Tambah deposit',   s: 'Catat uang jaminan yang diterima' },
-        { i: 'plus',    t: 'Tambah biaya lain',s: 'Listrik, air, denda, atau kerusakan' },
-        { i: 'door',    t: 'Lihat kamar',      s: 'Buka detail kamar ' + r.no, go: 'room/' + r.id },
-        { i: 'sliders', t: 'Pengaturan sewa',  s: 'Harga, masa tinggal, pindah kamar', sheet: 'sewa:' + r.id },
-      ],
-    };
+    return { title: 'Pilih aksi', sub: r.nama + ' · Kamar ' + r.no, items: [
+      { i: 'money',   t: 'Catat pembayaran',  s: 'Tandai sewa periode ini sudah dibayar' },
+      { i: 'receipt', t: 'Tambah tagihan',    s: 'Buat tagihan di luar sewa bulanan' },
+      { i: 'wallet',  t: 'Tambah deposit',    s: 'Catat uang jaminan yang diterima' },
+      { i: 'plus',    t: 'Tambah biaya lain', s: 'Listrik, air, denda, atau kerusakan' },
+      { i: 'door',    t: 'Lihat kamar',       s: 'Buka detail kamar ' + r.no, go: 'room/' + r.id },
+      { i: 'sliders', t: 'Pengaturan sewa',   s: 'Harga, masa tinggal, pindah kamar', sheet: 'sewa:' + r.id },
+    ] };
   },
   sewa: rid => {
     const r = room(rid);
-    return {
-      title: 'Pengaturan sewa',
-      sub: `${r.nama} · Kamar ${r.no}`,
-      items: [
-        { i: 'money',  t: 'Ubah harga',        s: 'Sekarang ' + rp(r.harga) + ' / bulan' },
-        { i: 'cal',    t: 'Ubah masa tinggal', s: 'Check-in ' + tgl(r.masuk) },
-        { i: 'move',   t: 'Pindah kamar',      s: 'Pindahkan penghuni ke kamar lain' },
-        { i: 'trash',  t: 'Hapus sewa',        s: 'Data sewa dan tagihannya ikut terhapus', danger: true },
-      ],
-    };
+    return { title: 'Pengaturan sewa', sub: r.nama + ' · Kamar ' + r.no, items: [
+      { i: 'money', t: 'Ubah harga',        s: 'Sekarang ' + rp(r.harga) + ' / bulan' },
+      { i: 'cal',   t: 'Ubah masa tinggal', s: 'Check-in ' + tgl(r.masuk) },
+      { i: 'move',  t: 'Pindah kamar',      s: 'Pindahkan penghuni ke kamar lain' },
+      { i: 'trash', t: 'Hapus sewa',        s: 'Data sewa dan tagihannya ikut terhapus', danger: true },
+    ] };
   },
 };
 
@@ -1294,81 +1379,77 @@ function openSheet(spec) {
   sheetEl.className = 'sheet';
   sheetEl.setAttribute('role', 'dialog');
   sheetEl.setAttribute('aria-label', def.title);
-  sheetEl.innerHTML = `
-    <div class="sheet-grab" data-drag></div>
-    <div class="sheet-head" data-drag>
-      <div class="sheet-title">${esc(def.title)}</div>
-      ${def.sub ? `<div class="sheet-sub">${esc(def.sub)}</div>` : ''}
-    </div>
-    <div class="sheet-body">
-      ${def.items.map(it => `<button class="aitem ${it.danger ? 'danger' : ''}"
-        ${it.go ? `data-go="${it.go}"` : it.sheet ? `data-sheet="${it.sheet}"` : 'data-act="soon"'}>
-        <span class="aitem-ic">${ic(it.i, 20)}</span>
-        <span class="aitem-t">${esc(it.t)}<small>${esc(it.s)}</small></span>
-        ${it.sheet ? `<span class="chev" style="color:var(--ink-3)">${ic('chev', 18)}</span>` : ''}
-      </button>`).join('')}
-    </div>`;
+  sheetEl.innerHTML =
+    '<div class="sheet-grab" data-drag></div>' +
+    '<div class="sheet-head" data-drag>' +
+      '<div class="sheet-title">' + esc(def.title) + '</div>' +
+      (def.sub ? '<div class="sheet-sub">' + esc(def.sub) + '</div>' : '') +
+    '</div>' +
+    '<div class="sheet-body">' + def.items.map(it =>
+      '<button class="aitem' + (it.danger ? ' danger' : '') + '" ' +
+        (it.go ? 'data-go="' + it.go + '"' : it.sheet ? 'data-sheet="' + it.sheet + '"' : 'data-act="soon"') + '>' +
+        '<span class="aitem-ic">' + ic(it.i, 19) + '</span>' +
+        '<span class="aitem-t">' + esc(it.t) + '<small>' + esc(it.s) + '</small></span>' +
+        (it.sheet ? '<span class="chev" style="color:var(--ink-3)">' + ic('chev', 17) + '</span>' : '') +
+      '</button>').join('') + '</div>';
 
   phone.append(scrimEl, sheetEl);
   wireDrag(sheetEl);
 }
 
-function closeSheet(instant) {
+function closeSheet(instan) {
   if (!sheetEl) return;
   const s = sheetEl, k = scrimEl;
   sheetEl = scrimEl = null;
-  if (instant) { s.remove(); k && k.remove(); return; }
+  if (instan) { s.remove(); if (k) k.remove(); return; }
   s.classList.remove('is-dragging', 'is-settling');
   s.style.transform = '';
   s.classList.add('is-out');
-  k && k.classList.add('is-out');
-  s.addEventListener('animationend', () => { s.remove(); k && k.remove(); }, { once: true });
+  if (k) k.classList.add('is-out');
+  s.addEventListener('animationend', () => { s.remove(); if (k) k.remove(); }, { once: true });
 }
 
-/* Tarik turun untuk menutup, dengan rubber band ke atas */
+/* Tarik turun untuk menutup; ditarik ke atas dia melawan */
 function wireDrag(el) {
   let y0 = 0, dy = 0, t0 = 0, aktif = false;
   const h = () => el.getBoundingClientRect().height;
 
-  const down = e => {
+  el.addEventListener('pointerdown', e => {
     if (!e.target.closest('[data-drag]')) return;
     aktif = true; y0 = e.clientY; t0 = performance.now(); dy = 0;
     el.classList.add('is-dragging');
     el.setPointerCapture(e.pointerId);
-  };
-  const move = e => {
+  });
+  el.addEventListener('pointermove', e => {
     if (!aktif) return;
     dy = e.clientY - y0;
-    const v = dy < 0 ? -Math.pow(-dy, .62) : dy;   // resistensi saat ditarik ke atas
-    el.style.transform = `translateY(${v}px)`;
-  };
-  const up = e => {
+    el.style.transform = 'translateY(' + (dy < 0 ? -Math.pow(-dy, .58) : dy) + 'px)';
+  });
+  const lepas = () => {
     if (!aktif) return;
     aktif = false;
     el.classList.remove('is-dragging');
     const kec = dy / Math.max(1, performance.now() - t0);
-    if (dy > h() * .28 || kec > .55) {
-      el.style.transform = `translateY(${h()}px)`;
-      el.classList.add('is-settling');
-      scrimEl && scrimEl.classList.add('is-out');
+    if (dy > h() * .26 || kec > .5) {
       const s = el, k = scrimEl;
       sheetEl = scrimEl = null;
-      setTimeout(() => { s.remove(); k && k.remove(); }, 280);
+      s.classList.add('is-settling');
+      s.style.transform = 'translateY(' + (h() + 40) + 'px)';
+      if (k) k.classList.add('is-out');
+      setTimeout(() => { s.remove(); if (k) k.remove(); }, 380);
     } else {
       el.classList.add('is-settling');
       el.style.transform = 'translateY(0)';
-      setTimeout(() => el.classList.remove('is-settling'), 320);
+      setTimeout(() => el.classList.remove('is-settling'), 440);
     }
   };
-  el.addEventListener('pointerdown', down);
-  el.addEventListener('pointermove', move);
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
+  el.addEventListener('pointerup', lepas);
+  el.addEventListener('pointercancel', lepas);
 }
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    8. TOAST
-   ══════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 let toastT = null;
 function toast(pesan) {
   const lama = phone.querySelector('.toast');
@@ -1385,9 +1466,9 @@ function toast(pesan) {
   }, 1900);
 }
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    9. ROUTER
-   ══════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 const phone  = document.getElementById('phone');
 const stack  = document.getElementById('stack');
 const tabbar = document.getElementById('tabbar');
@@ -1403,7 +1484,7 @@ const depth = r =>
   r.startsWith('room/')   ? 2 :
   (r.startsWith('prop/') || r.startsWith('filter/')) ? 1 : 0;
 
-const tabState = {};                 // tab aktif per rute, dipulihkan saat kembali
+const tabState = {};
 let saatIni = null, layarEl = null;
 
 function render(rute) {
@@ -1432,6 +1513,7 @@ function pasang(rute, arah) {
       arah === 'push' ? ['anim-pushIn', 'anim-pushBack'] :
       arah === 'pop'  ? ['anim-popFwd', 'anim-popOut']   :
                         ['anim-fadeUp', 'anim-fadeGone'];
+    if (arah === 'push') lama.classList.add('is-behind');
     baru.classList.add(masuk);
     lama.classList.add(keluar);
     lama.addEventListener('animationend', () => lama.remove(), { once: true });
@@ -1439,39 +1521,34 @@ function pasang(rute, arah) {
   }
 
   aktifkan(baru);
-  syncTabbar(rute);
+  syncDock(rute);
 }
 
 function aktifkan(el) {
-  /* jeda berurutan untuk daftar */
-  el.querySelectorAll('.stagger').forEach(g =>
-    [...g.children].forEach((c, i) => c.style.setProperty('--i', i)));
-
-  /* angka menghitung naik */
+  stagger(el);
   el.querySelectorAll('[data-count]').forEach(n => hitung(n, +n.dataset.count));
 
-  /* indikator tab pil */
   const tabs = el.querySelector('[data-ptabs]');
   if (tabs) requestAnimationFrame(() => geserIndikator(tabs));
 
-  /* topbar & FAB bereaksi pada scroll */
   const sc  = el.querySelector('.scroll');
   const bar = el.querySelector('.topbar');
   const fab = el.querySelector('.fab');
-  if (sc) {
-    let lastY = 0;
-    sc.addEventListener('scroll', () => {
-      const y = sc.scrollTop;
-      if (bar) bar.classList.toggle('is-stuck', y > 6);
-      if (fab) {
-        if (y > lastY + 6 && y > 40) fab.classList.add('is-tucked');
-        else if (y < lastY - 6)      fab.classList.remove('is-tucked');
-      }
-      lastY = y;
-    }, { passive: true });
-  }
+  if (!sc) return;
 
-  /* pencarian langsung di tab penghuni */
+  let lastY = 0;
+  sc.addEventListener('scroll', () => {
+    const y = sc.scrollTop;
+    sc.classList.toggle('is-scrolled', y > 14);
+    if (bar) bar.classList.toggle('is-stuck', y > 14);
+    const f = el.querySelector('.fab');
+    if (f) {
+      if (y > lastY + 5 && y > 50) f.classList.add('is-tucked');
+      else if (y < lastY - 5)      f.classList.remove('is-tucked');
+    }
+    lastY = y;
+  }, { passive: true });
+
   const cari = el.querySelector('[data-search]');
   if (cari) cari.addEventListener('input', () => {
     const q = cari.value.trim().toLowerCase();
@@ -1481,7 +1558,11 @@ function aktifkan(el) {
   });
 }
 
-/* Ganti isi tab saja, biar indikator pil tetap DOM yang sama dan bisa morph */
+const stagger = scope =>
+  scope.querySelectorAll('.stagger').forEach(g =>
+    [...g.children].forEach((c, i) => c.style.setProperty('--i', i)));
+
+/* Ganti isi tab saja: elemen ptabs tetap sama supaya indikatornya bisa morph */
 function swapBody(layar, rute) {
   const tmp = document.createElement('div');
   tmp.innerHTML = render(rute);
@@ -1491,14 +1572,12 @@ function swapBody(layar, rute) {
   if (!baru || !lama) { layar.innerHTML = render(rute); aktifkan(layar); return; }
   lama.replaceWith(baru);
 
-  /* FAB ikut berubah antar tab */
   const fabLama = layar.querySelector('.fab');
   const fabBaru = tmp.querySelector('.fab');
   if (fabLama) fabLama.remove();
   if (fabBaru) layar.append(fabBaru);
 
-  baru.querySelectorAll('.stagger').forEach(g =>
-    [...g.children].forEach((c, i) => c.style.setProperty('--i', i)));
+  stagger(baru);
   baru.querySelectorAll('[data-count]').forEach(n => hitung(n, +n.dataset.count));
 }
 
@@ -1507,11 +1586,11 @@ const kurangGerak = () =>
 
 function hitung(el, target) {
   if (target === 0 || kurangGerak()) { el.textContent = target; return; }
-  const t0 = performance.now(), dur = 400;
+  const t0 = performance.now(), dur = 720;
   const step = now => {
     const p = Math.min(1, (now - t0) / dur);
-    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
-    if (p < 1) requestAnimationFrame(step);
+    el.textContent = Math.round(target * (1 - Math.pow(2, -9 * p)));   // easeOutExpo
+    if (p < 1) requestAnimationFrame(step); else el.textContent = target;
   };
   requestAnimationFrame(step);
 }
@@ -1521,24 +1600,21 @@ function geserIndikator(tabs) {
   const ind = tabs.querySelector('.ptabs-ind');
   if (!on || !ind) return;
   ind.style.width = on.offsetWidth + 'px';
-  ind.style.transform = `translateX(${on.offsetLeft}px)`;
+  ind.style.transform = 'translateX(' + on.offsetLeft + 'px)';
 }
 
-function syncTabbar(rute) {
-  const d = depth(rute);
-  tabbar.classList.toggle('is-hidden', d > 0);
-  tabbar.innerHTML = TABS.map(t => `<button class="tabitem ${t.r === rute ? 'is-on' : ''}" data-go="${t.r}">
-    <span class="tabicon">${ic(t.i, 22)}</span>${t.l}
-  </button>`).join('');
+function syncDock(rute) {
+  tabbar.classList.toggle('is-hidden', depth(rute) > 0);
+  tabbar.innerHTML = TABS.map(t =>
+    '<button class="tabitem' + (t.r === rute ? ' is-on' : '') + '" data-go="' + t.r + '">' +
+      '<span class="tabicon">' + ic(t.i, 21) + '</span>' + t.l +
+    '</button>').join('');
 }
 
-function ke(rute) {
-  if (rute === saatIni) return;
-  location.hash = '#/' + rute;
-}
+const ke = rute => { if (rute !== saatIni) location.hash = '#/' + rute; };
 
 function terapkanHash() {
-  const rute = (location.hash.replace(/^#\/?/, '') || 'home');
+  const rute = location.hash.replace(/^#\/?/, '') || 'home';
   if (rute === saatIni) return;
   const arah = !saatIni ? 'none'
     : depth(rute) > depth(saatIni) ? 'push'
@@ -1549,9 +1625,9 @@ function terapkanHash() {
   pasang(rute, arah);
 }
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    10. PENANGAN KLIK
-   ══════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 phone.addEventListener('click', e => {
   const t = e.target.closest('[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f]');
   if (!t) return;
@@ -1560,11 +1636,10 @@ phone.addEventListener('click', e => {
     if (t.classList.contains('is-on')) return;
     const wadah = t.closest('[data-ptabs]');
     wadah.querySelectorAll('.ptab').forEach(b => b.classList.toggle('is-on', b === t));
-    geserIndikator(wadah);                       // pil bergeser & melebar, bukan lompat
+    geserIndikator(wadah);
     tabState[saatIni] = +t.dataset.tab;
     const layar = t.closest('.screen');
     swapBody(layar, saatIni);
-    layar.querySelector('.scroll').scrollTop = 0;
     return;
   }
 
@@ -1577,19 +1652,17 @@ phone.addEventListener('click', e => {
     return;
   }
 
-  if (t.dataset.go)    { closeSheet(); ke(t.dataset.go); return; }
+  if (t.dataset.go) { closeSheet(); ke(t.dataset.go); return; }
   if (t.hasAttribute('data-back')) { history.back(); return; }
   if (t.dataset.sheet) { openSheet(t.dataset.sheet); return; }
-  if (t.dataset.act === 'soon') {
-    closeSheet();
-    toast('Belum dibuat di ronde 1');
-  }
+  if (t.dataset.act === 'soon') { closeSheet(); toast('Belum dibuat di ronde 1'); }
 });
 
-/* Tombol back fisik / Esc */
 window.addEventListener('hashchange', terapkanHash);
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (sheetEl) closeSheet(); else if (depth(saatIni) > 0) history.back(); }
+  if (e.key !== 'Escape') return;
+  if (sheetEl) closeSheet();
+  else if (depth(saatIni) > 0) history.back();
 });
 window.addEventListener('resize', () => {
   const tabs = layarEl && layarEl.querySelector('[data-ptabs]');
@@ -1597,4 +1670,5 @@ window.addEventListener('resize', () => {
 });
 
 terapkanHash();
+setTimeout(() => tabbar.classList.remove('is-boot'), 1200);
 </script>

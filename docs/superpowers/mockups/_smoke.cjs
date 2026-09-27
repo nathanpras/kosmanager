@@ -101,7 +101,7 @@ step('balik tab Kamar lalu buka kamar 101', async () => {
 step('kartu sewa: harga dan periode tagihan', () => {
   const t = T();
   if (!t.includes('Rp1.800.000')) throw new Error('harga tidak muncul');
-  const m = t.match(/Sewa \([^)]+\)/);
+  const m = t.match(/Sewa · \d{2} \w{3} – \d{2} \w{3}/);
   if (!m) throw new Error('periode tidak muncul');
   return m[0];
 });
