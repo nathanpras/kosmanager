@@ -1,7 +1,7 @@
 # kosmanager Mobile — Prototype Bergaya Kamaru
 
 **Tanggal:** 2026-09-27
-**Status:** Disetujui, siap dikerjakan (Ronde 1)
+**Status:** Ronde 1 dan Ronde 2 selesai. Mockup ada di `docs/superpowers/mockups/kosmanager-mobile.html`.
 
 ## Tujuan
 
@@ -21,6 +21,7 @@ mobile asli.
 | Fidelity | Mockup dulu, port belakangan | Yang dinilai adalah rasa UI; iterasi di mockup jauh lebih murah daripada di kode app |
 | Navigasi | Persis Kamaru — 3 tab bawah | Properti / Kalender / Penghuni. Tagihan tidak jadi tab, diakses lewat chip di Home dan chip status di kartu kamar |
 | Palet | Bentuk Kamaru, warna kosmanager | Rounding/spacing/kartu/animasi ikut Kamaru; aksen tetap biru `#0070C0` + kuning `#FFC000` supaya nyambung dengan desktop |
+| Huruf | Tiga peran | Instrument Serif untuk judul, Instrument Sans untuk UI **dan seluruh angka**, DM Mono khusus label huruf-besar |
 | Teknis | Satu file HTML self-contained | Bisa dibuka di HP lewat link tanpa syarat jaringan; nol risiko ke `src/` |
 
 ### Alternatif yang ditolak
@@ -111,10 +112,46 @@ masuk database diputuskan setelah mockup dievaluasi.
    Kerangka grid bulan dengan titik penanda check-in / check-out / jatuh tempo.
    Belum berfungsi penuh pada ronde ini.
 
-### Ronde 2 — form (setelah Ronde 1 disetujui)
+### Ronde 2 — form (selesai)
 
-Tambah penghuni (termasuk peringatan merah "kamar masih terisi"), Tambah properti
-dua langkah, Tambah kamar, sheet Catat pembayaran, kalender berfungsi.
+8. **Tambah penghuni**
+   Layar modal yang naik dari bawah; layar di bawahnya mundur jadi kartu.
+   Berisi Tinggal di, Masa tinggal, peringatan merah bila kamar masih
+   ditempati, Harga sewa (terisi otomatis dari kamar yang dipilih), Komponen
+   tambahan, Rincian pembayaran, dan Data penghuni.
+
+9. **Properti baru**
+   Modal dua langkah dengan penanda langkah. Langkah satu: nama, jenis,
+   deskripsi. Langkah dua: logo, jenis sewa (tidak bisa diubah setelah
+   disimpan), alamat, telepon rumah.
+
+10. **Tambah kamar**
+    Bottom sheet dengan petunjuk nomor kamar terakhir.
+
+11. **Catat pembayaran**
+    Bottom sheet dengan pintasan Lunas penuh / Setengah / Kosongkan, lalu
+    tanggal, metode, dan catatan.
+
+12. **Pemilih nilai**
+    Sheet daftar untuk properti, kamar, jam, metode, dan sejenisnya. Dibuka
+    dari dalam sheet lain, ia **kembali ke sheet induknya** setelah memilih,
+    bukan menutup semuanya.
+
+13. **Pemilih tanggal**
+    Kalender ringkas di dalam sheet, bulannya bisa digeser.
+
+14. **Kalender** bisa digeser maju-mundur antar bulan.
+
+## Aturan tipografi yang lahir dari pengujian
+
+Angka **1** pada Instrument Serif tidak berkaki, sehingga `Rp1.800.000` terbaca
+`Rpl.800.000`. DM Mono memakai nol bergaris (Ø), sehingga `27 SEP 2026` terbaca
+`27 SEP 2Ø26`.
+
+Aturannya: **huruf serif dan mono tidak pernah merender angka.** Helper
+`numify()` mengalihkan setiap deret angka di dalam judul serif ke Instrument
+Sans. Label `.mlabel` tetap mono selama isinya hanya huruf; yang memuat angka
+memakai varian `.mlabel.fig`.
 
 ## Spesifikasi animasi
 
@@ -141,8 +178,22 @@ Seluruhnya dinonaktifkan di bawah `@media (prefers-reduced-motion: reduce)`.
 
 ## Cara memverifikasi
 
-Buka link di HP, lalu periksa tiga hal:
+Dua lapis, keduanya dijalankan dari akar repo:
 
-1. Safe area atas dan bawah tidak tertimpa konten.
-2. Semua target sentuh minimal 44x44px.
-3. Tidak ada scroll horizontal yang nyangkut di layar mana pun.
+    node docs/superpowers/mockups/_smoke.cjs    # 44 langkah di jsdom
+    node docs/superpowers/mockups/_shots.cjs    # 18 potret layar via chromium
+
+jsdom tidak punya mesin tata letak, jadi ia buta terhadap bug visual. Tiga bug
+nyata hanya ketahuan setelah dipotret:
+
+- `.mval.empty` diam-diam mewarisi `.empty { text-align:center; padding:38px }`
+  milik blok empty-state.
+- Angka pada huruf serif salah terbaca.
+- Aturan `.note` hilang seluruhnya saat lapis visual dirombak, sehingga kotak
+  peringatan merah tampil sebagai teks polos.
+
+Dua audit statis kini menjaga kelas bug itu: setiap ikon yang dipanggil harus
+ada di peta ikon, dan setiap class yang pernah dirender harus punya aturan CSS.
+
+Di HP, periksa tiga hal: safe area atas dan bawah tidak tertimpa konten, semua
+target sentuh minimal 44x44px, dan tidak ada scroll horizontal yang nyangkut.

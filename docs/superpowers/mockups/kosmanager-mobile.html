@@ -118,6 +118,7 @@
     .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
     .statusbar { display: none !important; }
     .topbar { padding-top: calc(10px + env(safe-area-inset-top)); }
+    .screen.is-modal { top: calc(10px + env(safe-area-inset-top)); }
     .dock   { bottom: calc(12px + env(safe-area-inset-bottom)); }
   }
 
@@ -547,6 +548,172 @@
   }
   .toast.is-out { animation: toastOut 220ms var(--e-glide) both; }
 
+  /* ── Kotak peringatan ────────────────────── */
+  .note {
+    display: flex; gap: 11px; padding: 14px 15px; border-radius: var(--r-soft);
+    font-size: 13.5px; font-weight: 500; line-height: 1.5;
+  }
+  .note b { font-weight: 700; }
+  .note svg { flex: none; margin-top: 1px; }
+  .note.bad  { background: var(--bad-tint);   color: #8A2A26; }
+  .note.info { background: var(--brand-tint); color: var(--brand-deep); }
+
+  /* ── Layar modal: naik dari bawah, layar di bawahnya mundur ── */
+  .screen.is-modal {
+    top: 46px; border-radius: 28px 28px 0 0; overflow: hidden;
+    box-shadow: 0 -14px 54px -10px rgba(10,20,28,.5);
+  }
+  .screen.is-stacked {
+    transform: scale(.93) translateY(-8px);
+    border-radius: 24px; overflow: hidden;
+    transition: transform var(--t-sheet) var(--e-spring), border-radius var(--t-sheet) var(--e-spring);
+  }
+  .screen.is-stacked::before { opacity: .16; }
+
+  /* ── Formulir ──────────────────────────────── */
+  .fhead {
+    position: relative; z-index: 20; flex: none;
+    display: flex; align-items: center; gap: 4px;
+    padding: 14px 14px 10px; background: var(--ground);
+  }
+  .fhead h1 {
+    flex: 1; min-width: 0; padding: 0 6px;
+    font-family: var(--f-display); font-weight: 400; font-size: 20px; letter-spacing: -.2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .steps { flex: none; display: flex; gap: 5px; padding: 0 20px 14px; background: var(--ground); }
+  .steps i { flex: 1; height: 3px; border-radius: 3px; background: var(--ground-2); transition: background 380ms var(--e-glide); }
+  .steps i.is-on { background: var(--brand); }
+
+  .scroll.isform { padding-bottom: 116px; }
+
+  .flede { font-family: var(--f-display); font-size: 27px; font-weight: 400; line-height: 1.12; letter-spacing: -.5px; padding: 4px 0 8px; text-wrap: balance; }
+  .flede + .fnote { margin-top: 0; }
+
+  .fsec { display: flex; align-items: center; gap: 11px; padding: 26px 2px 14px; }
+  .fsec:first-child { padding-top: 8px; }
+  .fsec-ic {
+    flex: none; display: grid; place-items: center; width: 32px; height: 32px;
+    border-radius: 10px; background: var(--brand-tint); color: var(--brand-deep);
+  }
+  .fsec h3 { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 700; letter-spacing: -.25px; }
+  .fnote { font-size: 13px; color: var(--ink-2); margin: -4px 0 16px; line-height: 1.55; }
+
+  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .fgrid.wide { grid-template-columns: 1.4fr 1fr; }
+  .fstack > * + * { margin-top: 15px; }
+
+  .field { position: relative; display: block; min-width: 0; }
+  .field-lbl {
+    position: absolute; top: -6px; left: 12px; z-index: 1;
+    padding: 0 6px; background: var(--ground);
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-3); white-space: nowrap;
+  }
+  .field-lbl .req { color: var(--bad); }
+  .field-in {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; min-height: 54px; padding: 0 14px;
+    border: 1.5px solid var(--hair-2); border-radius: 15px;
+    background: var(--surface); text-align: left;
+    font: inherit; font-size: 15px; font-weight: 500; color: var(--ink);
+    transition: border-color 200ms linear, transform 260ms var(--e-press);
+  }
+  .field-in::placeholder { color: var(--ink-3); font-weight: 400; }
+  .field-in:focus { outline: none; border-color: var(--brand); }
+  button.field-in:active { transform: scale(.985); transition-duration: 90ms; }
+  .field-in .val { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .field-in .val.ph { color: var(--ink-3); font-weight: 400; }
+  .field-in .tail { flex: none; color: var(--ink-3); display: grid; place-items: center; }
+  textarea.field-in { padding: 15px 14px; min-height: 86px; resize: none; line-height: 1.5; }
+  .field-foot { display: flex; gap: 10px; padding: 7px 4px 0; font-size: 11.5px; color: var(--ink-3); }
+  .field-foot .cnt { margin-left: auto; font-variant-numeric: tabular-nums; flex: none; }
+
+  .frow { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 15px 0; }
+  .frow-t { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -.15px; }
+  .frow-t small { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-2); margin-top: 3px; line-height: 1.5; letter-spacing: 0; }
+
+  .toggle {
+    flex: none; width: 50px; height: 30px; border-radius: var(--r-pill);
+    background: var(--ground-2); position: relative;
+    transition: background 260ms var(--e-snap);
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 24px; height: 24px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(14,26,35,.28);
+    transition: transform 300ms var(--e-snap);
+  }
+  .toggle.is-on { background: var(--brand); }
+  .toggle.is-on::after { transform: translateX(20px); }
+
+  .check {
+    flex: none; width: 24px; height: 24px; border-radius: 8px;
+    border: 1.5px solid var(--hair-2); background: var(--surface);
+    display: grid; place-items: center; color: transparent;
+    transition: background 180ms linear, border-color 180ms linear, color 180ms linear;
+  }
+  .check.is-on { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+  .radio {
+    display: flex; gap: 13px; width: 100%; text-align: left;
+    padding: 16px; border-radius: var(--r-soft);
+    background: var(--surface); box-shadow: var(--sh-card);
+    transition: box-shadow 220ms linear, transform 260ms var(--e-press);
+  }
+  .radio + .radio { margin-top: 9px; }
+  .radio:active { transform: scale(.985); transition-duration: 90ms; }
+  .radio.is-on { box-shadow: inset 0 0 0 2px var(--brand), var(--sh-card); }
+  .radio-dot {
+    flex: none; width: 21px; height: 21px; border-radius: 50%; margin-top: 2px;
+    border: 1.5px solid var(--hair-2);
+    transition: border-color 200ms linear, border-width 200ms var(--e-snap);
+  }
+  .radio.is-on .radio-dot { border-color: var(--brand); border-width: 7px; }
+  .radio-t { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  .radio-t small { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-2); margin-top: 4px; line-height: 1.55; letter-spacing: 0; }
+
+  .fdiv { height: 1px; background: var(--hair); margin: 26px 0 0; }
+
+  .uploader {
+    display: grid; place-items: center; gap: 8px; align-content: center;
+    width: 118px; height: 118px; margin: 4px auto 6px;
+    border-radius: 22px; border: 1.5px dashed var(--hair-2);
+    background: var(--surface); color: var(--ink-3);
+    transition: transform 260ms var(--e-press), border-color 200ms linear;
+  }
+  .uploader:active { transform: scale(.96); transition-duration: 90ms; }
+  .uploader span { font-size: 12px; font-weight: 600; }
+  .uploader b { font-size: 10.5px; font-weight: 500; color: var(--ink-3); opacity: .8; }
+
+  /* Kaki formulir */
+  .ffoot {
+    position: absolute; inset: auto 0 0 0; z-index: 25;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--ground) 84%, white);
+    backdrop-filter: saturate(1.5) blur(16px);
+    box-shadow: 0 -1px 0 var(--hair);
+  }
+  .ffoot .btn { height: 48px; }
+  .ffoot .grow { flex: 1; }
+
+  /* Pilihan di dalam sheet */
+  .pick { display: flex; align-items: center; gap: 13px; width: 100%; text-align: left; padding: 14px 12px; border-radius: 14px; transition: background 160ms linear; }
+  .pick:active { background: var(--sunken); }
+  .pick-t { flex: 1; min-width: 0; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick.is-on .pick-t { font-weight: 700; color: var(--brand-deep); }
+  .pick-ck { flex: none; color: var(--brand); opacity: 0; transition: opacity 160ms linear; }
+  .pick.is-on .pick-ck { opacity: 1; }
+
+  .quick { display: flex; gap: 7px; flex-wrap: wrap; padding-top: 10px; }
+  .sheet .field-lbl { background: var(--surface); }
+  .sheet-foot { flex: none; display: flex; gap: 10px; padding: 12px 20px 6px; }
+  .sheet-foot .btn { flex: 1; height: 48px; }
+  .komp { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .komp-t { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; }
+  .komp-v { flex: none; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
   /* ── Animasi ───────────────────────────────── */
   @keyframes pushIn   { from { transform: translateX(100%); } to { transform: translateX(0); } }
   @keyframes pushBack { from { transform: translateX(0) scale(1); } to { transform: translateX(-20%) scale(.965); } }
@@ -559,6 +726,8 @@
   @keyframes sheetUp  { from { transform: translateY(104%); } to { transform: translateY(0); } }
   @keyframes sheetDown{ from { transform: translateY(0); } to { transform: translateY(104%); } }
   @keyframes dockUp   { from { opacity: 0; transform: translateY(140%); } to { opacity: 1; transform: none; } }
+  @keyframes modalIn  { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes modalOut { from { transform: translateY(0); } to { transform: translateY(100%); } }
   @keyframes toastIn  { from { opacity: 0; transform: translate(-50%, 16px) scale(.94); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
   @keyframes toastOut { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 10px); } }
 
@@ -575,6 +744,8 @@
   .anim-popOut   { animation: popOut   var(--t-nav) var(--e-glide) both; z-index: 12; }
   .anim-fadeUp   { animation: fadeUp   300ms var(--e-glide) both; z-index: 12; }
   .anim-fadeGone { animation: fadeGone 200ms linear both; z-index: 11; }
+  .anim-modalIn  { animation: modalIn  var(--t-sheet) var(--e-spring) both; z-index: 14; }
+  .anim-modalOut { animation: modalOut 300ms var(--e-glide) both; z-index: 14; }
 
   .stagger > * { animation: rise var(--t-rise) var(--e-glide) both; animation-delay: calc(var(--i, 0) * 34ms); }
   .dock.is-boot { animation: dockUp 620ms var(--e-spring) 180ms both; }
@@ -756,6 +927,11 @@ const P = {
   clock:  '<circle cx="12" cy="12" r="9"/><path d="M12 6.9V12l3.1 2"/>',
   in:     '<path d="M15 4.6h3.4A1.6 1.6 0 0 1 20 6.2v11.6a1.6 1.6 0 0 1-1.6 1.6H15"/><path d="M10.6 8 14.6 12l-4 4"/><path d="M14.2 12H4"/>',
   out:    '<path d="M9 4.6H5.6A1.6 1.6 0 0 0 4 6.2v11.6a1.6 1.6 0 0 0 1.6 1.6H9"/><path d="M15.4 8 19.4 12l-4 4"/><path d="M19 12H8.8"/>',
+  x:      '<path d="M6.4 6.4l11.2 11.2M17.6 6.4 6.4 17.6"/>',
+  warn:   '<path d="M12 3.8 21.6 20.2H2.4z"/><path d="M12 9.9v4.3M12 17.1h.01"/>',
+  check:  '<path d="M20 6.5 9.2 17.3 4 12.1"/>',
+  img:    '<rect x="3" y="4.6" width="18" height="14.8" rx="3.4"/><circle cx="8.6" cy="10" r="1.7"/><path d="M4 17.4l4.8-4.4 3.4 3 3-2.6 4.8 4"/>',
+  build:  '<path d="M4 21V5.5a1 1 0 0 1 1-1h6V21"/><path d="M11 10h8a1 1 0 0 1 1 1v10"/><path d="M7 9h1M7 13h1M7 17h1M15 14h1M15 18h1"/><path d="M2.5 21h19"/>',
   key:    '<circle cx="8.2" cy="15.2" r="4"/><path d="M11 12.4 19.8 3.6"/><path d="M17.2 6.2 19.4 8.4M14.9 8.5l2.2 2.2"/>',
 };
 const ic = (n, s = 21) =>
@@ -1007,7 +1183,7 @@ VIEWS.home = () => {
     '</section>' +
 
     '<div class="sechead"><h2>Properti</h2><span class="count">' + PROPS.length + '</span>' +
-      '<button class="link" data-act="soon">Tambah</button></div>' +
+      '<button class="link" data-form="prop">Tambah</button></div>' +
 
     '<div class="stack-v">' + PROPS.map(p => {
       const rs = roomsOf(p.id);
@@ -1089,8 +1265,8 @@ VIEWS.prop = (pid, tab = 0) => {
       ptabs(['Kamar', 'Transaksi', 'Lainnya'], tab) +
       '<div data-tabbody>' + [tabKamar, tabTxn, tabLain][tab] + '</div>' +
     '</div>' +
-    (fab ? '<button class="fab" data-act="soon">' + ic('plus', 20) +
-           '<span class="fab-label">' + fab + '</span></button>' : '');
+    (fab ? '<button class="fab" ' + (tab === 0 ? 'data-sheet="kamar:' + pid + '"' : 'data-act="soon"') + '>' +
+           ic('plus', 20) + '<span class="fab-label">' + fab + '</span></button>' : '');
 };
 
 VIEWS.room = (rid, tab = 0) => {
@@ -1185,7 +1361,8 @@ VIEWS.room = (rid, tab = 0) => {
       '<div data-tabbody>' + [tabPenghuni, tabHarga, tabTxn, tabLain][tab] + '</div>' +
     '</div>' +
     (tab === 0 && kosong
-      ? '<button class="fab" data-act="soon">' + ic('plus', 20) + '<span class="fab-label">Penghuni</span></button>'
+      ? '<button class="fab" data-form="tenant:' + r.id + '">' + ic('plus', 20) +
+        '<span class="fab-label">Penghuni</span></button>'
       : '');
 };
 
@@ -1263,7 +1440,7 @@ VIEWS.tenants = () => {
       '</div>' +
       '<div data-tabbody>' +
         '<div class="sechead"><h2>Penghuni aktif</h2><span class="count">' + list.length + '</span>' +
-          '<button class="link" data-act="soon">Tambah</button></div>' +
+          '<button class="link" data-form="tenant:new">Tambah</button></div>' +
         '<div class="stack-v stagger" data-tlist>' + (list.length
           ? list.map(r => '<button class="card tap lrow" data-go="tenant/' + r.id + '">' +
               '<span class="av">' + esc(inisial(r.nama)) + '</span>' +
@@ -1279,8 +1456,11 @@ VIEWS.tenants = () => {
     '</div>';
 };
 
+const BLN_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+let calY = 2026, calM = 8;
+
 VIEWS.calendar = () => {
-  const Y = 2026, M = 8;
+  const Y = calY, M = calM;
   const offset = (new Date(Y, M, 1).getDay() + 6) % 7;      // pekan mulai Senin
   const jml = new Date(Y, M + 1, 0).getDate();
 
@@ -1298,20 +1478,21 @@ VIEWS.calendar = () => {
   for (let i = 0; i < offset; i++) sel += '<span class="cal-day blank"></span>';
   for (let d = 1; d <= jml; d++) {
     const t = tanda[d] ? [...tanda[d]] : [];
-    sel += '<button class="cal-day' + (d === 27 ? ' today' : '') + '" data-act="soon">' + d +
+    const ini = (Y === 2026 && M === 8 && d === 27);
+    sel += '<button class="cal-day' + (ini ? ' today' : '') + '" data-act="soon">' + d +
       (t.length ? '<span class="cal-dots">' +
         t.map(k => '<i style="background:' + WARNA[k] + '"></i>').join('') + '</span>' : '') +
     '</button>';
   }
 
   return chrome({ title: 'Kalender', actions: [{ icon: 'more', act: 'soon', label: 'Menu kalender' }] }) +
-    '<div class="scroll">' + bigtitle('Kalender') + '<div class="stagger">' +
+    '<div class="scroll">' + bigtitle('Kalender') + '<div data-tabbody><div class="stagger">' +
       '<section class="card" style="padding:16px 14px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
-          '<button class="iconbtn" data-act="soon" aria-label="Bulan sebelumnya">' + ic('back', 19) + '</button>' +
+          '<button class="iconbtn" data-cal="-1" aria-label="Bulan sebelumnya">' + ic('back', 19) + '</button>' +
           '<strong style="font-family:var(--f-display);font-weight:400;font-size:19px;letter-spacing:-.2px">' +
-            numify('September 2026') + '</strong>' +
-          '<button class="iconbtn" data-act="soon" aria-label="Bulan berikutnya">' + ic('chev', 19) + '</button>' +
+            numify(BLN_FULL[M] + ' ' + Y) + '</strong>' +
+          '<button class="iconbtn" data-cal="1" aria-label="Bulan berikutnya">' + ic('chev', 19) + '</button>' +
         '</div>' +
         '<div class="cal-grid">' +
           ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(d => '<span class="cal-dow">' + d + '</span>').join('') +
@@ -1334,24 +1515,396 @@ VIEWS.calendar = () => {
           '</span>' +
           '<span class="chev">' + ic('chev', 18) + '</span>' +
         '</button>').join('') +
-    '</div></div>';
+    '</div></div></div>';
 };
 
+
 /* ═══════════════════════════════════════════════
-   7. BOTTOM SHEET
+   7. FORMULIR
+   ═══════════════════════════════════════════════ */
+const FORM = {
+  tenant: { prop: 'p1', kamar: '', masuk: '2026-09-27', jam: '14:00', keluar: '', jamKeluar: '',
+            harga: 0, nama: '', hp: '', orang: 1, kelamin: '', asal: '', kerja: '',
+            sudahBayar: false, komponen: [] },
+  prop:   { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false, sewa: '',
+            negara: 'Indonesia', alamat: '', provinsi: '', kota: '', kecamatan: '', pos: '',
+            pakaiHp: true, hp: '' },
+  kamar:  { prop: 'p1', no: '', tipe: '', desk: '', tampilDesk: false, belumSewa: false },
+  bayar:  { rid: '', nominal: 0, tgl: '2026-09-27', metode: 'Transfer bank', catatan: '' },
+};
+
+/* Satu-satunya jalur yang nilainya benar-benar angka */
+const NUMERIK = ['tenant.orang', 'bayar.nominal'];
+
+const getF = path => { const k = path.split('.'); return FORM[k[0]][k[1]]; };
+const setF = (path, v) => { const k = path.split('.'); FORM[k[0]][k[1]] = v; };
+
+const JAM = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00',
+             '15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+
+const LISTS = {
+  properti: () => ({ judul: 'Pilih properti', opsi: PROPS.map(x => ({ v: x.id, l: x.nama })) }),
+  kamar:    () => ({ judul: 'Pilih kamar', opsi: roomsOf(FORM.tenant.prop).map(r =>
+                     ({ v: r.no, l: 'Kamar ' + r.no + (r.nama ? ' · ' + r.nama : ' · kosong') })) }),
+  jam:      () => ({ judul: 'Pilih jam', opsi: JAM.map(j => ({ v: j, l: j })) }),
+  orang:    () => ({ judul: 'Jumlah orang', opsi: [1,2,3,4].map(i => ({ v: i, l: i + ' orang' })) }),
+  kelamin:  () => ({ judul: 'Jenis kelamin', opsi: [{ v:'L', l:'Laki-laki' }, { v:'P', l:'Perempuan' }] }),
+  tipeprop: () => ({ judul: 'Jenis properti', opsi: ['Kos','Rumah kontrakan','Guesthouse','Hotel',
+                     'Apartemen','Ruko','Vila','Losmen'].map(v => ({ v, l: v })) }),
+  negara:   () => ({ judul: 'Negara', opsi: ['Indonesia','Malaysia','Singapura'].map(v => ({ v, l: v })) }),
+  provinsi: () => ({ judul: 'Provinsi', opsi: ['DKI Jakarta','Banten','Jawa Barat','Jawa Tengah',
+                     'Jawa Timur'].map(v => ({ v, l: v })) }),
+  kota:     () => ({ judul: 'Kota', opsi: ['Jakarta Barat','Jakarta Selatan','Jakarta Pusat',
+                     'Tangerang','Bekasi'].map(v => ({ v, l: v })) }),
+  metode:   () => ({ judul: 'Metode pembayaran', opsi: ['Transfer bank','Tunai','QRIS','E-wallet']
+                     .map(v => ({ v, l: v })) }),
+};
+
+/* ── Potongan kolom isian ── */
+const reqMark = r => r ? '<span class="req"> *</span>' : '';
+
+function fText(o) {
+  const v = getF(o.path) == null ? '' : String(getF(o.path));
+  return '<label class="field">' +
+    '<span class="field-lbl">' + o.lbl + reqMark(o.req) + '</span>' +
+    '<input class="field-in" data-bind="' + o.path + '"' +
+      (o.max ? ' maxlength="' + o.max + '"' : '') +
+      (o.mode ? ' inputmode="' + o.mode + '"' : '') +
+      ' placeholder="' + esc(o.ph || '') + '" value="' + esc(v) + '">' +
+    (o.max || o.help ? '<span class="field-foot">' +
+      (o.help ? '<span>' + o.help + '</span>' : '') +
+      (o.max ? '<span class="cnt" data-cnt="' + o.path + '">' + v.length + '/' + o.max + '</span>' : '') +
+    '</span>' : '') +
+  '</label>';
+}
+
+function fMoney(o) {
+  const v = getF(o.path);
+  return '<label class="field">' +
+    '<span class="field-lbl">' + o.lbl + reqMark(o.req) + '</span>' +
+    '<input class="field-in" data-money="' + o.path + '" inputmode="numeric" ' +
+      'placeholder="Rp0" value="' + (v ? rp(v) : '') + '">' +
+    (o.help ? '<span class="field-foot"><span>' + o.help + '</span></span>' : '') +
+  '</label>';
+}
+
+function fPick(o) {
+  const v = getF(o.path);
+  const teks = o.label ? o.label(v) : (v === '' || v == null ? '' : String(v));
+  return '<div class="field">' +
+    '<span class="field-lbl">' + o.lbl + reqMark(o.req) + '</span>' +
+    '<button class="field-in" data-sheet="pilih:' + o.list + '|' + o.path + '">' +
+      '<span class="val' + (teks ? '' : ' ph') + '">' + esc(teks || o.ph || 'Pilih') + '</span>' +
+      '<span class="tail">' + ic('chev', 17) + '</span>' +
+    '</button></div>';
+}
+
+function fDate(o) {
+  const v = getF(o.path);
+  return '<div class="field">' +
+    '<span class="field-lbl">' + o.lbl + reqMark(o.req) + '</span>' +
+    '<button class="field-in" data-sheet="tanggal:' + o.path + '">' +
+      '<span class="val' + (v ? '' : ' ph') + '">' + (v ? tgl(v) : esc(o.ph || 'Pilih tanggal')) + '</span>' +
+      '<span class="tail">' + ic('cal', 17) + '</span>' +
+    '</button></div>';
+}
+
+const fToggle = (judul, sub, path) =>
+  '<button class="frow" data-toggle="' + path + '">' +
+    '<span class="frow-t">' + judul + (sub ? '<small>' + sub + '</small>' : '') + '</span>' +
+    '<span class="toggle' + (getF(path) ? ' is-on' : '') + '"></span></button>';
+
+const fCheck = (judul, path) =>
+  '<button class="frow" data-toggle="' + path + '">' +
+    '<span class="check' + (getF(path) ? ' is-on' : '') + '">' + ic('check', 14) + '</span>' +
+    '<span class="frow-t">' + judul + '</span></button>';
+
+const fRadio = (path, val, judul, ket) =>
+  '<button class="radio' + (getF(path) === val ? ' is-on' : '') + '" data-radio="' + path + '|' + val + '">' +
+    '<span class="radio-dot"></span><span class="radio-t">' + judul + '<small>' + ket + '</small></span></button>';
+
+const fSec = (icon, judul) =>
+  '<div class="fsec"><span class="fsec-ic">' + ic(icon, 17) + '</span><h3>' + judul + '</h3></div>';
+
+/* ── Kalender kecil di dalam sheet ── */
+let sheetCal = { y: 2026, m: 8 };
+function miniCal(path) {
+  const Y = sheetCal.y, M = sheetCal.m;
+  const offset = (new Date(Y, M, 1).getDay() + 6) % 7;
+  const jml = new Date(Y, M + 1, 0).getDate();
+  const cur = getF(path);
+  let sel = '';
+  for (let i = 0; i < offset; i++) sel += '<span class="cal-day blank"></span>';
+  for (let d = 1; d <= jml; d++) {
+    const iso = Y + '-' + String(M + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    sel += '<button class="cal-day' + (iso === cur ? ' today' : '') + '" data-set="' + path + '|' + iso + '">' + d + '</button>';
+  }
+  return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
+      '<button class="iconbtn" data-scal="-1" aria-label="Bulan sebelumnya">' + ic('back', 19) + '</button>' +
+      '<strong style="font-family:var(--f-display);font-weight:400;font-size:18px">' +
+        numify(BLN_FULL[M] + ' ' + Y) + '</strong>' +
+      '<button class="iconbtn" data-scal="1" aria-label="Bulan berikutnya">' + ic('chev', 19) + '</button>' +
+    '</div>' +
+    '<div class="cal-grid">' +
+      ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(d => '<span class="cal-dow">' + d + '</span>').join('') +
+      sel + '</div>';
+}
+
+/* ── Tambah penghuni ── */
+function formTenant() {
+  const F = FORM.tenant;
+  const kmr = ROOMS.find(r => r.prop === F.prop && r.no === F.kamar);
+  const bentrok = kmr && kmr.nama && kmr.status !== 'kosong';
+
+  const daftarKomp = F.komponen.length
+    ? '<div class="card flush divide" style="margin-bottom:12px">' + F.komponen.map((k, i) =>
+        '<div class="komp"><span class="komp-t">' + esc(k.nama) + '</span>' +
+          '<span class="komp-v">' + rp(k.nominal) + '</span>' +
+          '<button class="iconbtn" data-delkomp="' + i + '" aria-label="Hapus ' + esc(k.nama) + '" ' +
+            'style="width:36px;height:36px;color:var(--bad)">' + ic('trash', 17) + '</button>' +
+        '</div>').join('') + '</div>'
+    : '';
+
+  return '<header class="fhead">' +
+      '<button class="iconbtn" data-back aria-label="Tutup">' + ic('x') + '</button>' +
+      '<h1>Tambah penghuni</h1></header>' +
+    '<div class="scroll isform"><div data-tabbody>' +
+
+      fSec('door', 'Tinggal di') +
+      '<div class="fgrid">' +
+        fPick({ lbl: 'Properti', req: 1, path: 'tenant.prop', list: 'properti',
+                label: v => (prop(v) || {}).nama }) +
+        fPick({ lbl: 'Kamar', req: 1, path: 'tenant.kamar', list: 'kamar', ph: 'Pilih' }) +
+      '</div>' +
+
+      fSec('cal', 'Masa tinggal') +
+      '<div class="fstack">' +
+        '<div class="fgrid wide">' + fDate({ lbl: 'Check-in', req: 1, path: 'tenant.masuk' }) +
+          fPick({ lbl: 'Jam', path: 'tenant.jam', list: 'jam' }) + '</div>' +
+        '<div class="fgrid wide">' + fDate({ lbl: 'Check-out', path: 'tenant.keluar', ph: 'Opsional' }) +
+          fPick({ lbl: 'Jam', path: 'tenant.jamKeluar', list: 'jam', ph: '–' }) + '</div>' +
+      '</div>' +
+      (bentrok
+        ? '<div class="note bad" style="margin-top:15px">' + ic('warn', 18) +
+          '<span>Kamar ' + esc(kmr.no) + ' masih ditempati <b>' + esc(kmr.nama) + '</b> sejak ' +
+          tgl(kmr.masuk) + ' dan belum check-out. Periksa lagi tanggalnya.</span></div>'
+        : '') +
+
+      '<div class="fdiv"></div>' +
+
+      fSec('money', 'Harga sewa') +
+      '<p class="fnote">Diambil dari harga kamar. Ubah kalau kesepakatannya berbeda.</p>' +
+      fMoney({ lbl: 'Harga sewa', req: 1, path: 'tenant.harga', help: 'Per bulan' }) +
+
+      fSec('wallet', 'Komponen tambahan') +
+      '<p class="fnote">Tambahkan DP, deposit, atau biaya lain seperti listrik dan air.</p>' +
+      daftarKomp +
+      '<button class="btn brandsoft block" data-sheet="komponen:x">' + ic('plus', 17) + ' Tambah komponen</button>' +
+
+      '<div class="fdiv"></div>' +
+
+      fSec('receipt', 'Rincian pembayaran') +
+      fToggle('Sudah dibayar sekarang',
+        F.sudahBayar ? 'Tagihan pertama langsung ditandai lunas' : 'Penghuni belum bayar',
+        'tenant.sudahBayar') +
+
+      fSec('users', 'Data penghuni') +
+      '<div class="fstack">' +
+        fText({ lbl: 'Nama lengkap', req: 1, path: 'tenant.nama', ph: 'Nama sesuai KTP', max: 40 }) +
+        fText({ lbl: 'No. HP', path: 'tenant.hp', ph: '0812 3456 7890', mode: 'tel' }) +
+        '<div class="fgrid">' +
+          fPick({ lbl: 'Jumlah orang', path: 'tenant.orang', list: 'orang', label: v => v + ' orang' }) +
+          fPick({ lbl: 'Jenis kelamin', path: 'tenant.kelamin', list: 'kelamin', ph: 'Pilih',
+                  label: v => v === 'L' ? 'Laki-laki' : v === 'P' ? 'Perempuan' : '' }) +
+        '</div>' +
+        '<div class="fgrid">' +
+          fText({ lbl: 'Asal', path: 'tenant.asal', ph: 'Kota asal' }) +
+          fText({ lbl: 'Pekerjaan', path: 'tenant.kerja', ph: 'Pekerjaan' }) +
+        '</div>' +
+      '</div>' +
+
+    '</div></div>' +
+    '<div class="ffoot">' +
+      '<button class="btn grow" data-back>Batal</button>' +
+      '<button class="btn primary grow" data-simpan="Penghuni tersimpan">Simpan</button>' +
+    '</div>';
+}
+
+/* ── Properti baru, dua langkah ── */
+function formProp() {
+  const F = FORM.prop;
+  const kepala = '<header class="fhead">' +
+      (F.step === 1
+        ? '<button class="iconbtn" data-back aria-label="Tutup">' + ic('x') + '</button>'
+        : '<button class="iconbtn" data-step="1" aria-label="Langkah sebelumnya">' + ic('back') + '</button>') +
+      '<h1>' + esc(F.step === 2 && F.nama ? F.nama : 'Properti baru') + '</h1></header>' +
+    '<div class="steps"><i class="is-on"></i><i class="' + (F.step === 2 ? 'is-on' : '') + '"></i></div>';
+
+  if (F.step === 1) {
+    return kepala + '<div class="scroll isform"><div data-tabbody>' +
+        '<h2 class="flede">Beri nama properti Anda</h2>' +
+        '<p class="fnote">Nama properti membantu Anda menemukannya dengan cepat nanti.</p>' +
+        '<div class="fstack">' +
+          fText({ lbl: 'Nama properti', req: 1, path: 'prop.nama', ph: 'Mis. Raffles Kost Citra 2', max: 40 }) +
+          fPick({ lbl: 'Jenis properti', req: 1, path: 'prop.tipe', list: 'tipeprop', ph: 'Pilih jenis' }) +
+          fText({ lbl: 'Deskripsi singkat', path: 'prop.desk', ph: 'Opsional', max: 100 }) +
+        '</div>' +
+        fCheck('Tampilkan deskripsi di dokumen seperti kuitansi', 'prop.tampilDesk') +
+      '</div></div>' +
+      '<div class="ffoot"><button class="btn primary grow" data-step="2">Lanjut</button></div>';
+  }
+
+  return kepala + '<div class="scroll isform"><div data-tabbody>' +
+      '<button class="uploader" data-act="soon">' + ic('img', 26) +
+        '<span>Logo</span><b>opsional</b></button>' +
+      '<p class="fnote" style="text-align:center;margin-bottom:4px">Lengkapi keterangan rumah ini.</p>' +
+
+      fSec('build', 'Jenis sewa') +
+      fRadio('prop.sewa', 'utuh', 'Sewa seluruhnya',
+        'Satu penghuni dan satu harga untuk seluruh tempat. Contoh: rumah kontrakan, vila, atau unit apartemen.') +
+      fRadio('prop.sewa', 'kamar', 'Sewa per kamar',
+        'Tiap kamar disewakan sendiri dengan penghuni dan harga masing-masing. Contoh: kos, guesthouse, atau hotel.') +
+      '<div class="note bad" style="margin-top:12px">' + ic('warn', 18) +
+        '<span>Jenis sewa tidak bisa diubah setelah disimpan.</span></div>' +
+
+      '<div class="fdiv"></div>' +
+
+      fSec('info', 'Alamat rumah') +
+      '<div class="fstack">' +
+        fPick({ lbl: 'Negara', path: 'prop.negara', list: 'negara' }) +
+        fText({ lbl: 'Alamat', path: 'prop.alamat', ph: 'Nama jalan dan nomor', max: 200 }) +
+        '<div class="fgrid">' +
+          fPick({ lbl: 'Provinsi', path: 'prop.provinsi', list: 'provinsi', ph: 'Pilih' }) +
+          fPick({ lbl: 'Kota', path: 'prop.kota', list: 'kota', ph: 'Pilih' }) +
+        '</div>' +
+        '<div class="fgrid">' +
+          fText({ lbl: 'Kecamatan', path: 'prop.kecamatan', ph: 'Kecamatan' }) +
+          fText({ lbl: 'Kode pos', path: 'prop.pos', ph: 'Opsional', mode: 'numeric' }) +
+        '</div>' +
+      '</div>' +
+
+      fSec('wa', 'Telepon rumah') +
+      fToggle('Pakai nomor telepon rumah', 'Ditampilkan di kuitansi dan pengingat', 'prop.pakaiHp') +
+      (F.pakaiHp ? '<div style="margin-top:12px">' +
+        fText({ lbl: 'No. telepon', path: 'prop.hp', ph: '0851 5623 7605', mode: 'tel' }) + '</div>' : '') +
+
+    '</div></div>' +
+    '<div class="ffoot">' +
+      '<button class="btn grow" data-step="1">Kembali</button>' +
+      '<button class="btn primary grow" data-simpan="Properti tersimpan">Simpan</button>' +
+    '</div>';
+}
+
+VIEWS.form = (jenis) => jenis === 'tenant' ? formTenant() : formProp();
+
+/* Isi awal formulir sebelum layarnya dibuka */
+function mulaiForm(spec) {
+  const [jenis, arg] = spec.split(':');
+  if (jenis === 'tenant') {
+    const r = arg && arg !== 'new' ? room(arg) : null;
+    Object.assign(FORM.tenant, {
+      prop: r ? r.prop : PROPS[0].id, kamar: r ? r.no : '',
+      masuk: '2026-09-27', jam: '14:00', keluar: '', jamKeluar: '',
+      harga: r ? r.harga : 0, nama: '', hp: '', orang: 1, kelamin: '',
+      asal: '', kerja: '', sudahBayar: false, komponen: [],
+    });
+  } else {
+    Object.assign(FORM.prop, { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false, sewa: '' });
+  }
+  ke('form/' + jenis);
+}
+
+/* ═══════════════════════════════════════════════
+   8. BOTTOM SHEET
    ═══════════════════════════════════════════════ */
 const SHEETS = {
   aksi: rid => {
     const r = room(rid);
     return { title: 'Pilih aksi', sub: r.nama + ' · Kamar ' + r.no, items: [
-      { i: 'money',   t: 'Catat pembayaran',  s: 'Tandai sewa periode ini sudah dibayar' },
+      { i: 'money',   t: 'Catat pembayaran',  s: 'Tandai sewa periode ini sudah dibayar', sheet: 'bayar:' + r.id },
       { i: 'receipt', t: 'Tambah tagihan',    s: 'Buat tagihan di luar sewa bulanan' },
       { i: 'wallet',  t: 'Tambah deposit',    s: 'Catat uang jaminan yang diterima' },
       { i: 'plus',    t: 'Tambah biaya lain', s: 'Listrik, air, denda, atau kerusakan' },
       { i: 'door',    t: 'Lihat kamar',       s: 'Buka detail kamar ' + r.no, go: 'room/' + r.id },
-      { i: 'sliders', t: 'Pengaturan sewa',   s: 'Harga, masa tinggal, pindah kamar', sheet: 'sewa:' + r.id },
+      { i: 'sliders', t: 'Pengaturan sewa',   s: 'Harga, masa tinggal, pindah kamar', sheet: 'sewa:' + r.id, chev: 1 },
     ] };
   },
+  /* Pemilih nilai; setelah dipilih kembali ke sheet induknya */
+  pilih: arg => {
+    const [list, path] = arg.split('|');
+    const L = LISTS[list]();
+    const cur = String(getF(path));
+    return { title: L.judul, html: '<div style="padding:0 6px 6px">' + L.opsi.map(o =>
+      '<button class="pick' + (String(o.v) === cur ? ' is-on' : '') + '" data-set="' + path + '|' + o.v + '">' +
+        '<span class="pick-t">' + esc(o.l) + '</span>' +
+        '<span class="pick-ck">' + ic('check', 18) + '</span></button>').join('') + '</div>' };
+  },
+
+  tanggal: path => {
+    const cur = getF(path) || '2026-09-27';
+    const [y, m] = cur.split('-').map(Number);
+    sheetCal = { y, m: m - 1 };
+    return { title: 'Pilih tanggal', html: '<div data-scalbody style="padding:0 12px 8px">' + miniCal(path) + '</div>',
+             calPath: path };
+  },
+
+  komponen: () => ({
+    title: 'Tambah komponen', sub: 'Biaya di luar sewa bulanan',
+    html: '<div style="padding:0 6px 6px">' +
+      [['wallet','Deposit',1000000], ['money','DP (uang muka)',500000], ['receipt','Listrik',150000],
+       ['receipt','Air',80000], ['warn','Denda',100000], ['plus','Lainnya',0]].map(([i, nama, v]) =>
+        '<button class="pick" data-addkomp="' + nama + '|' + v + '">' +
+          '<span class="aitem-ic" style="width:36px;height:36px;border-radius:11px">' + ic(i, 17) + '</span>' +
+          '<span class="pick-t">' + nama + '</span>' +
+          '<span class="komp-v" style="color:var(--ink-3)">' + (v ? rp(v) : '—') + '</span>' +
+        '</button>').join('') + '</div>',
+  }),
+
+  kamar: pid => {
+    const F = FORM.kamar;
+    if (pid && pid !== F.prop) Object.assign(F, { prop: pid, no: '', tipe: '', desk: '' });
+    const rs = roomsOf(F.prop);
+    return {
+      title: 'Tambah kamar',
+      sub: 'Tulis nomor dan nama kamar di ' + prop(F.prop).nama,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        fText({ lbl: 'Nomor kamar', req: 1, path: 'kamar.no', ph: 'Mis. 208',
+                help: 'Nomor terakhir ' + (rs.length ? rs[rs.length - 1].no : '–') }) +
+        fText({ lbl: 'Tipe / nama kamar', path: 'kamar.tipe', ph: 'Opsional', max: 20 }) +
+        fText({ lbl: 'Deskripsi singkat', path: 'kamar.desk', ph: 'Opsional', max: 100 }) +
+      '</div>' +
+      '<div style="padding:0 10px">' + fCheck('Tampilkan deskripsi di dokumen seperti kuitansi', 'kamar.tampilDesk') +
+        '<div class="fdiv" style="margin:4px 0"></div>' +
+        fCheck('Kamar belum disewakan', 'kamar.belumSewa') + '</div>',
+      foot: [['Batal', ''], ['Simpan', 'Kamar tersimpan']],
+    };
+  },
+
+  bayar: rid => {
+    const r = room(rid);
+    const F = FORM.bayar;
+    if (F.rid !== rid) Object.assign(F, { rid, nominal: r.harga, tgl: '2026-09-27',
+                                          metode: 'Transfer bank', catatan: '' });
+    const cepat = [['Lunas penuh', r.harga], ['Setengah', Math.round(r.harga / 2)], ['Kosongkan', 0]];
+    return {
+      title: 'Catat pembayaran',
+      sub: r.nama + ' · Kamar ' + r.no,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        fMoney({ lbl: 'Jumlah dibayar', req: 1, path: 'bayar.nominal',
+                 help: 'Tagihan ' + periode(r) + ' · ' + rp(r.harga) }) +
+      '</div>' +
+      '<div class="quick" style="padding:10px 10px 4px">' + cepat.map(([l, v]) =>
+        '<button class="fchip' + (F.nominal === v ? ' is-on' : '') + '" data-set="bayar.nominal|' + v + '">' +
+        l + '</button>').join('') + '</div>' +
+      '<div class="fstack" style="padding:14px 10px 4px">' +
+        '<div class="fgrid wide">' + fDate({ lbl: 'Tanggal bayar', path: 'bayar.tgl' }) +
+          fPick({ lbl: 'Metode', path: 'bayar.metode', list: 'metode' }) + '</div>' +
+        fText({ lbl: 'Catatan', path: 'bayar.catatan', ph: 'Opsional', max: 60 }) +
+      '</div>',
+      foot: [['Batal', ''], ['Simpan', 'Pembayaran tercatat']],
+    };
+  },
+
   sewa: rid => {
     const r = room(rid);
     return { title: 'Pengaturan sewa', sub: r.nama + ' · Kamar ' + r.no, items: [
@@ -1363,12 +1916,18 @@ const SHEETS = {
   },
 };
 
-let sheetEl = null, scrimEl = null;
+let sheetEl = null, scrimEl = null, sheetSpec = null;
+const sheetInduk = [];      /* sheet yang ditunda saat pemilih dibuka di atasnya */
 
-function openSheet(spec) {
-  const [key, arg] = spec.split(':');
+function openSheet(spec, kembali) {
+  const potong = spec.indexOf(':');
+  const key = potong < 0 ? spec : spec.slice(0, potong);
+  const arg = potong < 0 ? '' : spec.slice(potong + 1);
   const def = SHEETS[key] && SHEETS[key](arg);
   if (!def) return;
+  /* Pemilih yang dibuka dari dalam sheet lain menyimpan induknya dulu */
+  if (!kembali && sheetSpec && (key === 'pilih' || key === 'tanggal')) sheetInduk.push(sheetSpec);
+  if (kembali !== 'tetap') sheetSpec = spec;
   closeSheet(true);
 
   scrimEl = document.createElement('div');
@@ -1385,19 +1944,25 @@ function openSheet(spec) {
       '<div class="sheet-title">' + esc(def.title) + '</div>' +
       (def.sub ? '<div class="sheet-sub">' + esc(def.sub) + '</div>' : '') +
     '</div>' +
-    '<div class="sheet-body">' + def.items.map(it =>
-      '<button class="aitem' + (it.danger ? ' danger' : '') + '" ' +
-        (it.go ? 'data-go="' + it.go + '"' : it.sheet ? 'data-sheet="' + it.sheet + '"' : 'data-act="soon"') + '>' +
-        '<span class="aitem-ic">' + ic(it.i, 19) + '</span>' +
-        '<span class="aitem-t">' + esc(it.t) + '<small>' + esc(it.s) + '</small></span>' +
-        (it.sheet ? '<span class="chev" style="color:var(--ink-3)">' + ic('chev', 17) + '</span>' : '') +
-      '</button>').join('') + '</div>';
+    '<div class="sheet-body">' + (def.items
+      ? def.items.map(it =>
+        '<button class="aitem' + (it.danger ? ' danger' : '') + '" ' +
+          (it.go ? 'data-go="' + it.go + '"' : it.sheet ? 'data-sheet="' + it.sheet + '"' : 'data-act="soon"') + '>' +
+          '<span class="aitem-ic">' + ic(it.i, 19) + '</span>' +
+          '<span class="aitem-t">' + esc(it.t) + '<small>' + esc(it.s) + '</small></span>' +
+          (it.chev ? '<span class="chev" style="color:var(--ink-3)">' + ic('chev', 17) + '</span>' : '') +
+        '</button>').join('')
+      : def.html) + '</div>' +
+    (def.foot ? '<div class="sheet-foot">' + def.foot.map(([l, pesan], i) =>
+      '<button class="btn' + (i ? ' primary' : '') + '"' +
+        (pesan ? ' data-simpan="' + pesan + '"' : ' data-tutup') + '>' + l + '</button>').join('') + '</div>' : '');
 
   phone.append(scrimEl, sheetEl);
   wireDrag(sheetEl);
 }
 
 function closeSheet(instan) {
+  if (!instan) { sheetSpec = null; sheetInduk.length = 0; }
   if (!sheetEl) return;
   const s = sheetEl, k = scrimEl;
   sheetEl = scrimEl = null;
@@ -1479,7 +2044,11 @@ const TABS = [
   { r: 'tenants',  i: 'users', l: 'Penghuni' },
 ];
 
+const isModal = r => r.startsWith('form/');
+let modalEl = null, baseEl = null;
+
 const depth = r =>
+  isModal(r) ? 9 :
   r.startsWith('tenant/') ? 3 :
   r.startsWith('room/')   ? 2 :
   (r.startsWith('prop/') || r.startsWith('filter/')) ? 1 : 0;
@@ -1488,8 +2057,10 @@ const tabState = {};
 let saatIni = null, layarEl = null;
 
 function render(rute) {
-  const [nama, arg] = rute.split('/');
+  const bagian = rute.split('/');
+  const nama = bagian[0], arg = bagian[1];
   const tab = tabState[rute] || 0;
+  if (nama === 'form') return VIEWS.form(arg);
   if (nama === 'prop')   return VIEWS.prop(arg, tab);
   if (nama === 'room')   return VIEWS.room(arg, tab);
   if (nama === 'tenant') return VIEWS.tenant(arg);
@@ -1507,6 +2078,18 @@ function pasang(rute, arah) {
   const lama = layarEl;
   stack.append(baru);
   layarEl = baru;
+
+  if (arah === 'modal') {
+    baru.classList.add('is-modal', 'anim-modalIn');
+    baru.addEventListener('animationend', () => baru.classList.remove('anim-modalIn'), { once: true });
+    if (lama) { lama.classList.add('is-stacked'); baseEl = lama; }
+    modalEl = baru;
+    aktifkan(baru);
+    syncDock(rute);
+    return;
+  }
+
+  if (modalEl) { modalEl.remove(); if (baseEl) baseEl.classList.remove('is-stacked'); modalEl = baseEl = null; }
 
   if (lama) {
     const [masuk, keluar] =
@@ -1613,10 +2196,49 @@ function syncDock(rute) {
 
 const ke = rute => { if (rute !== saatIni) location.hash = '#/' + rute; };
 
+function specSheet() {
+  const potong = sheetSpec.indexOf(':');
+  return [potong < 0 ? sheetSpec : sheetSpec.slice(0, potong),
+          potong < 0 ? '' : sheetSpec.slice(potong + 1)];
+}
+function segarkanSheet() {
+  if (!sheetEl || !sheetSpec) return false;
+  const [key, arg] = specSheet();
+  const def = SHEETS[key](arg);
+  if (def.html) sheetEl.querySelector('.sheet-body').innerHTML = def.html;
+  return true;
+}
+function segarkanForm() {
+  const el = modalEl || layarEl;
+  if (el && el.querySelector('[data-tabbody]')) swapBody(el, saatIni);
+}
+const sheetPemilih = () => sheetSpec && /^(pilih|tanggal):/.test(sheetSpec);
+
+/* Satu nilai berubah — gambar ulang tempat yang sedang terlihat */
+function nilaiBerubah() {
+  if (sheetEl) { segarkanSheet(); return; }
+  segarkanForm();
+}
+
 function terapkanHash() {
   const rute = location.hash.replace(/^#\/?/, '') || 'home';
   if (rute === saatIni) return;
+  /* Menutup modal: layar di bawahnya masih utuh, tinggal diturunkan */
+  if (modalEl && !isModal(rute) && baseEl && baseEl.dataset.route === rute) {
+    saatIni = rute;
+    closeSheet(true);
+    const m = modalEl, b = baseEl;
+    modalEl = baseEl = null;
+    layarEl = b;
+    b.classList.remove('is-stacked');
+    m.classList.add('anim-modalOut');
+    m.addEventListener('animationend', () => m.remove(), { once: true });
+    syncDock(rute);
+    return;
+  }
+
   const arah = !saatIni ? 'none'
+    : isModal(rute) ? 'modal'
     : depth(rute) > depth(saatIni) ? 'push'
     : depth(rute) < depth(saatIni) ? 'pop'
     : 'fade';
@@ -1629,7 +2251,10 @@ function terapkanHash() {
    10. PENANGAN KLIK
    ═══════════════════════════════════════════════ */
 phone.addEventListener('click', e => {
-  const t = e.target.closest('[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f]');
+  const t = e.target.closest(
+    '[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f],' +
+    '[data-form],[data-set],[data-toggle],[data-radio],[data-addkomp],[data-delkomp],' +
+    '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan]');
   if (!t) return;
 
   if (t.dataset.tab !== undefined) {
@@ -1652,10 +2277,97 @@ phone.addEventListener('click', e => {
     return;
   }
 
+  if (t.dataset.form) { closeSheet(); mulaiForm(t.dataset.form); return; }
+
+  if (t.dataset.set) {
+    const i = t.dataset.set.indexOf('|');
+    const path = t.dataset.set.slice(0, i);
+    const raw  = t.dataset.set.slice(i + 1);
+    /* Jangan tebak dari bentuknya: nomor kamar "101" adalah teks, dan kalau
+       dijadikan angka dia tak akan cocok lagi dengan Kamar.no. */
+    setF(path, NUMERIK.includes(path) ? +raw : raw);
+    /* Kamar milik satu properti: ganti properti berarti pilihan kamar batal */
+    if (path === 'tenant.prop') { FORM.tenant.kamar = ''; FORM.tenant.harga = 0; }
+    /* Harga sewa ikut harga kamar yang dipilih — tetap bisa diubah setelahnya */
+    if (path === 'tenant.kamar') {
+      const r = ROOMS.find(x => x.prop === FORM.tenant.prop && x.no === raw);
+      if (r && r.harga) FORM.tenant.harga = r.harga;
+    }
+    if (sheetPemilih()) {
+      const induk = sheetInduk.pop();
+      if (induk) openSheet(induk, 'balik');
+      else { closeSheet(); segarkanForm(); }
+    } else nilaiBerubah();
+    return;
+  }
+
+  if (t.dataset.toggle) { setF(t.dataset.toggle, !getF(t.dataset.toggle)); nilaiBerubah(); return; }
+
+  if (t.dataset.radio) {
+    const [path, v] = t.dataset.radio.split('|');
+    setF(path, v); nilaiBerubah(); return;
+  }
+
+  if (t.dataset.addkomp) {
+    const [nama, v] = t.dataset.addkomp.split('|');
+    FORM.tenant.komponen.push({ nama, nominal: +v });
+    closeSheet(); segarkanForm(); return;
+  }
+
+  if (t.dataset.delkomp) { FORM.tenant.komponen.splice(+t.dataset.delkomp, 1); segarkanForm(); return; }
+
+  if (t.dataset.scal) {
+    const m = sheetCal.m + +t.dataset.scal;
+    sheetCal = { y: sheetCal.y + Math.floor(m / 12), m: (m % 12 + 12) % 12 };
+    const [, path] = specSheet();
+    const wadah = sheetEl && sheetEl.querySelector('[data-scalbody]');
+    if (wadah) wadah.innerHTML = miniCal(path);
+    return;
+  }
+
+  if (t.dataset.cal) {
+    const m = calM + +t.dataset.cal;
+    calY += Math.floor(m / 12); calM = (m % 12 + 12) % 12;
+    segarkanForm(); return;
+  }
+
+  if (t.dataset.step) {
+    FORM.prop.step = +t.dataset.step;
+    const el = modalEl || layarEl;
+    el.innerHTML = render(saatIni);
+    aktifkan(el);
+    const sc = el.querySelector('.scroll');
+    sc.classList.add('anim-fadeUp');
+    sc.addEventListener('animationend', () => sc.classList.remove('anim-fadeUp'), { once: true });
+    return;
+  }
+
+  if (t.hasAttribute('data-tutup')) { closeSheet(); return; }
+
+  if (t.dataset.simpan) {
+    const pesan = t.dataset.simpan;
+    if (sheetEl) closeSheet(); else history.back();
+    toast(pesan);
+    return;
+  }
+
   if (t.dataset.go) { closeSheet(); ke(t.dataset.go); return; }
   if (t.hasAttribute('data-back')) { history.back(); return; }
   if (t.dataset.sheet) { openSheet(t.dataset.sheet); return; }
   if (t.dataset.act === 'soon') { closeSheet(); toast('Belum dibuat di ronde 1'); }
+});
+
+phone.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.bind) {
+    setF(t.dataset.bind, t.value);
+    const c = phone.querySelector('[data-cnt="' + t.dataset.bind + '"]');
+    if (c) c.textContent = t.value.length + '/' + (t.getAttribute('maxlength') || 0);
+  } else if (t.dataset.money) {
+    const d = t.value.replace(/\D/g, '');
+    setF(t.dataset.money, d ? +d : 0);
+    t.value = d ? rp(+d) : '';
+  }
 });
 
 window.addEventListener('hashchange', terapkanHash);
