@@ -1,5 +1,33 @@
-# Vue 3 + TypeScript + Vite
+# kosmanager
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Aplikasi pengelola kos: properti, kamar, penghuni, tagihan, pengeluaran, dan
+laporan. Vue 3 + TypeScript + Vite, data di Firestore.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+> **Melanjutkan kerja?** Mulai dari **[docs/PROGRESS.md](docs/PROGRESS.md)** —
+> di sana ada status terkini, keputusan yang sudah dikunci, apa yang berikutnya,
+> dan jebakan yang sudah pernah kena.
+
+## Menjalankan
+
+```
+npm install
+npm run dev          # server pengembangan
+npm run build        # periksa tipe lalu build produksi
+npm run test:run     # uji unit
+npm run typecheck    # periksa tipe saja
+```
+
+## Susunan
+
+```
+src/
+  views/        satu berkas per layar
+  stores/       Pinia, satu per koleksi Firestore
+  components/   layout, bagan, komponen bersama
+  composables/  useProperty, useToast, useWAReminder
+docs/
+  PROGRESS.md   papan status — baca ini dulu
+  superpowers/
+    specs/      kontrak desain yang sudah disetujui
+    mockups/    prototype mobile bergaya Kamaru + skrip ujinya
+```
