@@ -135,7 +135,7 @@ dicentang.
 - [x] 1. Ganti huruf ke Inter
 - [x] 2. Riwayat penghuni dan profil mantan penghuni
 - [x] 3. Catatan internal
-- [ ] 4. Edit penghuni
+- [x] 4. Edit penghuni
 - [ ] 5. Unggah foto dan dokumen
 - [ ] 6. Sheet WhatsApp
 - [ ] 7. Potret, terbitkan, dokumentasi

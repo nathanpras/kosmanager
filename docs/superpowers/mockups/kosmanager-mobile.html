@@ -1071,6 +1071,9 @@ const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','
 const rp  = n => 'Rp' + Math.abs(n).toLocaleString('id-ID');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 const inisial = n => n.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+/* Setara normalizePhone / isValidPhone di src/composables/useWAReminder.ts */
+const normHp  = hp => { let p = String(hp || '').replace(/\D/g, ''); if (p.startsWith('0')) p = '62' + p.slice(1); return p; };
+const hpValid = hp => normHp(hp).length >= 8;
 
 function tgl(iso) {
   if (!iso) return '–';
@@ -1162,7 +1165,8 @@ function chrome(o) {
     (o.back ? '<button class="iconbtn" data-back aria-label="Kembali">' + ic('back') + '</button>' : '') +
     '<h1 class="tb-title">' + numify(o.title) + '</h1>' +
     (o.actions || []).map(a =>
-      '<button class="iconbtn" data-act="' + a.act + '" aria-label="' + esc(a.label) + '">' + ic(a.icon) + '</button>'
+      '<button class="iconbtn" ' + (a.form ? 'data-form="' + a.form + '"' : 'data-act="' + a.act + '"') +
+        ' aria-label="' + esc(a.label) + '">' + ic(a.icon) + '</button>'
     ).join('') +
   '</header>';
 }
@@ -1499,7 +1503,7 @@ function profilPenghuni(o, bekas) {
 
   const angka = 'font-size:14.5px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums';
   return chrome({ back: true, title: o.nama,
-                  actions: bekas ? [] : [{ icon: 'edit', act: 'soon', label: 'Ubah data penghuni' }] }) +
+                  actions: bekas ? [] : [{ icon: 'edit', form: 'edit:' + o.id, label: 'Ubah data penghuni' }] }) +
     '<div class="scroll" style="padding-top:8px"><div data-tabbody><div class="stagger">' +
 
       '<section class="card profile">' +
@@ -1659,6 +1663,7 @@ const FORM = {
   kamar:  { prop: 'p1', no: '', tipe: '', desk: '', tampilDesk: false, belumSewa: false },
   bayar:  { rid: '', nominal: 0, tgl: '2026-09-27', metode: 'Transfer bank', catatan: '' },
   catatan: { kunci: '', scope: '', id: '', tgl: '2026-09-27', teks: '', yakin: false, galat: '' },
+  edit:    { rid: '', nama: '', hp: '', kelamin: '', asal: '', kerja: '', darurat: '', daruratHp: '', galat: '' },
 };
 
 /* Satu-satunya jalur yang nilainya benar-benar angka */
@@ -1935,7 +1940,42 @@ function formProp() {
     '</div>';
 }
 
-VIEWS.form = (jenis) => jenis === 'tenant' ? formTenant() : formProp();
+/* ── Ubah data penghuni: hanya data diri dan kontak; harga & masa tinggal lewat Pengaturan sewa ── */
+function formEdit() {
+  const F = FORM.edit;
+  return '<header class="fhead">' +
+      '<button class="iconbtn" data-back aria-label="Tutup">' + ic('x') + '</button>' +
+      '<h1>Ubah data penghuni</h1></header>' +
+    '<div class="scroll isform"><div data-tabbody>' +
+      fSec('users', 'Data diri') +
+      '<div class="fstack">' +
+        fText({ lbl: 'Nama lengkap', req: 1, path: 'edit.nama', ph: 'Nama sesuai KTP', max: 40 }) +
+        '<div class="fgrid">' +
+          fPick({ lbl: 'Jenis kelamin', path: 'edit.kelamin', list: 'kelamin', ph: 'Pilih',
+                  label: v => v === 'L' ? 'Laki-laki' : v === 'P' ? 'Perempuan' : '' }) +
+          fText({ lbl: 'Asal', path: 'edit.asal', ph: 'Kota asal' }) +
+        '</div>' +
+        fText({ lbl: 'Pekerjaan', path: 'edit.kerja', ph: 'Pekerjaan' }) +
+      '</div>' +
+      fSec('wa', 'Kontak') +
+      '<div class="fstack">' +
+        fText({ lbl: 'No. HP', req: 1, path: 'edit.hp', ph: '0812 3456 7890', mode: 'tel',
+                help: 'Dipakai untuk pesan WhatsApp' }) +
+        '<div class="fgrid">' +
+          fText({ lbl: 'Kontak darurat', path: 'edit.darurat', ph: 'Mis. Orang tua' }) +
+          fText({ lbl: 'No. HP darurat', path: 'edit.daruratHp', ph: '0813 …', mode: 'tel' }) +
+        '</div>' +
+      '</div>' +
+      (F.galat ? '<div class="note bad" style="margin-top:15px">' + ic('warn', 18) +
+        '<span>' + esc(F.galat) + '</span></div>' : '') +
+    '</div></div>' +
+    '<div class="ffoot">' +
+      '<button class="btn grow" data-back>Batal</button>' +
+      '<button class="btn primary grow" data-simpan="Data penghuni disimpan">Simpan</button>' +
+    '</div>';
+}
+
+VIEWS.form = jenis => jenis === 'tenant' ? formTenant() : jenis === 'edit' ? formEdit() : formProp();
 
 /* Isi awal formulir sebelum layarnya dibuka */
 function mulaiForm(spec) {
@@ -1948,6 +1988,10 @@ function mulaiForm(spec) {
       harga: r ? r.harga : 0, nama: '', hp: '', orang: 1, kelamin: '',
       asal: '', kerja: '', sudahBayar: false, komponen: [],
     });
+  } else if (jenis === 'edit') {
+    const r = room(arg);
+    Object.assign(FORM.edit, { rid: r.id, nama: r.nama, hp: r.hp, kelamin: r.kelamin, asal: r.asal,
+                               kerja: r.kerja, darurat: r.darurat, daruratHp: r.daruratHp, galat: '' });
   } else {
     Object.assign(FORM.prop, { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false, sewa: '' });
   }
@@ -2210,6 +2254,7 @@ const TABS = [
 
 const isModal = r => r.startsWith('form/');
 let modalEl = null, baseEl = null;
+let dasarBasi = false;      /* data layar di bawah modal berubah; gambar ulang saat modal ditutup */
 
 /* Riwayat dan catatan satu tingkat di bawah pemiliknya: properti (1) → 2, kamar (2) → 3 */
 const lingkupDalam = r => diKamar(r.split('/')[1] || '') ? 3 : 2;
@@ -2402,6 +2447,7 @@ function terapkanHash() {
     modalEl = baseEl = null;
     layarEl = b;
     b.classList.remove('is-stacked');
+    if (dasarBasi) { dasarBasi = false; b.innerHTML = render(rute); aktifkan(b); }
     m.classList.add('anim-modalOut');
     m.addEventListener('animationend', () => m.remove(), { once: true });
     syncDock(rute);
@@ -2433,6 +2479,21 @@ const PENYIMPAN = {
     else daftar.push({ id: 'c' + (++nomorCatatan), tgl: F.tgl, teks });
     F.kunci = '';
     segarkanForm();
+    return true;
+  },
+  'form:edit': () => {
+    const F = FORM.edit;
+    if (!F.nama.trim()) { F.galat = 'Nama lengkap wajib diisi.'; segarkanForm(); return false; }
+    if (!hpValid(F.hp)) {
+      F.galat = 'No. HP belum valid. Tulis minimal 8 digit, mis. 0812 3456 7890.';
+      segarkanForm(); return false;
+    }
+    Object.assign(room(F.rid), {
+      nama: F.nama.trim(), hp: F.hp.trim(), kelamin: F.kelamin, asal: F.asal.trim(),
+      kerja: F.kerja.trim(), darurat: F.darurat.trim(), daruratHp: F.daruratHp.trim(),
+    });
+    F.galat = '';
+    dasarBasi = true;
     return true;
   },
 };

@@ -569,6 +569,43 @@ step('R3 catatan kamar dari tab Lainnya kamar', async () => {
   rawClick(qa('.ptab')[0]);          // kembalikan tab supaya langkah lain tidak terpengaruh
 });
 
+step('R3 ikon ubah membuka formulir terisi data penghuni', async () => {
+  await hash('#/tenant/p1-104');
+  await nav(q('[data-form="edit:p1-104"]'));
+  if (!atas().classList.contains('is-modal')) throw new Error('bukan modal');
+  if (!A().includes('Ubah data penghuni')) throw new Error(A().slice(0, 60));
+  if (q('[data-bind="edit.nama"]').value !== 'Maria') throw new Error('nama tidak terisi');
+  return 'HP awal ' + q('[data-bind="edit.hp"]').value;
+});
+
+step('R3 HP tidak valid menahan simpan', async () => {
+  ketik('[data-bind="edit.hp"]', '0812');
+  rawClick(q('[data-simpan]'));
+  await tick(); bersih();
+  if (!atas().classList.contains('is-modal')) throw new Error('modal tertutup padahal HP tidak valid');
+  if (!A().includes('No. HP belum valid')) throw new Error('pesan galat HP tidak muncul');
+});
+
+step('R3 nama kosong menahan simpan', async () => {
+  ketik('[data-bind="edit.hp"]', '0812 7777 8888');
+  ketik('[data-bind="edit.nama"]', '   ');
+  rawClick(q('[data-simpan]'));
+  await tick(); bersih();
+  if (!atas().classList.contains('is-modal')) throw new Error('modal tertutup padahal nama kosong');
+  if (!A().includes('Nama lengkap wajib diisi')) throw new Error('pesan galat nama tidak muncul');
+});
+
+step('R3 simpan memperbarui layar penghuni di bawahnya', async () => {
+  ketik('[data-bind="edit.nama"]', 'Maria Goreti');
+  rawClick(q('[data-simpan]'));
+  await tick(); bersih();
+  if (qa('.screen').length !== 1) throw new Error('masih ada ' + qa('.screen').length + ' layar');
+  if (!A().includes('Maria Goreti')) throw new Error('layar dasar tidak diperbarui');
+  if (!A().includes('0812 7777 8888')) throw new Error('HP baru tidak tampil');
+  if (!q('.toast') || !q('.toast').textContent.includes('Data penghuni disimpan')) throw new Error('toast salah');
+  return 'Maria -> Maria Goreti';
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
