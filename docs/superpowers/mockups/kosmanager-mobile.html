@@ -433,6 +433,8 @@
   .btn.sm { height: 36px; padding: 0 14px; font-size: 13px; }
   .btn.block { width: 100%; }
   .btn.danger { background: var(--bad-tint); color: var(--bad); }
+  a.btn { text-decoration: none; }
+  .btn.is-off { opacity: .45; pointer-events: none; }
 
   /* ── FAB ───────────────────────────────────── */
   .fab {
@@ -1591,7 +1593,7 @@ function profilPenghuni(o, bekas) {
           (bekas ? '<span class="chip mute">Mantan penghuni</span>' : statusChip(o.status)) +
         '</div>' +
         '<div class="profile-btns">' +
-          '<button class="btn primary" data-act="soon">' + ic('wa', 17) + ' WhatsApp</button>' +
+          '<button class="btn primary" data-sheet="wa:' + o.id + '|tagih">' + ic('wa', 17) + ' WhatsApp</button>' +
           (bekas ? '' : '<button class="btn" data-sheet="aksi:' + o.id + '">' + ic('sliders', 17) + ' Aksi</button>') +
         '</div>' +
       '</section>' +
@@ -1603,7 +1605,7 @@ function profilPenghuni(o, bekas) {
       '<div class="sechead"><h2>Kontak</h2></div>' +
       '<dl class="card flush divide">' +
         '<div class="drow"><dt>No. HP<br><span style="' + angka + '">' + esc(o.hp) + '</span></dt>' +
-          '<dd class="act"><button class="btn sm brandsoft" data-act="soon">' + ic('wa', 15) + ' Chat</button></dd></div>' +
+          '<dd class="act"><button class="btn sm brandsoft" data-sheet="wa:' + o.id + '|chat">' + ic('wa', 15) + ' Chat</button></dd></div>' +
         '<div class="drow"><dt>Kontak darurat · ' + esc(o.darurat) + '<br>' +
           '<span style="' + angka + '">' + esc(o.daruratHp) + '</span></dt></div>' +
       '</dl>' +
@@ -1732,6 +1734,7 @@ const FORM = {
   bayar:  { rid: '', nominal: 0, tgl: '2026-09-27', metode: 'Transfer bank', catatan: '' },
   catatan: { kunci: '', scope: '', id: '', tgl: '2026-09-27', teks: '', yakin: false, galat: '' },
   edit:    { rid: '', nama: '', hp: '', kelamin: '', asal: '', kerja: '', darurat: '', daruratHp: '', galat: '' },
+  wa:      { kunci: '', id: '', tpl: 'kosong', teks: '' },
 };
 
 /* Satu-satunya jalur yang nilainya benar-benar angka */
@@ -1760,6 +1763,27 @@ const LISTS = {
   metode:   () => ({ judul: 'Metode pembayaran', opsi: ['Transfer bank','Tunai','QRIS','E-wallet']
                      .map(v => ({ v, l: v })) }),
 };
+
+/* Templat pesan; "telat" sama dengan DEFAULT_TEMPLATE di src/composables/useWAReminder.ts */
+const TPL_WA = {
+  tempo:  { l: 'Jatuh tempo',    t: 'Halo {nama}, tagihan kos kamar {kamar} bulan {bulan} sebesar {sisa} jatuh tempo pada {jatuh_tempo}. Mohon dilunasi tepat waktu. Terima kasih 🙏' },
+  telat:  { l: 'Telat',          t: 'Halo {nama}, tagihan kos kamar {kamar} bulan {bulan} sebesar {sisa} belum dilunasi (jatuh tempo {jatuh_tempo}). Mohon segera dilunasi. Terima kasih 🙏' },
+  lunas:  { l: 'Kuitansi lunas', t: 'Halo {nama}, pembayaran kos kamar {kamar} bulan {bulan} sebesar {jumlah} sudah kami terima. Terima kasih 🙏' },
+  kosong: { l: 'Kosong',         t: '' },
+};
+const TPL_AWAL = { telat: 'telat', belum: 'tempo', lunas: 'lunas' };
+
+function isiTemplate(kunci, o) {
+  const tempo = TODAY.getFullYear() + '-' + String(TODAY.getMonth() + 1).padStart(2, '0') + '-' +
+                String(o.tglTagih || 1).padStart(2, '0');
+  const isi = {
+    nama: o.nama, kamar: o.no, bulan: BLN_FULL[TODAY.getMonth()] + ' ' + TODAY.getFullYear(),
+    sisa: rp(o.harga || 0), jumlah: rp(o.harga || 0), jatuh_tempo: tgl(tempo),
+  };
+  return TPL_WA[kunci].t.replace(/\{(\w+)\}/g, (m, k) => (k in isi ? isi[k] : m));
+}
+
+const urlWA = () => 'https://wa.me/' + normHp(pemilik(FORM.wa.id).hp) + '?text=' + encodeURIComponent(FORM.wa.teks);
 
 /* ── Potongan kolom isian ── */
 const reqMark = r => r ? '<span class="req"> *</span>' : '';
@@ -2176,6 +2200,38 @@ const SHEETS = {
                 (F.yakin ? ' Ketuk sekali lagi untuk menghapus' : ' Hapus catatan') + '</button>' : '') +
       '</div>',
       foot: [['Batal', ''], ['Simpan', F.id ? 'Catatan diperbarui' : 'Catatan tersimpan']],
+    };
+  },
+
+  wa: arg => {
+    const [id, mode] = arg.split('|');
+    const o = pemilik(id);
+    const bekas = !room(id);
+    const F = FORM.wa;
+    if (F.kunci !== arg) {
+      const tpl = bekas || mode === 'chat' ? 'kosong' : (TPL_AWAL[o.status] || 'kosong');
+      Object.assign(F, { kunci: arg, id, tpl, teks: isiTemplate(tpl, o) });
+    }
+    const valid = hpValid(o.hp);
+    return {
+      title: 'Kirim WhatsApp',
+      sub: o.nama + ' · Kamar ' + o.no,
+      html: '<div style="padding:6px 10px 4px">' +
+        (bekas ? '' : '<div class="quick" style="padding:0 0 14px">' + Object.keys(TPL_WA).map(k =>
+          '<button class="fchip' + (F.tpl === k ? ' is-on' : '') + '" data-tpl="' + k + '">' +
+            TPL_WA[k].l + '</button>').join('') + '</div>') +
+        fArea({ lbl: 'Pesan', path: 'wa.teks', ph: 'Tulis pesan untuk ' + o.nama, max: 1000 }) +
+        (valid
+          ? '<p class="fnote" style="margin:10px 2px 0">Dikirim ke +' + normHp(o.hp) + '</p>'
+          : '<div class="note bad" style="margin-top:12px">' + ic('warn', 18) +
+            '<span>No. HP ' + esc(o.nama) + ' belum valid. Perbaiki lewat Ubah data penghuni.</span></div>') +
+      '</div>' +
+      '<div class="sheet-foot" style="padding:12px 10px 6px">' +
+        (valid
+          ? '<a class="btn primary" data-wa href="' + esc(urlWA()) + '" target="_blank" rel="noopener">' +
+              ic('wa', 17) + ' Buka WhatsApp</a>'
+          : '<span class="btn primary is-off" aria-disabled="true">' + ic('wa', 17) + ' Buka WhatsApp</span>') +
+      '</div>',
     };
   },
 
@@ -2647,7 +2703,7 @@ phone.addEventListener('click', e => {
     '[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f],' +
     '[data-form],[data-set],[data-toggle],[data-radio],[data-addkomp],[data-delkomp],' +
     '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan],[data-hapuscat],' +
-    '[data-dok],[data-vtutup],[data-vganti],[data-vhapus]');
+    '[data-dok],[data-vtutup],[data-vganti],[data-vhapus],[data-tpl],[data-wa]');
   if (!t) return;
 
   if (t.dataset.tab !== undefined) {
@@ -2755,6 +2811,14 @@ phone.addEventListener('click', e => {
     toast(pesan);
     return;
   }
+
+  if (t.dataset.tpl) {
+    FORM.wa.tpl = t.dataset.tpl;
+    FORM.wa.teks = isiTemplate(t.dataset.tpl, pemilik(FORM.wa.id));
+    segarkanSheet(); return;
+  }
+  /* Isi pesan bisa diedit: pasang URL terbaru tepat sebelum tautan dibuka */
+  if (t.hasAttribute('data-wa')) { t.href = urlWA(); return; }
 
   if (t.dataset.dok) {
     const [id, slot, idx] = t.dataset.dok.split('|');

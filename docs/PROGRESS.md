@@ -137,7 +137,7 @@ dicentang.
 - [x] 3. Catatan internal
 - [x] 4. Edit penghuni
 - [x] 5. Unggah foto dan dokumen
-- [ ] 6. Sheet WhatsApp
+- [x] 6. Sheet WhatsApp
 - [ ] 7. Potret, terbitkan, dokumentasi
 
 ### Berikutnya — belum dikerjakan

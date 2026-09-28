@@ -664,6 +664,59 @@ step('R3 tambah PDF sebagai berkas lain', () => {
   return 'kontrak.pdf';
 });
 
+step('R3 WhatsApp: template awal mengikuti status', async () => {
+  await hash('#/tenant/p1-106');                    // Lisia, telat
+  rawClick(q('[data-sheet="wa:p1-106|tagih"]'));
+  const on = q('.sheet .fchip.is-on');
+  if (!on || on.textContent !== 'Telat') throw new Error('template awal: ' + (on && on.textContent));
+  const teks = q('.sheet [data-bind="wa.teks"]').value;
+  const harap = 'Halo Lisia, tagihan kos kamar 106 bulan September 2026 sebesar Rp1.750.000 belum dilunasi';
+  if (!teks.startsWith(harap)) throw new Error(teks);
+  return teks.slice(0, 64) + '…';
+});
+
+step('R3 WhatsApp: ganti template lalu buka wa.me dengan teks terbaru', () => {
+  rawClick(qa('.sheet .fchip').find(b => b.textContent === 'Kuitansi lunas'));
+  if (!q('.sheet [data-bind="wa.teks"]').value.includes('sudah kami terima')) throw new Error('template tidak berganti');
+  ketik('.sheet [data-bind="wa.teks"]', 'Halo Lisia, cek pesan ini ya');
+  const a = q('.sheet [data-wa]');
+  if (a.getAttribute('target') !== '_blank') throw new Error('tautan harus membuka tab baru');
+  const cegah = e => e.preventDefault();      // jsdom tak bisa bernavigasi
+  D.addEventListener('click', cegah);
+  rawClick(a);
+  D.removeEventListener('click', cegah);
+  const harap = '?text=' + encodeURIComponent('Halo Lisia, cek pesan ini ya');
+  if (!a.href.startsWith('https://wa.me/62812') || !a.href.endsWith(harap)) throw new Error(a.href);
+  return a.href.slice(0, 40) + '…';
+});
+
+step('R3 WhatsApp: tombol Chat memilih template Kosong', () => {
+  closeAll();
+  qa('.is-out').forEach(el => el.remove());
+  rawClick(q('[data-sheet="wa:p1-106|chat"]'));
+  const on = q('.sheet .fchip.is-on');
+  if (!on || on.textContent !== 'Kosong') throw new Error('template awal: ' + (on && on.textContent));
+  if (q('.sheet [data-bind="wa.teks"]').value !== '') throw new Error('pesan harusnya kosong');
+});
+
+step('R3 WhatsApp: HP tidak valid menonaktifkan tombol', async () => {
+  window.eval("room('p1-107').hp = '12'");
+  await hash('#/tenant/p1-107');
+  rawClick(q('[data-sheet="wa:p1-107|tagih"]'));
+  if (q('.sheet [data-wa]')) throw new Error('tautan WhatsApp masih aktif');
+  if (!q('.sheet .btn.is-off')) throw new Error('tombol nonaktif tidak tampil');
+  if (!q('.sheet').textContent.includes('belum valid')) throw new Error('catatan merah tidak muncul');
+  closeAll();
+});
+
+step('R3 WhatsApp mantan penghuni: tanpa template tagihan', async () => {
+  await hash('#/ex/x1');
+  rawClick(q('[data-sheet="wa:x1|tagih"]'));
+  if (q('.sheet .fchip')) throw new Error('mantan penghuni tidak boleh diberi pilihan template');
+  if (q('.sheet [data-bind="wa.teks"]').value !== '') throw new Error('pesan mantan harusnya kosong');
+  closeAll();
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
