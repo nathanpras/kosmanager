@@ -461,6 +461,52 @@ step('R3 huruf: hanya Inter yang dimuat', () => {
   return 'Inter saja';
 });
 
+step('R3 riwayat: dari Lainnya properti ke daftar mantan', async () => {
+  await hash('#/prop/p1');
+  rawClick(qa('.ptab')[2]);
+  const baris = q('[data-go="hist/p1"]');
+  if (!baris) throw new Error('baris Riwayat penghuni tidak bisa ditekan');
+  const ring = baris.textContent.replace(/\s+/g, ' ');
+  if (!ring.includes('7 penghuni sebelumnya')) throw new Error('ringkasan: ' + ring);
+  await nav(baris);
+  const ex = qa('[data-go^="ex/"]');
+  if (ex.length !== 7) throw new Error('harusnya 7 mantan, dapat ' + ex.length);
+  const pertama = ex[0].textContent.replace(/\s+/g, ' ');
+  if (!pertama.includes('Rizky Ramadhan')) throw new Error('urutan salah: ' + pertama);
+  if (!pertama.includes('Kamar 108')) throw new Error('riwayat properti harus menyebut kamar');
+  return ex.length + ' mantan, teratas ' + pertama.trim().slice(0, 40);
+});
+
+step('R3 riwayat kamar 101: urutan dan lama tinggal', async () => {
+  await hash('#/room/p1-101');
+  if (!q('[data-go="hist/p1-101"]')) throw new Error('tautan Penghuni sebelumnya hilang');
+  await hash('#/hist/p1-101');
+  const ex = qa('[data-go^="ex/"]');
+  if (ex.length !== 2) throw new Error('harusnya 2, dapat ' + ex.length);
+  const t = ex[0].textContent.replace(/\s+/g, ' ');
+  if (!t.includes('Andreas Siregar') || !t.includes('1 tahun 5 bulan')) throw new Error(t);
+  if (t.includes('Kamar 101')) throw new Error('nomor kamar tak perlu diulang di riwayat per kamar');
+  return t.trim();
+});
+
+step('R3 kamar tanpa riwayat -> empty state', async () => {
+  await hash('#/hist/p1-102');
+  if (!A().includes('Belum ada riwayat')) throw new Error(A().slice(0, 80));
+});
+
+step('R3 mantan penghuni: mode baca saja', async () => {
+  await hash('#/hist/p1-101');
+  await nav(q('[data-go="ex/x1"]'));
+  const t = A();
+  if (!t.includes('Andreas Siregar')) throw new Error(t.slice(0, 60));
+  if (!t.includes('Mantan penghuni')) throw new Error('chip Mantan penghuni tidak ada');
+  if (!t.includes('1 tahun 5 bulan')) throw new Error('lama tinggal tidak tampil');
+  if (q('[aria-label="Ubah data penghuni"]')) throw new Error('ikon ubah muncul di mantan penghuni');
+  if (q('[data-sheet^="aksi:"]')) throw new Error('tombol Aksi muncul di mantan penghuni');
+  if (!q('.docgrid')) throw new Error('blok dokumen hilang');
+  return 'baca saja';
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah

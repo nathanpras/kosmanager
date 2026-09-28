@@ -125,6 +125,21 @@ ditempati, harga terisi otomatis dari kamar yang dipilih), Properti baru dua
 langkah, Tambah kamar, Catat pembayaran, pemilih nilai dan pemilih tanggal yang
 kembali ke sheet induknya, kalender bisa digeser antar bulan.
 
+### Sedang dikerjakan — Ronde 3
+
+Rencana: `docs/superpowers/plans/2026-09-28-kosmanager-mobile-ronde-3.md`
+(kontrak: butir 15–20 di kontrak desain). Centang di bawah diperbarui dan
+di-push setiap satu tugas selesai; lanjutkan dari tugas pertama yang belum
+dicentang.
+
+- [x] 1. Ganti huruf ke Inter
+- [x] 2. Riwayat penghuni dan profil mantan penghuni
+- [ ] 3. Catatan internal
+- [ ] 4. Edit penghuni
+- [ ] 5. Unggah foto dan dokumen
+- [ ] 6. Sheet WhatsApp
+- [ ] 7. Potret, terbitkan, dokumentasi
+
 ### Berikutnya — belum dikerjakan
 
 1. **Port ke aplikasi.** Lapis `@layer tokens` dan `@layer components` di dalam

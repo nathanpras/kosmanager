@@ -1005,10 +1005,35 @@ const TXN = {
   p2: [],
 };
 
+/* Mantan penghuni: sudah check-out, datanya tetap bisa dibuka */
+const MANTAN = [
+  ['x1', 'p1-101', 'Andreas Siregar', 'L', 'Medan',    'Karyawan swasta', '2025-03-01', '2026-08-25'],
+  ['x2', 'p1-101', 'Kevin Halim',     'L', 'Jakarta',  'Mahasiswa',       '2024-06-10', '2025-02-20'],
+  ['x3', 'p1-104', 'Dewi Lestari',    'P', 'Bandung',  'Perawat',         '2024-09-01', '2025-12-30'],
+  ['x4', 'p1-108', 'Rizky Ramadhan',  'L', 'Bogor',    'Kurir',           '2025-10-05', '2026-09-10'],
+  ['x5', 'p1-108', 'Nadia Putri',     'P', 'Depok',    'Mahasiswa',       '2024-08-15', '2025-09-01'],
+  ['x6', 'p1-110', 'Stefani Gunawan', 'P', 'Surabaya', 'Desainer',        '2025-05-20', '2026-04-10'],
+  ['x7', 'p1-203', 'Fajar Nugraha',   'L', 'Garut',    'Teknisi',         '2025-01-12', '2026-07-31'],
+  ['x8', 'p2-A1',  'Melati Sari',     'P', 'Tegal',    'Kasir',           '2025-03-10', '2026-01-31'],
+  ['x9', 'p2-A3',  'Joko Susilo',     'L', 'Klaten',   'Satpam',          '2025-02-01', '2026-06-30'],
+].map(([id, rid, nama, kelamin, asal, kerja, masuk, keluar], i) => ({
+  id, rid, prop: rid.split('-')[0], no: rid.split('-')[1], nama, kelamin, asal, kerja, masuk, keluar,
+  hp: '0857 ' + String(41236000 + i * 419).slice(0, 4) + ' ' + String(41236000 + i * 419).slice(4, 8),
+  darurat: ['Orang tua', 'Kakak', 'Saudara'][i % 3],
+  daruratHp: '0813 ' + String(55012000 + i * 307).slice(0, 4) + ' ' + String(55012000 + i * 307).slice(4, 8),
+  dok: { wajah: true, ktp: i % 2 === 0, berkas: false },
+}));
+
 const room    = id  => ROOMS.find(r => r.id === id);
 const prop    = id  => PROPS.find(p => p.id === id);
 const roomsOf = pid => ROOMS.filter(r => r.prop === pid);
 const tenants = ()  => ROOMS.filter(r => r.nama && r.status !== 'booked');
+const mantan  = id  => MANTAN.find(x => x.id === id);
+/* Lingkup: id properti ("p1") atau id kamar ("p1-101") */
+const diKamar = scope => scope.includes('-');
+const mantanDi = scope => MANTAN
+  .filter(x => diKamar(scope) ? x.rid === scope : x.prop === scope)
+  .sort((a, b) => b.keluar.localeCompare(a.keluar));
 
 /* ═══════════════════════════════════════════════
    3. FORMAT
@@ -1048,6 +1073,15 @@ function periode(r) {
   const akhir = new Date(awal.getFullYear(), awal.getMonth() + 1, d);
   const f = x => String(x.getDate()).padStart(2, '0') + ' ' + BLN[x.getMonth()];
   return f(awal) + ' – ' + f(akhir);
+}
+
+function lamaTinggal(dari, sampai) {
+  const [y1, m1, d1] = dari.split('-').map(Number);
+  const [y2, m2, d2] = sampai.split('-').map(Number);
+  const bln = (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
+  if (bln < 1) return 'Kurang dari sebulan';
+  const th = Math.floor(bln / 12), sisa = bln % 12;
+  return (th ? th + ' tahun' : '') + (th && sisa ? ' ' : '') + (sisa ? sisa + ' bulan' : '');
 }
 
 const STATUS = {
@@ -1131,13 +1165,19 @@ function roomRow(r, tampilProp) {
   '</button>';
 }
 
-const navRow = (icon, judul, sub) =>
-  '<button class="card tap lrow" data-act="soon">' +
+const navRow = (icon, judul, sub, go) =>
+  '<button class="card tap lrow" ' + (go ? 'data-go="' + go + '"' : 'data-act="soon"') + '>' +
     '<span class="av sq ghost">' + ic(icon, 19) + '</span>' +
     '<span class="lrow-body"><span class="lrow-title">' + judul + '</span>' +
-    '<span class="lrow-sub">' + sub + '</span></span>' +
+    '<span class="lrow-sub">' + esc(sub) + '</span></span>' +
     '<span class="chev">' + ic('chev', 18) + '</span>' +
   '</button>';
+
+const namaLingkup = scope => diKamar(scope) ? 'Kamar ' + room(scope).no : prop(scope).nama;
+const ringkasRiwayat = scope => {
+  const n = mantanDi(scope).length;
+  return n ? n + ' penghuni sebelumnya' : 'Belum ada penghuni sebelumnya';
+};
 
 function emptyArt() {
   return '<svg width="132" height="96" viewBox="0 0 132 96" fill="none" aria-hidden="true">' +
@@ -1255,8 +1295,8 @@ VIEWS.prop = (pid, tab = 0) => {
 
   const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
     navRow('note',  'Catatan internal', 'Belum ada catatan') +
-    navRow('users', 'Riwayat penghuni', 'Penghuni yang pernah tinggal di sini') +
-    navRow('info',  'Info properti',    esc(p.daerah)) +
+    navRow('users', 'Riwayat penghuni', ringkasRiwayat(pid), 'hist/' + pid) +
+    navRow('info',  'Info properti',    p.daerah) +
   '</div>';
 
   const fab = ['Kamar', 'Transaksi', ''][tab];
@@ -1321,7 +1361,7 @@ VIEWS.room = (rid, tab = 0) => {
       '</section>' +
 
       '<div class="sechead"><h2>Penghuni sebelumnya</h2></div>' +
-      navRow('users', 'Riwayat penghuni', 'Siapa saja yang pernah menempati kamar ini') +
+      navRow('users', 'Riwayat penghuni', ringkasRiwayat(r.id), 'hist/' + r.id) +
     '</div>';
 
   const tabHarga = '<div class="sechead"><h2>Harga &amp; komponen</h2></div>' +
@@ -1353,7 +1393,7 @@ VIEWS.room = (rid, tab = 0) => {
   const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
     navRow('note',   'Catatan kamar',    'Belum ada catatan') +
     navRow('camera', 'Foto kamar',       'Belum ada foto') +
-    navRow('users',  'Riwayat penghuni', 'Penghuni sebelumnya') +
+    navRow('users',  'Riwayat penghuni', ringkasRiwayat(r.id), 'hist/' + r.id) +
   '</div>';
 
   return chrome({ back: true, title: 'Kamar ' + r.no, actions: [{ icon: 'more', act: 'soon', label: 'Menu kamar' }] }) +
@@ -1367,57 +1407,92 @@ VIEWS.room = (rid, tab = 0) => {
       : '');
 };
 
-VIEWS.tenant = rid => {
-  const r = room(rid);
-  const p = prop(r.prop);
-  return chrome({ back: true, title: r.nama, actions: [{ icon: 'edit', act: 'soon', label: 'Ubah data penghuni' }] }) +
-    '<div class="scroll" style="padding-top:8px"><div class="stagger">' +
+VIEWS.hist = scope => {
+  const list = mantanDi(scope);
+  const perKamar = diKamar(scope);
+  return chrome({ back: true, title: 'Riwayat penghuni' }) +
+    '<div class="scroll">' + bigtitle('Riwayat penghuni') +
+      '<div class="sechead"><h2>' + esc(namaLingkup(scope)) + '</h2>' +
+        '<span class="count">' + list.length + '</span></div>' +
+      (list.length
+        ? '<div class="stack-v stagger">' + list.map(x =>
+            '<button class="card tap lrow" data-go="ex/' + x.id + '">' +
+              '<span class="av">' + esc(inisial(x.nama)) + '</span>' +
+              '<span class="lrow-body">' +
+                '<span class="lrow-title">' + esc(x.nama) + '</span>' +
+                '<span class="lrow-sub">' + tgl(x.masuk) + ' – ' + tgl(x.keluar) + '</span>' +
+                '<span class="lrow-sub">' + (perKamar ? '' : 'Kamar ' + esc(x.no) + ' · ') +
+                  lamaTinggal(x.masuk, x.keluar) + '</span>' +
+              '</span>' +
+              '<span class="chev">' + ic('chev', 18) + '</span>' +
+            '</button>').join('') + '</div>'
+        : emptyBox('Belum ada riwayat',
+            'Penghuni yang sudah check-out dari ' + (perKamar ? 'kamar' : 'properti') +
+            ' ini akan tercatat di sini.')) +
+    '</div>';
+};
+
+/* Profil penghuni. bekas = true untuk mantan penghuni: baca saja */
+function profilPenghuni(o, bekas) {
+  const p = prop(o.prop);
+  const baris = [
+    ['Nama lengkap',  o.nama],
+    ['Jenis kelamin', o.kelamin === 'L' ? 'Laki-laki' : o.kelamin === 'P' ? 'Perempuan' : '–'],
+    ['Asal',          o.asal || '–'],
+    ['Pekerjaan',     o.kerja || '–'],
+    ['Tinggal di',    p.nama],
+  ];
+  if (bekas) baris.push(
+    ['Masa tinggal', tgl(o.masuk) + ' – ' + tgl(o.keluar)],
+    ['Lama tinggal', lamaTinggal(o.masuk, o.keluar)]);
+
+  const angka = 'font-size:14.5px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums';
+  return chrome({ back: true, title: o.nama,
+                  actions: bekas ? [] : [{ icon: 'edit', act: 'soon', label: 'Ubah data penghuni' }] }) +
+    '<div class="scroll" style="padding-top:8px"><div data-tabbody><div class="stagger">' +
 
       '<section class="card profile">' +
-        '<div class="av lg">' + esc(inisial(r.nama)) + '</div>' +
-        '<h2>' + esc(r.nama) + '</h2>' +
+        '<div class="av lg">' + esc(inisial(o.nama)) + '</div>' +
+        '<h2>' + esc(o.nama) + '</h2>' +
         '<div class="profile-chips">' +
-          '<span class="chip brand">Kamar ' + esc(r.no) + '</span>' + statusChip(r.status) +
+          '<span class="chip brand">Kamar ' + esc(o.no) + '</span>' +
+          (bekas ? '<span class="chip mute">Mantan penghuni</span>' : statusChip(o.status)) +
         '</div>' +
         '<div class="profile-btns">' +
           '<button class="btn primary" data-act="soon">' + ic('wa', 17) + ' WhatsApp</button>' +
-          '<button class="btn" data-sheet="aksi:' + r.id + '">' + ic('sliders', 17) + ' Aksi</button>' +
+          (bekas ? '' : '<button class="btn" data-sheet="aksi:' + o.id + '">' + ic('sliders', 17) + ' Aksi</button>') +
         '</div>' +
       '</section>' +
 
       '<div class="sechead"><h2>Data diri</h2></div>' +
-      '<dl class="card flush divide">' + [
-        ['Nama lengkap',  r.nama],
-        ['Jenis kelamin', r.kelamin === 'L' ? 'Laki-laki' : 'Perempuan'],
-        ['Asal',          r.asal],
-        ['Pekerjaan',     r.kerja],
-        ['Tinggal di',    p.nama],
-      ].map(([k, v]) => '<div class="drow"><dt>' + k + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl>' +
+      '<dl class="card flush divide">' + baris.map(([k, v]) =>
+        '<div class="drow"><dt>' + k + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl>' +
 
       '<div class="sechead"><h2>Kontak</h2></div>' +
       '<dl class="card flush divide">' +
-        '<div class="drow"><dt>No. HP<br><span style="font-size:14.5px;font-weight:600;color:var(--ink);' +
-          'font-variant-numeric:tabular-nums">' + esc(r.hp) + '</span></dt>' +
+        '<div class="drow"><dt>No. HP<br><span style="' + angka + '">' + esc(o.hp) + '</span></dt>' +
           '<dd class="act"><button class="btn sm brandsoft" data-act="soon">' + ic('wa', 15) + ' Chat</button></dd></div>' +
-        '<div class="drow"><dt>Kontak darurat · ' + esc(r.darurat) + '<br>' +
-          '<span style="font-size:14.5px;font-weight:600;color:var(--ink);' +
-          'font-variant-numeric:tabular-nums">' + esc(r.daruratHp) + '</span></dt></div>' +
+        '<div class="drow"><dt>Kontak darurat · ' + esc(o.darurat) + '<br>' +
+          '<span style="' + angka + '">' + esc(o.daruratHp) + '</span></dt></div>' +
       '</dl>' +
 
       '<div class="sechead"><h2>Foto &amp; dokumen</h2>' +
         '<button class="link" data-act="soon">Kelola</button></div>' +
       '<div class="docgrid">' + [
-        ['camera', 'Foto wajah',  r.dok.wajah],
-        ['idcard', 'KTP',         r.dok.ktp],
-        ['file',   'Berkas lain', r.dok.berkas],
+        ['camera', 'Foto wajah',  o.dok.wajah],
+        ['idcard', 'KTP',         o.dok.ktp],
+        ['file',   'Berkas lain', o.dok.berkas],
       ].map(([i, t, ada]) =>
         '<button class="doc' + (ada ? ' filled' : '') + '" data-act="soon">' + ic(i, 25) + '<span>' + t + '</span></button>'
       ).join('') +
         '<button class="doc add" data-act="soon">' + ic('plus', 25) + '<span>Tambah</span></button>' +
       '</div>' +
 
-    '</div></div>';
-};
+    '</div></div></div>';
+}
+
+VIEWS.tenant = rid => profilPenghuni(room(rid), false);
+VIEWS.ex     = xid => profilPenghuni(mantan(xid), true);
 
 let tenantFilter = 'semua';
 const TFILTER = {
@@ -2048,8 +2123,12 @@ const TABS = [
 const isModal = r => r.startsWith('form/');
 let modalEl = null, baseEl = null;
 
+/* Riwayat dan catatan satu tingkat di bawah pemiliknya: properti (1) → 2, kamar (2) → 3 */
+const lingkupDalam = r => diKamar(r.split('/')[1] || '') ? 3 : 2;
 const depth = r =>
   isModal(r) ? 9 :
+  r.startsWith('ex/') ? 4 :
+  (r.startsWith('hist/') || r.startsWith('notes/')) ? lingkupDalam(r) :
   r.startsWith('tenant/') ? 3 :
   r.startsWith('room/')   ? 2 :
   (r.startsWith('prop/') || r.startsWith('filter/')) ? 1 : 0;
@@ -2066,6 +2145,8 @@ function render(rute) {
   if (nama === 'room')   return VIEWS.room(arg, tab);
   if (nama === 'tenant') return VIEWS.tenant(arg);
   if (nama === 'filter') return VIEWS.filter(arg);
+  if (nama === 'hist')   return VIEWS.hist(arg);
+  if (nama === 'ex')     return VIEWS.ex(arg);
   return (VIEWS[nama] || VIEWS.home)();
 }
 
