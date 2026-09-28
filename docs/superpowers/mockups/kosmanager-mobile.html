@@ -432,6 +432,7 @@
   .btn.brandsoft { background: var(--brand-tint); color: var(--brand-deep); }
   .btn.sm { height: 36px; padding: 0 14px; font-size: 13px; }
   .btn.block { width: 100%; }
+  .btn.danger { background: var(--bad-tint); color: var(--bad); }
 
   /* ── FAB ───────────────────────────────────── */
   .fab {
@@ -878,6 +879,15 @@
   .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
   .legend i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 }
+@layer screens {
+  /* Catatan internal — bukan .note, yang sudah dipakai kotak peringatan */
+  .catat { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 15px 16px; text-align: left; }
+  .catat-tgl {
+    font-size: 11px; font-weight: var(--w-label); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .catat-teks { font-size: 14.5px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+}
 </style>
 
 <div class="phone" id="phone">
@@ -1034,6 +1044,25 @@ const diKamar = scope => scope.includes('-');
 const mantanDi = scope => MANTAN
   .filter(x => diKamar(scope) ? x.rid === scope : x.prop === scope)
   .sort((a, b) => b.keluar.localeCompare(a.keluar));
+
+/* Catatan internal per properti dan per kamar */
+const CATATAN = {
+  p1: [
+    { id: 'c1', tgl: '2026-09-22', teks: 'Token listrik lantai 2 diisi Rp450.000. Cek lagi akhir bulan.' },
+    { id: 'c2', tgl: '2026-09-14', teks: 'Pompa air diservis Pak Darto. Garansi sampai Desember.' },
+  ],
+  'p1-101': [
+    { id: 'c3', tgl: '2026-09-02', teks: 'Kunci cadangan dipegang penjaga kos. AC terakhir dicuci Agustus.' },
+  ],
+};
+let nomorCatatan = 3;
+const catatanDi = scope => (CATATAN[scope] || []).slice().sort((a, b) => b.tgl.localeCompare(a.tgl));
+const ringkasCatatan = scope => {
+  const c = catatanDi(scope);
+  if (!c.length) return 'Belum ada catatan';
+  const t = c[0].teks;
+  return c.length + ' catatan · ' + (t.length > 30 ? t.slice(0, 30).trim() + '…' : t);
+};
 
 /* ═══════════════════════════════════════════════
    3. FORMAT
@@ -1294,7 +1323,7 @@ VIEWS.prop = (pid, tab = 0) => {
       })();
 
   const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
-    navRow('note',  'Catatan internal', 'Belum ada catatan') +
+    navRow('note',  'Catatan internal', ringkasCatatan(pid), 'notes/' + pid) +
     navRow('users', 'Riwayat penghuni', ringkasRiwayat(pid), 'hist/' + pid) +
     navRow('info',  'Info properti',    p.daerah) +
   '</div>';
@@ -1391,7 +1420,7 @@ VIEWS.room = (rid, tab = 0) => {
       }).join('') + '</div>';
 
   const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
-    navRow('note',   'Catatan kamar',    'Belum ada catatan') +
+    navRow('note',   'Catatan kamar',    ringkasCatatan(r.id), 'notes/' + r.id) +
     navRow('camera', 'Foto kamar',       'Belum ada foto') +
     navRow('users',  'Riwayat penghuni', ringkasRiwayat(r.id), 'hist/' + r.id) +
   '</div>';
@@ -1430,6 +1459,28 @@ VIEWS.hist = scope => {
             'Penghuni yang sudah check-out dari ' + (perKamar ? 'kamar' : 'properti') +
             ' ini akan tercatat di sini.')) +
     '</div>';
+};
+
+VIEWS.notes = scope => {
+  const list = catatanDi(scope);
+  const judul = diKamar(scope) ? 'Catatan kamar' : 'Catatan internal';
+  return chrome({ back: true, title: judul }) +
+    '<div class="scroll">' + bigtitle(judul) +
+      '<div data-tabbody>' +
+        '<div class="sechead"><h2>' + esc(namaLingkup(scope)) + '</h2>' +
+          '<span class="count">' + list.length + '</span></div>' +
+        (list.length
+          ? '<div class="stack-v stagger">' + list.map(c =>
+              '<button class="card tap catat" data-sheet="catatan:' + scope + '|' + c.id + '">' +
+                '<span class="catat-tgl">' + tgl(c.tgl) + '</span>' +
+                '<span class="catat-teks">' + esc(c.teks) + '</span>' +
+              '</button>').join('') + '</div>'
+          : emptyBox('Belum ada catatan',
+              'Simpan hal kecil yang gampang lupa: servis, kunci cadangan, janji dengan penghuni.')) +
+      '</div>' +
+    '</div>' +
+    '<button class="fab" data-sheet="catatan:' + scope + '|new">' + ic('plus', 20) +
+      '<span class="fab-label">Catatan</span></button>';
 };
 
 /* Profil penghuni. bekas = true untuk mantan penghuni: baca saja */
@@ -1607,6 +1658,7 @@ const FORM = {
             pakaiHp: true, hp: '' },
   kamar:  { prop: 'p1', no: '', tipe: '', desk: '', tampilDesk: false, belumSewa: false },
   bayar:  { rid: '', nominal: 0, tgl: '2026-09-27', metode: 'Transfer bank', catatan: '' },
+  catatan: { kunci: '', scope: '', id: '', tgl: '2026-09-27', teks: '', yakin: false, galat: '' },
 };
 
 /* Satu-satunya jalur yang nilainya benar-benar angka */
@@ -1683,6 +1735,18 @@ function fDate(o) {
       '<span class="val' + (v ? '' : ' ph') + '">' + (v ? tgl(v) : esc(o.ph || 'Pilih tanggal')) + '</span>' +
       '<span class="tail">' + ic('cal', 17) + '</span>' +
     '</button></div>';
+}
+
+function fArea(o) {
+  const v = getF(o.path) == null ? '' : String(getF(o.path));
+  return '<label class="field">' +
+    '<span class="field-lbl">' + o.lbl + reqMark(o.req) + '</span>' +
+    '<textarea class="field-in" data-bind="' + o.path + '" rows="4"' +
+      (o.max ? ' maxlength="' + o.max + '"' : '') +
+      ' placeholder="' + esc(o.ph || '') + '">' + esc(v) + '</textarea>' +
+    (o.max ? '<span class="field-foot"><span class="cnt" data-cnt="' + o.path + '">' +
+      v.length + '/' + o.max + '</span></span>' : '') +
+  '</label>';
 }
 
 const fToggle = (judul, sub, path) =>
@@ -1981,6 +2045,28 @@ const SHEETS = {
     };
   },
 
+  catatan: arg => {
+    const F = FORM.catatan;
+    if (F.kunci !== arg) {
+      const [scope, id] = arg.split('|');
+      const ada = (CATATAN[scope] || []).find(c => c.id === id);
+      Object.assign(F, { kunci: arg, scope, id: ada ? id : '', tgl: ada ? ada.tgl : '2026-09-27',
+                         teks: ada ? ada.teks : '', yakin: false, galat: '' });
+    }
+    return {
+      title: F.id ? 'Ubah catatan' : 'Catatan baru',
+      sub: namaLingkup(F.scope),
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        fDate({ lbl: 'Tanggal', path: 'catatan.tgl' }) +
+        fArea({ lbl: 'Isi catatan', req: 1, path: 'catatan.teks', ph: 'Mis. AC kamar 104 diservis', max: 280 }) +
+        (F.galat ? '<div class="note bad">' + ic('warn', 18) + '<span>' + esc(F.galat) + '</span></div>' : '') +
+        (F.id ? '<button class="btn block' + (F.yakin ? ' danger' : '') + '" data-hapuscat>' + ic('trash', 17) +
+                (F.yakin ? ' Ketuk sekali lagi untuk menghapus' : ' Hapus catatan') + '</button>' : '') +
+      '</div>',
+      foot: [['Batal', ''], ['Simpan', F.id ? 'Catatan diperbarui' : 'Catatan tersimpan']],
+    };
+  },
+
   sewa: rid => {
     const r = room(rid);
     return { title: 'Pengaturan sewa', sub: r.nama + ' · Kamar ' + r.no, items: [
@@ -1999,6 +2085,8 @@ function openSheet(spec, kembali) {
   const potong = spec.indexOf(':');
   const key = potong < 0 ? spec : spec.slice(0, potong);
   const arg = potong < 0 ? '' : spec.slice(potong + 1);
+  /* Dibuka dari luar (bukan kembali dari pemilih): mulai dari data tersimpan, bukan sisa ketikan */
+  if (!kembali && FORM[key] && 'kunci' in FORM[key]) FORM[key].kunci = '';
   const def = SHEETS[key] && SHEETS[key](arg);
   if (!def) return;
   /* Pemilih yang dibuka dari dalam sheet lain menyimpan induknya dulu */
@@ -2147,6 +2235,7 @@ function render(rute) {
   if (nama === 'filter') return VIEWS.filter(arg);
   if (nama === 'hist')   return VIEWS.hist(arg);
   if (nama === 'ex')     return VIEWS.ex(arg);
+  if (nama === 'notes')  return VIEWS.notes(arg);
   return (VIEWS[nama] || VIEWS.home)();
 }
 
@@ -2332,11 +2421,27 @@ function terapkanHash() {
 /* ═══════════════════════════════════════════════
    10. PENANGAN KLIK
    ═══════════════════════════════════════════════ */
+/* Penyimpan per sheet/formulir. Mengembalikan false = tahan, jangan tutup. */
+const PENYIMPAN = {
+  'sheet:catatan': () => {
+    const F = FORM.catatan;
+    const teks = F.teks.trim();
+    if (!teks) { F.galat = 'Tulis isi catatan dulu.'; segarkanSheet(); return false; }
+    const daftar = CATATAN[F.scope] || (CATATAN[F.scope] = []);
+    const ada = daftar.find(c => c.id === F.id);
+    if (ada) Object.assign(ada, { tgl: F.tgl, teks });
+    else daftar.push({ id: 'c' + (++nomorCatatan), tgl: F.tgl, teks });
+    F.kunci = '';
+    segarkanForm();
+    return true;
+  },
+};
+
 phone.addEventListener('click', e => {
   const t = e.target.closest(
     '[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f],' +
     '[data-form],[data-set],[data-toggle],[data-radio],[data-addkomp],[data-delkomp],' +
-    '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan]');
+    '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan],[data-hapuscat]');
   if (!t) return;
 
   if (t.dataset.tab !== undefined) {
@@ -2426,7 +2531,19 @@ phone.addEventListener('click', e => {
 
   if (t.hasAttribute('data-tutup')) { closeSheet(); return; }
 
+  if (t.hasAttribute('data-hapuscat')) {
+    const F = FORM.catatan;
+    if (!F.yakin) { F.yakin = true; segarkanSheet(); return; }
+    CATATAN[F.scope] = (CATATAN[F.scope] || []).filter(c => c.id !== F.id);
+    F.kunci = '';
+    closeSheet(); segarkanForm(); toast('Catatan dihapus');
+    return;
+  }
+
   if (t.dataset.simpan) {
+    const kunci = sheetEl && sheetSpec ? 'sheet:' + specSheet()[0] : 'form:' + (saatIni || '').split('/')[1];
+    const simpan = PENYIMPAN[kunci];
+    if (simpan && simpan() === false) return;
     const pesan = t.dataset.simpan;
     if (sheetEl) closeSheet(); else history.back();
     toast(pesan);

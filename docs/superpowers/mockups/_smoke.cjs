@@ -507,6 +507,68 @@ step('R3 mantan penghuni: mode baca saja', async () => {
   return 'baca saja';
 });
 
+step('R3 catatan: daftar properti terurut terbaru', async () => {
+  await hash('#/prop/p1');
+  rawClick(qa('.ptab')[2]);
+  const baris = q('[data-go="notes/p1"]');
+  if (!baris) throw new Error('baris Catatan internal tidak bisa ditekan');
+  if (!baris.textContent.includes('2 catatan')) throw new Error('ringkasan: ' + baris.textContent.replace(/\s+/g, ' '));
+  await nav(baris);
+  const c = qa('.catat');
+  if (c.length !== 2) throw new Error('harusnya 2 catatan, dapat ' + c.length);
+  if (!c[0].textContent.includes('22 Sep 2026')) throw new Error('urutan: ' + c[0].textContent.slice(0, 40));
+  if (!q('.fab')) throw new Error('FAB tambah catatan hilang');
+  return c.length + ' catatan, FAB=' + q('.fab').textContent.trim();
+});
+
+step('R3 catatan kosong tidak bisa disimpan', () => {
+  rawClick(q('.fab'));
+  if (!q('.sheet') || !q('.sheet').textContent.includes('Catatan baru')) throw new Error('sheet catatan baru tidak muncul');
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('sheet menutup padahal isi kosong');
+  if (!q('.sheet .note.bad')) throw new Error('pesan galat tidak muncul');
+});
+
+step('R3 catatan baru: tanggal dari pemilih, tersimpan paling atas', () => {
+  rawClick(q('.sheet [data-sheet="tanggal:catatan.tgl"]'));
+  rawClick(qa('[data-scalbody] .cal-day[data-set]')[27]);   // 28 Sep 2026
+  if (!q('.sheet').textContent.includes('Catatan baru')) throw new Error('tidak kembali ke sheet catatan');
+  ketik('.sheet [data-bind="catatan.teks"]', 'Cat ulang pagar depan minggu depan.');
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup setelah simpan');
+  const c = qa('.catat');
+  if (c.length !== 3) throw new Error('harusnya 3, dapat ' + c.length);
+  const t = c[0].textContent.replace(/\s+/g, ' ');
+  if (!t.includes('Cat ulang pagar') || !t.includes('28 Sep 2026')) throw new Error(t);
+  return t.trim();
+});
+
+step('R3 ubah catatan lalu hapus dua langkah', () => {
+  rawClick(qa('.catat').find(c => c.textContent.includes('Pompa air')));
+  if (!q('.sheet').textContent.includes('Ubah catatan')) throw new Error('sheet ubah tidak muncul');
+  if (q('.sheet [data-bind="catatan.teks"]').value.indexOf('Pompa air') !== 0) throw new Error('isi lama tidak terisi');
+  rawClick(q('.sheet [data-hapuscat]'));
+  if (tutup()) throw new Error('sekali ketuk langsung menghapus');
+  if (!q('.sheet [data-hapuscat]').textContent.includes('sekali lagi')) throw new Error('tombol konfirmasi tidak berubah');
+  rawClick(q('.sheet [data-hapuscat]'));
+  if (!tutup()) throw new Error('sheet tidak menutup setelah hapus');
+  if (qa('.catat').length !== 2) throw new Error('jumlah catatan: ' + qa('.catat').length);
+  if (A().includes('Pompa air')) throw new Error('catatan masih tampil');
+  return 'terhapus setelah konfirmasi';
+});
+
+step('R3 catatan kamar dari tab Lainnya kamar', async () => {
+  await hash('#/room/p1-101');
+  rawClick(qa('.ptab')[3]);
+  const b = q('[data-go="notes/p1-101"]');
+  if (!b || !b.textContent.includes('1 catatan')) throw new Error('baris catatan kamar salah');
+  await nav(b);
+  if (qa('.catat').length !== 1) throw new Error('harusnya 1 catatan kamar');
+  if (!A().includes('Catatan kamar')) throw new Error(A().slice(0, 60));
+  await hash('#/room/p1-101');
+  rawClick(qa('.ptab')[0]);          // kembalikan tab supaya langkah lain tidak terpengaruh
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
