@@ -1,7 +1,7 @@
 <title>Kosmanager Mobile</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 
 <style>
@@ -41,9 +41,12 @@
     --bad:  #C23D38;  --bad-tint:  #FAE7E6;
 
     /* Huruf */
-    --f-ui:      'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --f-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
-    --f-mono:    'DM Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --f-ui:       'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --f-display:  var(--f-ui);
+    --f-mono:     var(--f-ui);   /* label huruf besar; nama lama dipertahankan agar selektor tak berubah */
+    --w-display:  700;
+    --ls-display: -.035em;
+    --w-label:    600;
 
     /* Radius */
     --r-card:  20px;
@@ -94,6 +97,8 @@
   }
 
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  /* l berekor (cv05) dan angka terbuka (ss01): Il1 tetap bisa dibedakan */
+  body, button, input, textarea { font-feature-settings: 'cv05', 'ss01'; }
   :focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 8px; }
 
   /* ── Perangkat ─────────────────────────────── */
@@ -126,7 +131,7 @@
     position: absolute; inset: 0 0 auto 0; height: 48px; z-index: 60;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 32px; pointer-events: none;
-    font-family: var(--f-mono); font-size: 13px; font-weight: 500; color: var(--ink);
+    font-family: var(--f-ui); font-size: 13px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;
   }
   .statusbar .sb-r { display: flex; align-items: center; gap: 7px; }
 
@@ -164,8 +169,8 @@
 
   .tb-title {
     flex: 1; min-width: 0;
-    font-family: var(--f-display); font-weight: 400; font-size: 19px;
-    letter-spacing: -.1px; line-height: 1.2;
+    font-family: var(--f-display); font-weight: 650; font-size: 17px;
+    letter-spacing: -.02em; line-height: 1.2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     padding: 0 6px;
     opacity: 0; transform: translateY(9px);
@@ -192,19 +197,14 @@
   .scroll::-webkit-scrollbar { width: 0; }
 
   .bigtitle {
-    font-family: var(--f-display); font-weight: 400; font-size: 33px;
-    line-height: 1.08; letter-spacing: -.6px;
+    font-family: var(--f-display); font-weight: var(--w-display); font-size: 31px;
+    line-height: 1.08; letter-spacing: var(--ls-display);
     padding: 6px 0 20px;
     text-wrap: balance;
     transition: opacity 200ms linear, transform 300ms var(--e-glide);
   }
-  /* Instrument Serif tidak dipakai untuk angka — "1"-nya mirip huruf "l".
-     Setiap deret angka di dalam judul serif dialihkan ke huruf mono. */
-  .num {
-    font-family: var(--f-ui); font-weight: 500; font-size: .8em;
-    letter-spacing: -.02em; padding-left: .08em;
-    font-variant-numeric: tabular-nums;
-  }
+  /* Sejak Inter, numify() tidak lagi mengganti huruf; span-nya hanya merapikan lebar angka. */
+  .num { font-variant-numeric: tabular-nums; }
   .scroll.is-scrolled .bigtitle { opacity: 0; transform: translateY(-6px); }
 
   /* ── Kartu ─────────────────────────────────── */
@@ -235,7 +235,7 @@
     padding: 26px 2px 12px;
   }
   .sechead h2 {
-    font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+    font-family: var(--f-mono); font-size: 11px; font-weight: var(--w-label);
     text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3);
     white-space: nowrap;
   }
@@ -254,12 +254,12 @@
 
   /* ── Label mikro & nilai ───────────────────── */
   .mlabel {
-    font-family: var(--f-mono); font-size: 10.5px; font-weight: 500;
+    font-family: var(--f-mono); font-size: 10.5px; font-weight: var(--w-label);
     text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3);
   }
-  /* Label huruf-besar yang memuat angka — Instrument Sans, bukan mono */
+  /* Label huruf-besar yang memuat angka; setara .mlabel sejak Inter */
   .mlabel.fig {
-    font-family: var(--f-ui); font-size: 10.5px; font-weight: 700;
+    font-family: var(--f-ui); font-size: 10.5px; font-weight: var(--w-label);
     letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
     font-variant-numeric: tabular-nums;
   }
@@ -321,7 +321,7 @@
   }
   .av.sq   { border-radius: 14px; }
   .av.sm   { width: 38px; height: 38px; border-radius: 12px; }
-  .av.lg   { width: 80px; height: 80px; font-family: var(--f-display); font-weight: 400; font-size: 30px; letter-spacing: 0; }
+  .av.lg   { width: 80px; height: 80px; font-family: var(--f-display); font-weight: var(--w-display); font-size: 28px; letter-spacing: -.02em; }
   .av.gold { background: var(--gold-tint); color: var(--gold-ink); }
   .av.ghost{ background: var(--sunken);    color: var(--ink-3); }
   .av.pos  { background: var(--ok-tint);   color: var(--ok); }
@@ -504,7 +504,7 @@
   .sheet-grab { flex: none; padding: 11px 0 3px; display: grid; place-items: center; touch-action: none; cursor: grab; }
   .sheet-grab::before { content: ''; width: 36px; height: 4px; border-radius: 4px; background: var(--ground-2); }
   .sheet-head { flex: none; padding: 8px 22px 14px; touch-action: none; }
-  .sheet-title { font-family: var(--f-display); font-size: 22px; font-weight: 400; letter-spacing: -.3px; line-height: 1.15; }
+  .sheet-title { font-family: var(--f-display); font-size: 20px; font-weight: var(--w-display); letter-spacing: -.025em; line-height: 1.2; }
   .sheet-sub {
     font-size: 13px; color: var(--ink-2); margin-top: 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -534,7 +534,7 @@
   /* ── Keadaan kosong ────────────────────────── */
   .emptystate { text-align: center; padding: 38px 24px 34px; }
   .emptystate-art { display: grid; place-items: center; margin-bottom: 18px; }
-  .emptystate h3 { font-family: var(--f-display); font-size: 22px; font-weight: 400; letter-spacing: -.3px; }
+  .emptystate h3 { font-family: var(--f-display); font-size: 19px; font-weight: var(--w-display); letter-spacing: -.025em; }
   .emptystate p  { font-size: 13.5px; color: var(--ink-2); margin-top: 8px; line-height: 1.55; max-width: 27ch; margin-inline: auto; }
 
   /* ── Toast ─────────────────────────────────── */
@@ -578,7 +578,7 @@
   }
   .fhead h1 {
     flex: 1; min-width: 0; padding: 0 6px;
-    font-family: var(--f-display); font-weight: 400; font-size: 20px; letter-spacing: -.2px;
+    font-family: var(--f-display); font-weight: 650; font-size: 18px; letter-spacing: -.02em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .steps { flex: none; display: flex; gap: 5px; padding: 0 20px 14px; background: var(--ground); }
@@ -587,7 +587,7 @@
 
   .scroll.isform { padding-bottom: 116px; }
 
-  .flede { font-family: var(--f-display); font-size: 27px; font-weight: 400; line-height: 1.12; letter-spacing: -.5px; padding: 4px 0 8px; text-wrap: balance; }
+  .flede { font-family: var(--f-display); font-size: 25px; font-weight: var(--w-display); line-height: 1.15; letter-spacing: var(--ls-display); padding: 4px 0 8px; text-wrap: balance; }
   .flede + .fnote { margin-top: 0; }
 
   .fsec { display: flex; align-items: center; gap: 11px; padding: 26px 2px 14px; }
@@ -770,10 +770,10 @@
   .hero-top { display: flex; align-items: flex-start; gap: 14px; }
   .hero-txt { flex: 1; min-width: 0; }
   .hero h2 {
-    font-family: var(--f-display); font-weight: 400; font-size: 25px;
-    line-height: 1.12; letter-spacing: -.4px;
+    font-family: var(--f-display); font-weight: var(--w-display); font-size: 23px;
+    line-height: 1.12; letter-spacing: var(--ls-display);
   }
-  .hero h2 em { font-style: italic; }
+  .hero h2 em { font-style: normal; color: var(--brand); }
   .hero p {
     font-size: 11px; font-weight: 700; color: var(--ink-3);
     margin-top: 7px; letter-spacing: .1em;
@@ -796,7 +796,7 @@
   /* Kartu harga */
   .price-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
   .price-head > div:first-child { flex: 1; min-width: 0; }
-  /* Nominal selalu huruf sans: angka 1 pada Instrument Serif mirip huruf l */
+  /* Nominal selalu huruf UI dengan angka tabular */
   .price {
     font-size: 27px; font-weight: 600; line-height: 1.12;
     letter-spacing: -.8px; margin-top: 7px;
@@ -830,7 +830,7 @@
   /* Profil penghuni */
   .profile { text-align: center; padding: 26px 18px 20px; }
   .profile .av { margin: 0 auto 15px; }
-  .profile h2 { font-family: var(--f-display); font-size: 26px; font-weight: 400; letter-spacing: -.4px; line-height: 1.1; }
+  .profile h2 { font-family: var(--f-display); font-size: 24px; font-weight: var(--w-display); letter-spacing: var(--ls-display); line-height: 1.15; }
   .profile-chips { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
   .profile-btns { display: flex; gap: 9px; margin-top: 20px; }
   .profile-btns .btn { flex: 1; min-width: 0; height: 46px; }
@@ -857,7 +857,7 @@
   /* Kalender */
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .cal-dow {
-    font-family: var(--f-mono); font-size: 10px; font-weight: 500; color: var(--ink-3);
+    font-family: var(--f-mono); font-size: 10px; font-weight: var(--w-label); color: var(--ink-3);
     text-align: center; padding: 6px 0 10px; letter-spacing: .06em;
   }
   .cal-day {
@@ -1090,7 +1090,8 @@ const JUDUL_FILTER = {
 /* ═══════════════════════════════════════════════
    5. POTONGAN UI
    ═══════════════════════════════════════════════ */
-/* Alihkan tiap deret angka ke huruf mono — dipakai di semua judul serif */
+/* Bungkus deret angka di judul. Sejak Inter hanya merapikan lebar angka;
+   berguna lagi bila suatu saat judul memakai huruf serif atau mono. */
 const numify = s => esc(s).replace(/\d[\d.]*/g, m => '<span class="num">' + m + '</span>');
 
 function chrome(o) {
@@ -1490,7 +1491,7 @@ VIEWS.calendar = () => {
       '<section class="card" style="padding:16px 14px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
           '<button class="iconbtn" data-cal="-1" aria-label="Bulan sebelumnya">' + ic('back', 19) + '</button>' +
-          '<strong style="font-family:var(--f-display);font-weight:400;font-size:19px;letter-spacing:-.2px">' +
+          '<strong style="font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.02em">' +
             numify(BLN_FULL[M] + ' ' + Y) + '</strong>' +
           '<button class="iconbtn" data-cal="1" aria-label="Bulan berikutnya">' + ic('chev', 19) + '</button>' +
         '</div>' +
@@ -1641,7 +1642,7 @@ function miniCal(path) {
   }
   return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
       '<button class="iconbtn" data-scal="-1" aria-label="Bulan sebelumnya">' + ic('back', 19) + '</button>' +
-      '<strong style="font-family:var(--f-display);font-weight:400;font-size:18px">' +
+      '<strong style="font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:-.02em">' +
         numify(BLN_FULL[M] + ' ' + Y) + '</strong>' +
       '<button class="iconbtn" data-scal="1" aria-label="Bulan berikutnya">' + ic('chev', 19) + '</button>' +
     '</div>' +

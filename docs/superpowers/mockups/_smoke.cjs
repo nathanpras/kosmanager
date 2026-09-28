@@ -449,6 +449,18 @@ function closeAll() {
   if (sc) rawClick(sc);
 }
 
+/* ════════════ RONDE 3 ════════════ */
+
+step('R3 huruf: hanya Inter yang dimuat', () => {
+  const link = q('link[rel="stylesheet"]').getAttribute('href');
+  if (!/family=Inter/.test(link)) throw new Error('Inter tidak dimuat: ' + link);
+  if (/Instrument|DM\+Mono/.test(link)) throw new Error('huruf lama masih dimuat: ' + link);
+  const css = qa('style').map(s => s.textContent).join('\n');
+  if (/Instrument|DM Mono/.test(css)) throw new Error('nama huruf lama masih ada di CSS');
+  if (/var\(--f-display\);[^}]*font-weight:\s*400/.test(css)) throw new Error('judul masih berat 400');
+  return 'Inter saja';
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
