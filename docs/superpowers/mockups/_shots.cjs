@@ -61,6 +61,39 @@ const SHOTS = [
     `q('.fab').click()`,
     `q('[data-sheet="tanggal:tenant.masuk"]').click()`,
   ]],
+
+  /* ronde 3 */
+  ['19-hist',        '#/hist/p1',       []],
+  ['20-ex',          '#/ex/x1',         []],
+  ['21-notes',       '#/notes/p1',      []],
+  ['22-note-sheet',  '#/notes/p1',      [`q('.catat').click()`]],
+  ['23-edit',        '#/tenant/p1-104', [`q('[data-form^="edit:"]').click()`]],
+  ['24-edit-galat',  '#/tenant/p1-104', [
+    `q('[data-form^="edit:"]').click()`,
+    `set('[data-bind="edit.hp"]', '0812')`,
+    `q('[data-simpan]').click()`,
+  ]],
+  ['25-wa',          '#/tenant/p1-106', [`q('[data-sheet="wa:p1-106|tagih"]').click()`]],
+  ['26-docs',        '#/tenant/p1-111', [`q('.scroll').scrollTop = 900`]],
+  ['27-viewer',      '#/tenant/p1-111', [`q('.doc.filled').click()`]],
+  ['28-thumb',       '#/tenant/p1-102', [
+    `q('[data-dok="p1-102|ktp|"]').click()`,
+    `(function () {
+       var c = document.createElement('canvas'); c.width = 640; c.height = 400;
+       var g = c.getContext('2d');
+       g.fillStyle = '#CFE3F5'; g.fillRect(0, 0, 640, 400);
+       g.fillStyle = '#0070C0'; g.fillRect(40, 60, 180, 240);
+       g.fillStyle = '#00456F'; g.font = 'bold 44px sans-serif'; g.fillText('KTP CONTOH', 260, 140);
+       c.toBlob(function (b) {
+         var dt = new DataTransfer();
+         dt.items.add(new File([b], 'ktp.png', { type: 'image/png' }));
+         var i = document.getElementById('berkas-in');
+         i.files = dt.files;
+         i.dispatchEvent(new Event('change'));
+       });
+     })()`,
+    `q('.scroll').scrollTop = 900`,
+  ]],
 ];
 
 const RUNNER = langkah => `<script>
