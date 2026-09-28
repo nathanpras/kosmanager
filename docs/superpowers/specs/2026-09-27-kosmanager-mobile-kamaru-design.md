@@ -1,7 +1,7 @@
 # kosmanager Mobile — Prototype Bergaya Kamaru
 
 **Tanggal:** 2026-09-27
-**Status:** Ronde 1 dan Ronde 2 selesai, Ronde 3 disetujui 28 September. Mockup ada di `docs/superpowers/mockups/kosmanager-mobile.html`.
+**Status:** Ronde 1, 2, dan 3 selesai. Mockup ada di `docs/superpowers/mockups/kosmanager-mobile.html`.
 
 ## Tujuan
 
@@ -142,7 +142,7 @@ masuk database diputuskan setelah mockup dievaluasi.
 
 14. **Kalender** bisa digeser maju-mundur antar bulan.
 
-### Ronde 3 — kelengkapan penghuni (disetujui 28 September)
+### Ronde 3 — kelengkapan penghuni (selesai)
 
 15. **Ganti huruf ke Inter.** Dikerjakan paling awal, sebelum layar baru.
     Satu keluarga untuk semua peran:
@@ -272,8 +272,8 @@ Seluruhnya dinonaktifkan di bawah `@media (prefers-reduced-motion: reduce)`.
 
 Dua lapis, keduanya dijalankan dari akar repo:
 
-    node docs/superpowers/mockups/_smoke.cjs    # 44 langkah di jsdom
-    node docs/superpowers/mockups/_shots.cjs    # 18 potret layar via chromium
+    node docs/superpowers/mockups/_smoke.cjs    # 66 langkah di jsdom
+    node docs/superpowers/mockups/_shots.cjs    # 28 potret layar via chromium
 
 jsdom tidak punya mesin tata letak, jadi ia buta terhadap bug visual. Tiga bug
 nyata hanya ketahuan setelah dipotret:

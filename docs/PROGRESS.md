@@ -2,7 +2,7 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 27 September 2026 · `npm run test:run` 221/221 hijau
+**Terakhir diperbarui:** 28 September 2026 · `npm run test:run` 221/221 hijau
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -15,7 +15,7 @@ Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 | Jalur | Isi | Status |
 |---|---|---|
 | **A. Aplikasi** | Vue 3 + Pinia + Firestore di `src/` | Aktif dikembangkan. Tampilan desktop dianggap selesai. |
-| **B. Prototype mobile** | Mockup HTML sekali pakai bergaya aplikasi **Kamaru**, di `docs/superpowers/mockups/` | Ronde 1 dan 2 selesai. Belum di-port ke `src/`. |
+| **B. Prototype mobile** | Mockup HTML sekali pakai bergaya aplikasi **Kamaru**, di `docs/superpowers/mockups/` | Ronde 1, 2, dan 3 selesai. Belum di-port ke `src/`. |
 
 Jalur B **tidak menyentuh `src/` sama sekali**.
 
@@ -86,8 +86,8 @@ kali mockup diterbitkan ulang.
 |---|---|
 | `docs/superpowers/specs/2026-09-27-kosmanager-mobile-kamaru-design.md` | Kontrak desain yang sudah disetujui |
 | `docs/superpowers/mockups/kosmanager-mobile.html` | Mockup, satu berkas mandiri |
-| `docs/superpowers/mockups/_smoke.cjs` | 44 langkah uji di jsdom |
-| `docs/superpowers/mockups/_shots.cjs` | 18 potret layar via chromium |
+| `docs/superpowers/mockups/_smoke.cjs` | 66 langkah uji di jsdom |
+| `docs/superpowers/mockups/_shots.cjs` | 28 potret layar via chromium |
 
 ```
 # mockup — cukup buka berkasnya, tidak perlu server
@@ -110,7 +110,7 @@ Jangan dibahas ulang tanpa alasan baru.
 | Navigasi | Persis Kamaru — 3 tab bawah: Properti / Kalender / Penghuni. Tagihan bukan tab, diakses lewat chip di beranda dan chip status di kartu kamar |
 | Palet | Bentuk Kamaru, warna kosmanager: biru `#0070C0`, kuning `#FFC000` |
 | Status "Lunas" | Hijau tersendiri `#0D8A5F`, **bukan** `--green` milik `src/style.css` yang sebenarnya bernilai biru. Di daftar 19 kamar, warna status harus beda dari warna merek supaya terbaca sekilas |
-| Huruf | Tiga peran: Instrument Serif (judul), Instrument Sans (UI dan seluruh angka), DM Mono (label huruf-besar saja) |
+| Huruf | Inter saja, dipilih 28 September dari tujuh opsi. `cv05` + `ss01` menyala supaya `Il1` terbedakan. Aturan lama "serif dan mono tidak merender angka" tetap dicatat di kontrak desain |
 | FAB | Hanya di dalam drill-down. Di layar tab bawah pakai tautan "Tambah" agar tidak bertumpuk dengan dok |
 
 ### Sudah selesai
@@ -125,28 +125,32 @@ ditempati, harga terisi otomatis dari kamar yang dipilih), Properti baru dua
 langkah, Tambah kamar, Catat pembayaran, pemilih nilai dan pemilih tanggal yang
 kembali ke sheet induknya, kalender bisa digeser antar bulan.
 
-### Sedang dikerjakan — Ronde 3
+**Ronde 3 — kelengkapan penghuni.** Rencananya ada di
+`docs/superpowers/plans/2026-09-28-kosmanager-mobile-ronde-3.md`. Isinya:
 
-Rencana: `docs/superpowers/plans/2026-09-28-kosmanager-mobile-ronde-3.md`
-(kontrak: butir 15–20 di kontrak desain). Centang di bawah diperbarui dan
-di-push setiap satu tugas selesai; lanjutkan dari tugas pertama yang belum
-dicentang.
+- Seluruh huruf diganti ke Inter.
+- Riwayat penghuni per properti dan per kamar, termasuk profil mantan penghuni
+  yang hanya bisa dibaca.
+- Catatan internal bertanggal: bisa ditambah, diubah, dan dihapus dengan
+  konfirmasi dua langkah.
+- Ubah data penghuni, dengan validasi nama dan nomor HP.
+- Unggah foto dan dokumen lewat pemilih berkas sungguhan, dilengkapi penampil
+  dengan tombol Ganti dan Hapus.
+- Sheet WhatsApp dengan templat per status tagihan yang membuka `wa.me`.
 
-- [x] 1. Ganti huruf ke Inter
-- [x] 2. Riwayat penghuni dan profil mantan penghuni
-- [x] 3. Catatan internal
-- [x] 4. Edit penghuni
-- [x] 5. Unggah foto dan dokumen
-- [x] 6. Sheet WhatsApp
-- [ ] 7. Potret, terbitkan, dokumentasi
+Ada satu hal yang belum terkonfirmasi. Tombol **Buka WhatsApp** belum dicoba
+di link hidup dari HP, jadi belum pasti sandbox artifact mengizinkan navigasi
+ke `wa.me`. Kalau ternyata diblokir, tambahkan tombol "Salin pesan" sesuai
+Tugas 7 langkah 4 di rencana.
 
 ### Berikutnya — belum dikerjakan
 
 1. **Port ke aplikasi.** Lapis `@layer tokens` dan `@layer components` di dalam
    mockup sengaja ditulis untuk disalin utuh ke `src/style.css`; hanya lapis
    `screens` dan markup yang perlu dirakit ulang jadi komponen Vue.
-2. **Ronde 3 kandidat.** Edit penghuni, riwayat penghuni, catatan internal,
-   unggah foto, pengingat WhatsApp dari layar penghuni.
+2. **Ronde 4 kandidat.** Tombol yang masih `soon`: foto kamar, info properti,
+   menu properti/kamar/kalender, Ubah masa tinggal, tambah tagihan/deposit/biaya
+   lain, notifikasi, dan cari di beranda.
 
 ### Peta data Kamaru → kosmanager
 
@@ -194,3 +198,11 @@ Di jalur B, dicatat supaya tidak terulang.
 - **Penangan klik terdelegasi.** Atribut `data-*` baru harus ditambahkan ke
   daftar selektor `closest()` di penangan klik, kalau tidak kliknya tidak pernah
   tertangkap dan gagal tanpa pesan apa pun.
+- **jsdom tidak punya pemilih berkas dan tidak bisa bernavigasi.** Uji unggah
+  menyuntikkan `File` palsu ke `#berkas-in` lewat `Object.defineProperty(…,
+  'files')` dan mengganti `URL.createObjectURL`. Uji tautan `wa.me` memasang
+  `preventDefault` di `document` sebelum mengklik. Kalau tidak, jsdom
+  melaporkan "Not implemented: navigation".
+- **Layar di bawah modal tidak digambar ulang sendiri.** Setelah modal
+  menyimpan data yang tampil di layar dasar (misalnya Ubah data penghuni),
+  set `dasarBasi = true` supaya layar itu dirender ulang saat modal tertutup.
