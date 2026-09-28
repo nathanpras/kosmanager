@@ -1,7 +1,7 @@
 # kosmanager Mobile — Prototype Bergaya Kamaru
 
 **Tanggal:** 2026-09-27
-**Status:** Ronde 1 dan Ronde 2 selesai. Mockup ada di `docs/superpowers/mockups/kosmanager-mobile.html`.
+**Status:** Ronde 1 dan Ronde 2 selesai, Ronde 3 disetujui 28 September. Mockup ada di `docs/superpowers/mockups/kosmanager-mobile.html`.
 
 ## Tujuan
 
@@ -21,7 +21,7 @@ mobile asli.
 | Fidelity | Mockup dulu, port belakangan | Yang dinilai adalah rasa UI; iterasi di mockup jauh lebih murah daripada di kode app |
 | Navigasi | Persis Kamaru — 3 tab bawah | Properti / Kalender / Penghuni. Tagihan tidak jadi tab, diakses lewat chip di Home dan chip status di kartu kamar |
 | Palet | Bentuk Kamaru, warna kosmanager | Rounding/spacing/kartu/animasi ikut Kamaru; aksen tetap biru `#0070C0` + kuning `#FFC000` supaya nyambung dengan desktop |
-| Huruf | Tiga peran | Instrument Serif untuk judul, Instrument Sans untuk UI **dan seluruh angka**, DM Mono khusus label huruf-besar |
+| Huruf | Inter saja | Dipilih 28 September dari tujuh opsi yang dipasang ke layar yang sama. Satu keluarga untuk judul, UI, angka, dan label; menggantikan trio Instrument Serif / Instrument Sans / DM Mono |
 | Teknis | Satu file HTML self-contained | Bisa dibuka di HP lewat link tanpa syarat jaringan; nol risiko ke `src/` |
 
 ### Alternatif yang ditolak
@@ -142,6 +142,93 @@ masuk database diputuskan setelah mockup dievaluasi.
 
 14. **Kalender** bisa digeser maju-mundur antar bulan.
 
+### Ronde 3 — kelengkapan penghuni (disetujui 28 September)
+
+15. **Ganti huruf ke Inter.** Dikerjakan paling awal, sebelum layar baru.
+    Satu keluarga untuk semua peran:
+    - Judul memakai berat 700 dengan jarak huruf `-0.035em`.
+    - Label huruf besar memakai Inter dengan letter-spacing.
+    - Fitur `cv05` (l berekor) dan `ss01` (angka terbuka) dinyalakan
+      global supaya `Il1` tetap mudah dibedakan.
+    - Instrument Serif, Instrument Sans, dan DM Mono dilepas dari
+      `<link>` Google Fonts.
+
+16. **Edit penghuni.** Ikon pensil di header Info Penghuni membuka modal
+    Tambah penghuni dalam mode ubah, hanya berisi Data diri dan Kontak.
+    Harga dan masa tinggal tetap diurus di Pengaturan sewa.
+    - Nama wajib diisi.
+    - No. HP harus lolos aturan `normalizePhone` milik `useWAReminder`
+      (buang non-digit, `0` di depan jadi `62`, minimal 8 digit).
+    - Kalau validasi gagal, muncul `.note` merah dan Simpan tidak jalan.
+    - Kalau berhasil, data di memori diperbarui, modal kembali ke Info
+      Penghuni, dan muncul toast "Data penghuni disimpan".
+
+17. **Riwayat penghuni.** Layar drill-down, dibuka dari:
+    - Lainnya di detail properti (gabungan semua kamar)
+    - Lainnya di detail kamar
+    - Baris "Penghuni sebelumnya"
+
+    Isinya kartu mantan penghuni: avatar inisial, nama, kamar, rentang
+    masuk–keluar, dan durasi, diurutkan dari tanggal keluar terbaru. Data
+    dummy 0–3 orang per kamar. Kamar tanpa riwayat menampilkan
+    `.emptystate`.
+
+    Tap kartu membuka Info Penghuni **mode baca saja**:
+    - Ada chip "Mantan penghuni".
+    - Tanpa ikon pensil, tanpa tombol Aksi, dan tanpa template tagihan di
+      sheet WhatsApp.
+
+18. **Catatan internal.** Layar drill-down per properti dan per kamar.
+    - Kartu berisi tanggal dan teks, terbaru di atas.
+    - FAB "+ Catatan" membuka sheet berisi textarea dan pemilih tanggal
+      (dipakai ulang dari ronde 2).
+    - Tap kartu membuka sheet yang sama untuk mengubah catatan.
+    - Hapus memakai konfirmasi dua langkah di dalam sheet, bukan
+      `confirm()` yang diblokir artifact.
+    - Catatan kosong tidak bisa disimpan.
+    - Baris di tab Lainnya menampilkan jumlah catatan dan potongan
+      catatan terbaru.
+
+19. **Unggah foto dan dokumen.** Ubin di grid Foto & dokumen memakai
+    `<input type=file>` sungguhan:
+
+    | Ubin | Isi yang diterima | Kamera |
+    |---|---|---|
+    | Foto wajah | gambar | `capture=user` |
+    | KTP | gambar | `capture=environment` |
+    | Berkas lain | gambar atau PDF | tanpa `capture` |
+
+    - Thumbnail ditampilkan lewat `URL.createObjectURL`.
+    - PDF tampil sebagai ikon berkas beserta namanya.
+    - Tap ubin yang sudah terisi membuka penampil layar penuh dengan tombol
+      Ganti dan Hapus. Hapus memanggil `revokeObjectURL`.
+    - Ubin "Tambah" menambah berkas lain. Tautan "Kelola" dibuang.
+    - Semua berkas hanya tersimpan di memori dan hilang saat halaman dimuat
+      ulang. Tidak ada kompresi atau batas ukuran.
+
+20. **Sheet WhatsApp.** Dibuka dari tombol WhatsApp di kartu profil dan
+    tombol Chat di blok Kontak.
+    - Kontrol segmen berisi empat template: Jatuh tempo, Telat, Kuitansi
+      lunas, dan Kosong.
+    - Template awal mengikuti status tagihan:
+
+      | Status | Template awal |
+      |---|---|
+      | telat | Telat |
+      | belum | Jatuh tempo |
+      | lunas | Kuitansi lunas |
+      | tombol Chat | Kosong |
+
+    - Placeholder diganti dengan cara yang sama seperti
+      `generateReminderMessage`: `{nama}`, `{kamar}`, `{bulan}`, `{sisa}`,
+      `{jatuh_tempo}`.
+    - Teks pesan bisa diedit. Nomor tujuan tampil dalam format `62…`.
+    - "Buka WhatsApp" adalah tautan `https://wa.me/<nomor>?text=…` dengan
+      `target=_blank`.
+    - HP tidak valid menonaktifkan tombol itu dan memunculkan `.note` merah.
+    - Sandbox artifact mungkin memblokir navigasi ke luar. Ini dicek di link
+      hidup; kalau benar terblokir, ditambahkan tombol "Salin pesan".
+
 ## Aturan tipografi yang lahir dari pengujian
 
 Angka **1** pada Instrument Serif tidak berkaki, sehingga `Rp1.800.000` terbaca
@@ -152,6 +239,11 @@ Aturannya: **huruf serif dan mono tidak pernah merender angka.** Helper
 `numify()` mengalihkan setiap deret angka di dalam judul serif ke Instrument
 Sans. Label `.mlabel` tetap mono selama isinya hanya huruf; yang memuat angka
 memakai varian `.mlabel.fig`.
+
+Sejak ronde 3 seluruh mockup memakai Inter, sehingga aturan ini tidak lagi
+berefek: `numify()` dan `.mlabel.fig` dibiarkan tetap ada, tetapi hanya
+mengalihkan dari Inter ke Inter. Aturannya berlaku lagi bila suatu saat huruf
+serif atau mono dipakai kembali.
 
 ## Spesifikasi animasi
 
