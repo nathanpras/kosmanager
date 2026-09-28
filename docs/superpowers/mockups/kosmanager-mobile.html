@@ -845,7 +845,10 @@
     transition: transform 260ms var(--e-press), color 200ms linear;
   }
   .doc:active { transform: scale(.96); transition-duration: 90ms; }
-  .doc span { font-size: 12.5px; font-weight: 600; letter-spacing: -.1px; }
+  .doc span {
+    font-size: 12.5px; font-weight: 600; letter-spacing: -.1px;
+    max-width: 88%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .doc.filled { color: var(--brand-deep); background: linear-gradient(160deg, #FFFFFF, var(--brand-tint)); }
   /* Penanda pojok berupa titik, tidak menutupi ikon di tengah */
   .doc.filled::after {
@@ -887,6 +890,36 @@
     color: var(--ink-3); font-variant-numeric: tabular-nums;
   }
   .catat-teks { font-size: 14.5px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+
+  /* Thumbnail berkas: gambar memenuhi ubin, label jadi pil di bawah */
+  .doc.has-img { justify-content: flex-end; overflow: hidden; padding-bottom: 10px; }
+  .doc-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .doc.has-img span {
+    position: relative; background: rgba(11,22,32,.62); color: #fff;
+    padding: 3px 10px; border-radius: var(--r-pill);
+  }
+
+  /* Penampil berkas layar penuh */
+  .viewer {
+    position: absolute; inset: 0; z-index: 80;
+    display: flex; flex-direction: column;
+    background: #0B1620; color: #fff;
+  }
+  .viewer-top { display: flex; align-items: center; gap: 6px; padding: 48px 12px 8px; }
+  .viewer-top .iconbtn { color: #fff; }
+  .viewer-judul {
+    flex: 1; min-width: 0; font-size: 16px; font-weight: 650;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .viewer-judul small { display: block; font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,.6); }
+  .viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; padding: 12px 16px; }
+  .viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+  .viewer-file { display: grid; justify-items: center; gap: 10px; text-align: center; color: rgba(255,255,255,.85); }
+  .viewer-file b { font-size: 16px; font-weight: 650; overflow-wrap: anywhere; }
+  .viewer-file span { font-size: 13px; color: rgba(255,255,255,.55); max-width: 26ch; }
+  .viewer-foot { display: flex; gap: 10px; padding: 12px 20px max(20px, env(safe-area-inset-bottom)); }
+  .viewer-foot .btn { flex: 1; height: 48px; background: rgba(255,255,255,.12); color: #fff; }
+  .viewer-foot .btn.danger { background: var(--bad); color: #fff; }
 }
 </style>
 
@@ -1056,6 +1089,30 @@ const CATATAN = {
   ],
 };
 let nomorCatatan = 3;
+
+/* Pemilik berkas: penghuni aktif (id kamar) atau mantan penghuni (id x…) */
+const pemilik = id => room(id) || mantan(id);
+
+/* Berkas per pemilik, hanya di memori. Isian awal "contoh" mewakili data dummy
+   yang tidak punya gambar sungguhan. */
+const DOK = {};
+function dokOf(o) {
+  if (!DOK[o.id]) DOK[o.id] = {
+    wajah: o.dok.wajah  ? { contoh: true, nama: 'foto-wajah.jpg',      tipe: 'image', url: '' } : null,
+    ktp:   o.dok.ktp    ? { contoh: true, nama: 'ktp.jpg',             tipe: 'image', url: '' } : null,
+    lain:  o.dok.berkas ? [{ contoh: true, nama: 'perjanjian-sewa.pdf', tipe: 'pdf',   url: '' }] : [],
+  };
+  return DOK[o.id];
+}
+const SLOT = {
+  wajah: { i: 'camera', t: 'Foto wajah',  accept: 'image/*',                 capture: 'user' },
+  ktp:   { i: 'idcard', t: 'KTP',         accept: 'image/*',                 capture: 'environment' },
+  lain:  { i: 'file',   t: 'Berkas lain', accept: 'image/*,application/pdf', capture: '' },
+};
+const berkasDi = (id, slot, idx) => {
+  const d = dokOf(pemilik(id));
+  return slot === 'lain' ? (idx === 'new' ? null : d.lain[+idx]) : d[slot];
+};
 const catatanDi = scope => (CATATAN[scope] || []).slice().sort((a, b) => b.tgl.localeCompare(a.tgl));
 const ringkasCatatan = scope => {
   const c = catatanDi(scope);
@@ -1228,6 +1285,26 @@ function emptyArt() {
 const emptyBox = (judul, teks) =>
   '<div class="card emptystate"><div class="emptystate-art">' + emptyArt() + '</div>' +
   '<h3>' + judul + '</h3><p>' + teks + '</p></div>';
+
+function ubinDok(o, slot, idx) {
+  const S = SLOT[slot];
+  const ref = o.id + '|' + slot + '|' + (idx == null ? '' : idx);
+  const b = berkasDi(o.id, slot, idx == null ? '' : String(idx));
+  if (!b) return '<button class="doc" data-dok="' + ref + '">' + ic(S.i, 25) + '<span>' + S.t + '</span></button>';
+  const gambar = b.url && b.tipe === 'image';
+  return '<button class="doc filled' + (gambar ? ' has-img' : '') + '" data-dok="' + ref + '">' +
+    (gambar ? '<img class="doc-img" src="' + esc(b.url) + '" alt="">' : ic(b.tipe === 'pdf' ? 'file' : S.i, 25)) +
+    '<span>' + esc(slot === 'lain' ? b.nama : S.t) + '</span></button>';
+}
+
+const gridDok = o => {
+  const lain = dokOf(o).lain;
+  return '<div class="docgrid">' + ubinDok(o, 'wajah') + ubinDok(o, 'ktp') +
+    lain.map((_, i) => ubinDok(o, 'lain', i)).join('') +
+    '<button class="doc add" data-dok="' + o.id + '|lain|new">' + ic('plus', 25) +
+      '<span>' + (lain.length ? 'Tambah' : 'Berkas lain') + '</span></button>' +
+  '</div>';
+};
 
 /* ═══════════════════════════════════════════════
    6. LAYAR
@@ -1531,17 +1608,8 @@ function profilPenghuni(o, bekas) {
           '<span style="' + angka + '">' + esc(o.daruratHp) + '</span></dt></div>' +
       '</dl>' +
 
-      '<div class="sechead"><h2>Foto &amp; dokumen</h2>' +
-        '<button class="link" data-act="soon">Kelola</button></div>' +
-      '<div class="docgrid">' + [
-        ['camera', 'Foto wajah',  o.dok.wajah],
-        ['idcard', 'KTP',         o.dok.ktp],
-        ['file',   'Berkas lain', o.dok.berkas],
-      ].map(([i, t, ada]) =>
-        '<button class="doc' + (ada ? ' filled' : '') + '" data-act="soon">' + ic(i, 25) + '<span>' + t + '</span></button>'
-      ).join('') +
-        '<button class="doc add" data-act="soon">' + ic('plus', 25) + '<span>Tambah</span></button>' +
-      '</div>' +
+      '<div class="sechead"><h2>Foto &amp; dokumen</h2></div>' +
+      gridDok(o) +
 
     '</div></div></div>';
 }
@@ -2240,6 +2308,81 @@ function toast(pesan) {
 }
 
 /* ═══════════════════════════════════════════════
+   8b. BERKAS — pemilih sungguhan, simpan di memori
+   ═══════════════════════════════════════════════ */
+let tujuanBerkas = null, penampilEl = null;
+
+function inputBerkas() {
+  let el = document.getElementById('berkas-in');
+  if (!el) {
+    el = document.createElement('input');
+    el.type = 'file'; el.id = 'berkas-in'; el.hidden = true;
+    el.addEventListener('change', () => {
+      const f = el.files && el.files[0];
+      if (f && tujuanBerkas) terimaBerkas(tujuanBerkas, f);
+      el.value = '';
+    });
+    document.body.append(el);
+  }
+  return el;
+}
+
+function pilihBerkas(id, slot, idx) {
+  const S = SLOT[slot];
+  const el = inputBerkas();
+  el.accept = S.accept;
+  if (S.capture) el.setAttribute('capture', S.capture); else el.removeAttribute('capture');
+  tujuanBerkas = { id, slot, idx };
+  el.click();
+}
+
+const lepasUrl = b => { if (b && b.url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(b.url); };
+
+function terimaBerkas(tj, f) {
+  const d = dokOf(pemilik(tj.id));
+  const baru = { nama: f.name, tipe: f.type === 'application/pdf' ? 'pdf' : 'image',
+                 url: typeof URL.createObjectURL === 'function' ? URL.createObjectURL(f) : '' };
+  if (tj.slot !== 'lain') { lepasUrl(d[tj.slot]); d[tj.slot] = baru; }
+  else if (tj.idx === 'new') d.lain.push(baru);
+  else { lepasUrl(d.lain[+tj.idx]); d.lain[+tj.idx] = baru; }
+  tujuanBerkas = null;
+  tutupPenampil();
+  segarkanForm();
+  toast(tj.slot === 'lain' && tj.idx === 'new' ? 'Berkas ditambahkan' : 'Berkas disimpan');
+}
+
+function bukaPenampil(id, slot, idx) {
+  tutupPenampil();
+  const o = pemilik(id);
+  const b = berkasDi(id, slot, idx);
+  const S = SLOT[slot];
+  const ref = id + '|' + slot + '|' + idx;
+  penampilEl = document.createElement('div');
+  penampilEl.className = 'viewer';
+  penampilEl.setAttribute('role', 'dialog');
+  penampilEl.setAttribute('aria-label', S.t + ' ' + o.nama);
+  penampilEl.innerHTML =
+    '<div class="viewer-top">' +
+      '<button class="iconbtn" data-vtutup aria-label="Tutup">' + ic('x') + '</button>' +
+      '<div class="viewer-judul">' + esc(slot === 'lain' ? b.nama : S.t) + '<small>' + esc(o.nama) + '</small></div>' +
+    '</div>' +
+    '<div class="viewer-body">' + (b.url && b.tipe === 'image'
+      ? '<img class="viewer-img" src="' + esc(b.url) + '" alt="' + esc(S.t + ' ' + o.nama) + '">'
+      : '<div class="viewer-file">' + ic(b.tipe === 'pdf' ? 'file' : S.i, 44) +
+          '<b>' + esc(b.nama) + '</b>' +
+          '<span>' + (b.contoh ? 'Berkas contoh, tidak ada gambar aslinya.' : 'Pratinjau PDF tidak tersedia di mockup.') +
+          '</span></div>') +
+    '</div>' +
+    '<div class="viewer-foot">' +
+      '<button class="btn" data-vganti="' + ref + '">' + ic('camera', 17) + ' Ganti</button>' +
+      '<button class="btn danger" data-vhapus="' + ref + '">' + ic('trash', 17) + ' Hapus</button>' +
+    '</div>';
+  phone.append(penampilEl);
+}
+
+function tutupPenampil() { if (penampilEl) { penampilEl.remove(); penampilEl = null; } }
+
+/* ═══════════════════════════════════════════════
    9. ROUTER
    ═══════════════════════════════════════════════ */
 const phone  = document.getElementById('phone');
@@ -2439,6 +2582,7 @@ function nilaiBerubah() {
 function terapkanHash() {
   const rute = location.hash.replace(/^#\/?/, '') || 'home';
   if (rute === saatIni) return;
+  tutupPenampil();
   /* Menutup modal: layar di bawahnya masih utuh, tinggal diturunkan */
   if (modalEl && !isModal(rute) && baseEl && baseEl.dataset.route === rute) {
     saatIni = rute;
@@ -2502,7 +2646,8 @@ phone.addEventListener('click', e => {
   const t = e.target.closest(
     '[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f],' +
     '[data-form],[data-set],[data-toggle],[data-radio],[data-addkomp],[data-delkomp],' +
-    '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan],[data-hapuscat]');
+    '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan],[data-hapuscat],' +
+    '[data-dok],[data-vtutup],[data-vganti],[data-vhapus]');
   if (!t) return;
 
   if (t.dataset.tab !== undefined) {
@@ -2611,6 +2756,22 @@ phone.addEventListener('click', e => {
     return;
   }
 
+  if (t.dataset.dok) {
+    const [id, slot, idx] = t.dataset.dok.split('|');
+    if (berkasDi(id, slot, idx)) bukaPenampil(id, slot, idx); else pilihBerkas(id, slot, idx);
+    return;
+  }
+  if (t.hasAttribute('data-vtutup')) { tutupPenampil(); return; }
+  if (t.dataset.vganti) { const [id, slot, idx] = t.dataset.vganti.split('|'); pilihBerkas(id, slot, idx); return; }
+  if (t.dataset.vhapus) {
+    const [id, slot, idx] = t.dataset.vhapus.split('|');
+    const d = dokOf(pemilik(id));
+    if (slot === 'lain') lepasUrl(d.lain.splice(+idx, 1)[0]);
+    else { lepasUrl(d[slot]); d[slot] = null; }
+    tutupPenampil(); segarkanForm(); toast('Berkas dihapus');
+    return;
+  }
+
   if (t.dataset.go) { closeSheet(); ke(t.dataset.go); return; }
   if (t.hasAttribute('data-back')) { history.back(); return; }
   if (t.dataset.sheet) { openSheet(t.dataset.sheet); return; }
@@ -2633,6 +2794,7 @@ phone.addEventListener('input', e => {
 window.addEventListener('hashchange', terapkanHash);
 window.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (penampilEl) { tutupPenampil(); return; }
   if (sheetEl) closeSheet();
   else if (depth(saatIni) > 0) history.back();
 });

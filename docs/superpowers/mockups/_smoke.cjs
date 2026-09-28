@@ -606,6 +606,64 @@ step('R3 simpan memperbarui layar penghuni di bawahnya', async () => {
   return 'Maria -> Maria Goreti';
 });
 
+/* Berkas palsu untuk <input type=file>: jsdom tak bisa membuka pemilih sungguhan */
+const suntikBerkas = (nama, tipe) => {
+  const inp = D.getElementById('berkas-in');
+  if (!inp) throw new Error('input berkas tidak dibuat');
+  Object.defineProperty(inp, 'files', { value: [new window.File(['x'], nama, { type: tipe })], configurable: true });
+  inp.dispatchEvent(new window.Event('change'));
+  return inp;
+};
+let urlDilepas = 0;
+
+step('R3 unggah KTP lewat pemilih berkas', async () => {
+  window.URL.createObjectURL = f => 'blob:uji/' + f.name;
+  window.URL.revokeObjectURL = () => { urlDilepas++; };
+  await hash('#/tenant/p1-102');
+  const ktp = q('[data-dok="p1-102|ktp|"]');
+  if (!ktp || ktp.classList.contains('filled')) throw new Error('KTP harusnya masih kosong');
+  rawClick(ktp);
+  const inp = D.getElementById('berkas-in');
+  if (!inp) throw new Error('input berkas tidak dibuat');
+  if (inp.getAttribute('capture') !== 'environment') throw new Error('KTP harus pakai kamera belakang');
+  if (inp.accept !== 'image/*') throw new Error('accept: ' + inp.accept);
+  suntikBerkas('ktp-fahril.jpg', 'image/jpeg');
+  const baru = q('[data-dok="p1-102|ktp|"]');
+  if (!baru.classList.contains('has-img')) throw new Error('ubin tidak berubah jadi thumbnail');
+  if (baru.querySelector('img').getAttribute('src') !== 'blob:uji/ktp-fahril.jpg') throw new Error('src salah');
+  return 'thumbnail ' + baru.querySelector('img').getAttribute('src');
+});
+
+step('R3 penampil: buka, ganti, hapus', () => {
+  rawClick(q('[data-dok="p1-102|ktp|"]'));
+  if (!q('.viewer')) throw new Error('penampil tidak terbuka');
+  if (q('.viewer-img').getAttribute('src') !== 'blob:uji/ktp-fahril.jpg') throw new Error('gambar penampil salah');
+  rawClick(q('[data-vganti]'));
+  suntikBerkas('ktp-baru.jpg', 'image/jpeg');
+  if (q('.viewer')) throw new Error('penampil tidak menutup setelah ganti');
+  if (urlDilepas !== 1) throw new Error('URL lama tidak dilepas: ' + urlDilepas);
+  if (q('[data-dok="p1-102|ktp|"] img').getAttribute('src') !== 'blob:uji/ktp-baru.jpg') throw new Error('gambar tidak terganti');
+  rawClick(q('[data-dok="p1-102|ktp|"]'));
+  rawClick(q('[data-vhapus]'));
+  if (q('.viewer')) throw new Error('penampil tidak menutup setelah hapus');
+  if (q('[data-dok="p1-102|ktp|"]').classList.contains('filled')) throw new Error('ubin masih terisi');
+  if (urlDilepas !== 2) throw new Error('URL tidak dilepas saat hapus: ' + urlDilepas);
+  return 'ganti + hapus, ' + urlDilepas + ' URL dilepas';
+});
+
+step('R3 tambah PDF sebagai berkas lain', () => {
+  rawClick(q('[data-dok="p1-102|lain|new"]'));
+  const inp = D.getElementById('berkas-in');
+  if (inp.hasAttribute('capture')) throw new Error('berkas lain tidak boleh memaksa kamera');
+  if (!inp.accept.includes('application/pdf')) throw new Error('PDF tidak diterima: ' + inp.accept);
+  suntikBerkas('kontrak.pdf', 'application/pdf');
+  const ubin = q('[data-dok="p1-102|lain|0"]');
+  if (!ubin || !ubin.textContent.includes('kontrak.pdf')) throw new Error('ubin PDF tidak muncul');
+  if (ubin.querySelector('img')) throw new Error('PDF tidak boleh jadi thumbnail gambar');
+  if (A().includes('Kelola')) throw new Error('tautan Kelola masih ada');
+  return 'kontrak.pdf';
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
