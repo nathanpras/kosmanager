@@ -2,7 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 28 September 2026 · `npm run test:run` 221/221 hijau
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 221/221 hijau ·
+mockup `_smoke.cjs` 80/80 hijau
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -15,7 +16,7 @@ Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 | Jalur | Isi | Status |
 |---|---|---|
 | **A. Aplikasi** | Vue 3 + Pinia + Firestore di `src/` | Aktif dikembangkan. Tampilan desktop dianggap selesai. |
-| **B. Prototype mobile** | Mockup HTML sekali pakai bergaya aplikasi **Kamaru**, di `docs/superpowers/mockups/` | Ronde 1, 2, dan 3 selesai. Belum di-port ke `src/`. |
+| **B. Prototype mobile** | Mockup HTML sekali pakai bergaya aplikasi **Kamaru**, di `docs/superpowers/mockups/` | Ronde 1–4 selesai. Belum di-port ke `src/`. |
 
 Jalur B **tidak menyentuh `src/` sama sekali**.
 
@@ -84,10 +85,11 @@ kali mockup diterbitkan ulang.
 
 | Berkas | Isi |
 |---|---|
-| `docs/superpowers/specs/2026-09-27-kosmanager-mobile-kamaru-design.md` | Kontrak desain yang sudah disetujui |
+| `docs/superpowers/specs/2026-09-27-kosmanager-mobile-kamaru-design.md` | Kontrak desain ronde 1–3 |
+| `docs/superpowers/specs/2026-10-01-kosmanager-mobile-ronde-4-design.md` | Kontrak desain ronde 4 |
 | `docs/superpowers/mockups/kosmanager-mobile.html` | Mockup, satu berkas mandiri |
-| `docs/superpowers/mockups/_smoke.cjs` | 66 langkah uji di jsdom |
-| `docs/superpowers/mockups/_shots.cjs` | 28 potret layar via chromium |
+| `docs/superpowers/mockups/_smoke.cjs` | 80 langkah uji di jsdom |
+| `docs/superpowers/mockups/_shots.cjs` | 38 potret layar via chromium (Windows, macOS, Linux) |
 
 ```
 # mockup — cukup buka berkasnya, tidak perlu server
@@ -143,14 +145,34 @@ di link hidup dari HP, jadi belum pasti sandbox artifact mengizinkan navigasi
 ke `wa.me`. Kalau ternyata diblokir, tambahkan tombol "Salin pesan" sesuai
 Tugas 7 langkah 4 di rencana.
 
+**Ronde 4 — uang dan kontrak sewa.** Kontraknya ada di
+`docs/superpowers/specs/2026-10-01-kosmanager-mobile-ronde-4-design.md`.
+Enam sheet baru menutup sepuluh jalan buntu:
+
+- **Tambah transaksi** — satu sheet bersegmen Tagihan / Deposit / Biaya lain;
+  jenis bisa diganti tanpa sheet ditutup.
+- **Ubah harga**, **Ubah masa tinggal** (check-out terbuka atau bertanggal),
+  **Pindah kamar**, **Hapus sewa**, dan **Catat pengeluaran**.
+
+Semuanya benar-benar mengubah data. Tiga hal yang jangan sampai terbalik saat
+port nanti:
+
+- Tagihan dan biaya lain masuk `TAGIHAN[rid]`, **bukan** `TXN`. Hanya deposit
+  dan pengeluaran yang menyentuh arus kas properti. Tagihan itu kewajiban.
+- "Hapus sewa" memindahkan penghuni ke riwayat, tidak menghapus barisnya —
+  sama seperti `tgl_keluar` di aplikasi.
+- Pindah kamar memakai aturan 23 Agustus: bulan berjalan tetap ditagih kamar
+  lama penuh, kamar baru mulai tanggal 1 bulan berikutnya.
+
 ### Berikutnya — belum dikerjakan
 
 1. **Port ke aplikasi.** Lapis `@layer tokens` dan `@layer components` di dalam
    mockup sengaja ditulis untuk disalin utuh ke `src/style.css`; hanya lapis
    `screens` dan markup yang perlu dirakit ulang jadi komponen Vue.
-2. **Ronde 4 kandidat.** Tombol yang masih `soon`: foto kamar, info properti,
-   menu properti/kamar/kalender, Ubah masa tinggal, tambah tagihan/deposit/biaya
-   lain, notifikasi, dan cari di beranda.
+2. **Ronde 5 kandidat.** Sepuluh jalan buntu yang tersisa, semuanya di luar
+   tema uang: foto kamar, info properti, uploader logo properti, menu
+   properti / kamar / kalender, notifikasi, cari di beranda, cari di tab
+   Penghuni, dan tap tanggal di kalender.
 
 ### Peta data Kamaru → kosmanager
 
@@ -203,6 +225,18 @@ Di jalur B, dicatat supaya tidak terulang.
   'files')` dan mengganti `URL.createObjectURL`. Uji tautan `wa.me` memasang
   `preventDefault` di `document` sebelum mengklik. Kalau tidak, jsdom
   melaporkan "Not implemented: navigation".
+- **Kolom sempit memotong nilai tanpa memberi tanda.** Di `.fgrid.wide`
+  (`1.4fr 1fr`) kolom kanan memotong `27 Sep 2026` jadi `27 Sep 2…`, dan kolom
+  sempit mana pun memotong kategori `Transfer Tanah` jadi `Transfer…` —
+  sehingga `Gaji Pembantu` dan `Gaji Pengurus` nyaris tak terbedakan.
+  Aturannya: tanggal hanya boleh di kolom lebar atau satu baris penuh, dan
+  daftar yang nilainya bisa panjang selalu satu baris penuh. Ketiganya lolos
+  jsdom dan baru ketahuan di potret.
+- **Skrip potret sempat hanya jalan di satu sistem.** `_shots.cjs` mencari
+  chromium di `~/AppData/Local/ms-playwright`, jalur Windows, jadi di macOS ia
+  mati sebelum memotret apa pun — justru pada mesin tempat bug tata letak
+  ditemukan. Sekarang ia mencari di ketiga sistem. Repo ini dikerjakan dari
+  lebih dari satu komputer; perkakasnya harus ikut lintas sistem.
 - **Layar di bawah modal tidak digambar ulang sendiri.** Setelah modal
   menyimpan data yang tampil di layar dasar (misalnya Ubah data penghuni),
   set `dasarBasi = true` supaya layar itu dirender ulang saat modal tertutup.
