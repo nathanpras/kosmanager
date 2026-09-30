@@ -717,6 +717,243 @@ step('R3 WhatsApp mantan penghuni: tanpa template tagihan', async () => {
   closeAll();
 });
 
+/* ════════════ RONDE 4: uang dan sewa ════════════ */
+
+const bersihSheet = () => { closeAll(); qa('.is-out').forEach(el => el.remove()); };
+const nominal = (path, teks) => ketik('.sheet [data-money="' + path + '"]', teks);
+const judulSheet = () => q('.sheet-title').textContent.trim();
+const tekSheet = () => q('.sheet').textContent.replace(/\s+/g, ' ').trim();
+
+step('R4 sheet Aksi: tiga Tambah tidak lagi buntu', async () => {
+  bersihSheet();
+  await hash('#/room/p1-101');
+  rawClick(q('[data-sheet="aksi:p1-101"]'));
+  const buntu = qa('.sheet .aitem[data-act="soon"]');
+  if (buntu.length) throw new Error(buntu.length + ' item masih buntu');
+  return qa('.sheet .aitem').length + ' item, semuanya bertujuan';
+});
+
+step('R4 nominal nol menahan simpan', () => {
+  rawClick(q('.sheet [data-sheet="trx:p1-101|tagihan"]'));
+  if (!judulSheet().includes('Tambah tagihan')) throw new Error('judul: ' + judulSheet());
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('sheet menutup padahal nominal nol');
+  if (!q('.sheet .note.bad')) throw new Error('catatan merah tidak muncul');
+  return q('.sheet .note.bad').textContent.replace(/\s+/g, ' ').trim();
+});
+
+step('R4 keterangan kosong menahan simpan', () => {
+  nominal('trx.nominal', '250000');
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('sheet menutup padahal keterangan kosong');
+  if (!/Keterangan wajib/.test(q('.sheet .note.bad').textContent))
+    throw new Error(q('.sheet .note.bad').textContent);
+});
+
+step('R4 ganti jenis: judul, pintasan, dan pesan simpan ikut berubah', () => {
+  const sebelum = qa('.sheet .quick')[1].textContent.replace(/\s+/g, ' ').trim();
+  rawClick(q('.sheet [data-jenis="lain"]'));
+  if (!judulSheet().includes('biaya lain')) throw new Error('judul: ' + judulSheet());
+  const sesudah = qa('.sheet .quick')[1].textContent.replace(/\s+/g, ' ').trim();
+  if (sebelum === sesudah) throw new Error('pintasan nominal tidak berubah');
+  if (q('.sheet [data-simpan]').dataset.simpan !== 'Biaya ditambahkan')
+    throw new Error('pesan simpan: ' + q('.sheet [data-simpan]').dataset.simpan);
+  /* nominal yang sudah diketik tidak boleh hilang saat jenis diganti */
+  const nilai = q('.sheet [data-money="trx.nominal"]').value;
+  if (!/^Rp25/.test(nilai)) throw new Error('nominal hilang: ' + nilai);
+  rawClick(q('.sheet [data-jenis="tagihan"]'));
+  return sebelum + ' → ' + sesudah;
+});
+
+step('R4 tagihan masuk daftar tagihan kamar, bukan arus kas', () => {
+  ketik('.sheet [data-bind="trx.ket"]', 'Denda telat bayar');
+  const kas = window.eval("(TXN.p1 || []).length");
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup');
+  if (window.eval("(TXN.p1 || []).length") !== kas)
+    throw new Error('tagihan bocor ke arus kas properti');
+  bersihSheet();
+  rawClick(qa('.ptab')[2]);
+  if (!A().includes('Tagihan tambahan')) throw new Error('seksi tidak ada: ' + A().slice(0, 120));
+  if (!A().includes('Denda telat bayar')) throw new Error('tagihan tidak tampil: ' + A().slice(0, 140));
+  return window.eval("tagihanDi('p1-101').length") + ' tagihan tambahan, arus kas tak bertambah';
+});
+
+step('R4 deposit masuk arus kas dan menambah deposit kamar', () => {
+  rawClick(qa('.ptab')[0]);
+  const dep = window.eval("room('p1-101').deposit");
+  const kas = window.eval("(TXN.p1 || []).length");
+  rawClick(q('[data-sheet="aksi:p1-101"]'));
+  rawClick(q('.sheet [data-sheet="trx:p1-101|deposit"]'));
+  nominal('trx.nominal', '750000');
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup padahal keterangan deposit opsional');
+  if (window.eval("room('p1-101').deposit") !== dep + 750000)
+    throw new Error('deposit kamar: ' + dep + ' → ' + window.eval("room('p1-101').deposit"));
+  if (window.eval("(TXN.p1 || []).length") !== kas + 1) throw new Error('tidak masuk arus kas');
+  return 'deposit ' + dep + ' → ' + (dep + 750000) + ', arus kas +1';
+});
+
+step('R4 ubah harga mengubah tab Harga dan kartu kamar', async () => {
+  bersihSheet();
+  await hash('#/room/p1-102');
+  rawClick(qa('.ptab')[1]);
+  if (!A().includes('Rp1.800.000')) throw new Error('harga awal: ' + A().slice(0, 110));
+  rawClick(q('[data-sheet="harga:p1-102"]'));
+  nominal('harga.nominal', '0');
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('harga nol diterima');
+  nominal('harga.nominal', '1950000');
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup');
+  if (!A().includes('Rp1.950.000')) throw new Error('tab Harga belum berubah: ' + A().slice(0, 110));
+  bersihSheet();
+  await hash('#/prop/p1');
+  /* tabState masih menyimpan tab dari uji sebelumnya — kembalikan ke Kamar */
+  rawClick(qa('.ptab')[0]);
+  const kartu = qa('[data-go="room/p1-102"]').pop();
+  if (!kartu.textContent.includes('1.950.000'))
+    throw new Error('kartu kamar: ' + kartu.textContent.replace(/\s+/g, ' ').trim());
+  return 'Rp1.800.000 → Rp1.950.000 di tab Harga dan kartu kamar';
+});
+
+step('R4 check-out mendahului check-in menahan simpan', async () => {
+  bersihSheet();
+  await hash('#/room/p1-112');            /* Yosafat, check-in 27 Sep 2026 */
+  rawClick(q('[data-sheet="masa:p1-112"]'));
+  rawClick(q('.sheet [data-radio="masa.tutup|tanggal"]'));
+  if (!q('.sheet [data-sheet="tanggal:masa.keluar"]'))
+    throw new Error('pemilih check-out tidak muncul setelah radio dipilih');
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('tersimpan tanpa tanggal check-out');
+  rawClick(q('.sheet [data-sheet="tanggal:masa.keluar"]'));
+  rawClick(q('.sheet [data-set="masa.keluar|2026-09-01"]'));
+  if (!judulSheet().includes('Ubah masa tinggal'))
+    throw new Error('pemilih tidak kembali ke induknya: ' + judulSheet());
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('check-out sebelum check-in diterima');
+  return q('.sheet .note.bad').textContent.replace(/\s+/g, ' ').trim();
+});
+
+step('R4 masa tinggal tersimpan dan tampil di kartu', () => {
+  rawClick(q('.sheet [data-sheet="tanggal:masa.keluar"]'));
+  rawClick(q('.sheet [data-scal="1"]'));                       /* Oktober 2026 */
+  rawClick(q('.sheet [data-set="masa.keluar|2026-10-31"]'));
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup');
+  if (!A().includes('31 Okt 2026')) throw new Error('check-out tidak tampil: ' + A().slice(0, 170));
+  return 'check-out ' + window.eval("room('p1-112').keluar");
+});
+
+step('R4 pindah kamar memindahkan penghuni dan meninggalkan jejak', async () => {
+  bersihSheet();
+  await hash('#/room/p1-105');            /* Henri, Rp1.700.000 */
+  rawClick(q('[data-sheet="aksi:p1-105"]'));
+  rawClick(q('.sheet [data-sheet="sewa:p1-105"]'));
+  rawClick(q('.sheet [data-sheet="pindah:p1-105"]'));
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('tersimpan tanpa kamar tujuan');
+  rawClick(q('.sheet [data-sheet="pilih:kamarKosong|pindah.tujuan"]'));
+  if (!qa('.sheet .pick').length) throw new Error('daftar kamar kosong tidak ada isinya');
+  rawClick(q('.sheet [data-set="pindah.tujuan|p1-203"]'));
+  if (!/mulai ditagih 1 Oktober 2026/.test(tekSheet()))
+    throw new Error('aturan tagih tidak tertulis: ' + tekSheet().slice(0, 220));
+  if (!/kamar 105.+penuh/.test(tekSheet())) throw new Error('kamar lama tidak disebut');
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup');
+  if (window.eval("room('p1-105').status") !== 'kosong') throw new Error('kamar asal tidak dikosongkan');
+  if (window.eval("room('p1-203').nama") !== 'Henri')
+    throw new Error('kamar tujuan: ' + window.eval("room('p1-203').nama"));
+  if (window.eval("room('p1-203').harga") !== 1700000)
+    throw new Error('harga tidak ikut pindah: ' + window.eval("room('p1-203').harga"));
+  bersihSheet();
+  await hash('#/hist/p1-105');
+  if (!T().includes('Pindah ke kamar 203')) throw new Error('jejak tidak ada: ' + T().slice(0, 170));
+  return 'Henri 105 → 203, harga ikut, jejak tercatat di kamar asal';
+});
+
+step('R4 properti tanpa kamar kosong mematikan Simpan', async () => {
+  window.eval("roomsOf('p2').filter(r => r.status === 'kosong')" +
+              ".forEach(r => { r.status = 'lunas'; r.nama = 'Uji Penuh'; r.harga = 1400000; })");
+  await hash('#/room/p2-A1');
+  rawClick(q('[data-sheet="aksi:p2-A1"]'));
+  rawClick(q('.sheet [data-sheet="sewa:p2-A1"]'));
+  rawClick(q('.sheet [data-sheet="pindah:p2-A1"]'));
+  if (q('.sheet [data-simpan]')) throw new Error('tombol Simpan masih ada');
+  if (!q('.sheet .note.bad')) throw new Error('catatan merah tidak muncul');
+  if (!q('.sheet [data-tutup]')) throw new Error('tidak ada tombol Tutup');
+  const pesan = q('.sheet .note.bad').textContent.replace(/\s+/g, ' ').trim();
+  bersihSheet();
+  window.eval("['p2-A3','p2-B2','p2-B6'].forEach(id => " +
+              "Object.assign(room(id), { status: 'kosong', nama: '', harga: 0 }))");
+  return pesan;
+});
+
+step('R4 hapus sewa butuh dua ketukan dan menaruh penghuni di riwayat', async () => {
+  await hash('#/room/p1-109');            /* Rendi Saputra */
+  rawClick(q('[data-sheet="aksi:p1-109"]'));
+  rawClick(q('.sheet [data-sheet="sewa:p1-109"]'));
+  rawClick(q('.sheet [data-sheet="hapus:p1-109"]'));
+  if (q('.sheet [data-simpan]')) throw new Error('sheet hapus tidak boleh punya tombol Simpan');
+  rawClick(q('.sheet [data-hapussewa]'));
+  if (tutup()) throw new Error('satu ketukan sudah mengakhiri sewa');
+  if (!q('.sheet [data-hapussewa]').classList.contains('danger'))
+    throw new Error('tombol tidak berubah jadi danger');
+  rawClick(q('.sheet [data-hapussewa]'));
+  if (!tutup()) throw new Error('ketukan kedua tidak menutup sheet');
+  if (window.eval("room('p1-109').status") !== 'kosong') throw new Error('kamar tidak dikosongkan');
+  bersihSheet();
+  await hash('#/hist/p1-109');
+  if (!T().includes('Rendi Saputra')) throw new Error('tidak masuk riwayat: ' + T().slice(0, 130));
+  if (T().includes('Pindah ke kamar')) throw new Error('check-out salah ditandai sebagai pindah');
+  return 'Rendi Saputra masuk riwayat kamar 109';
+});
+
+step('R4 tombol hapus tidak tetap terkokang setelah sheet ditutup', async () => {
+  await hash('#/room/p1-111');
+  const buka = () => {
+    rawClick(q('[data-sheet="aksi:p1-111"]'));
+    rawClick(q('.sheet [data-sheet="sewa:p1-111"]'));
+    rawClick(q('.sheet [data-sheet="hapus:p1-111"]'));
+  };
+  buka();
+  rawClick(q('.sheet [data-hapussewa]'));      /* sekali: terkokang */
+  bersihSheet();
+  buka();
+  if (q('.sheet [data-hapussewa]').classList.contains('danger')) throw new Error('masih terkokang');
+  if (window.eval("room('p1-111').status") === 'kosong')
+    throw new Error('sewa berakhir padahal baru satu ketukan');
+  bersihSheet();
+  return 'dibuka ulang → kembali butuh dua ketukan';
+});
+
+step('R4 pengeluaran mengisi properti yang tadinya kosong', async () => {
+  await hash('#/prop/p2');
+  rawClick(qa('.ptab')[1]);
+  if (!A().includes('Belum ada transaksi')) throw new Error('p2 harusnya kosong: ' + A().slice(0, 130));
+  if (!q('.fab').textContent.includes('Pengeluaran'))
+    throw new Error('label FAB: ' + q('.fab').textContent.trim());
+  rawClick(q('.fab'));
+  if (!judulSheet().includes('Catat pengeluaran')) throw new Error('judul: ' + judulSheet());
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('tersimpan tanpa nominal');
+  nominal('keluar.nominal', '480000');
+  rawClick(q('.sheet [data-simpan]'));
+  if (tutup()) throw new Error('tersimpan tanpa keterangan');
+  ketik('.sheet [data-bind="keluar.ket"]', 'Token listrik blok A');
+  rawClick(q('.sheet [data-sheet="pilih:kategori|keluar.kategori"]'));
+  rawClick(q('.sheet [data-set="keluar.kategori|Perbaikan"]'));
+  if (!judulSheet().includes('Catat pengeluaran'))
+    throw new Error('pemilih kategori tidak kembali ke induknya: ' + judulSheet());
+  rawClick(q('.sheet [data-simpan]'));
+  if (!tutup()) throw new Error('sheet tidak menutup');
+  if (!A().includes('Token listrik blok A')) throw new Error('tidak tampil: ' + A().slice(0, 170));
+  if (!A().includes('Perbaikan')) throw new Error('kategori tidak ikut tercatat');
+  if (!A().includes('Keluar')) throw new Error('ringkasan masuk/keluar tidak muncul');
+  bersihSheet();
+  return window.eval("TXN.p2.length") + ' baris di arus kas p2, Rp480.000 keluar';
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
