@@ -1035,8 +1035,17 @@ const ROOMS = [
   daruratHp: nama ? '0813 ' + String(21098765 - i * 211).slice(0, 4) + ' ' + String(21098765 - i * 211).slice(4, 8) : '',
   tglTagih: nama ? ((i % 4) * 5 + 5) : 0,
   deposit: nama ? (harga >= 1700000 ? 1000000 : 500000) : 0,
+  /* Kosong = masa tinggal terbuka. Diisi lewat sheet Ubah masa tinggal. */
+  keluar: '',
   dok: { wajah: i % 3 !== 2, ktp: i % 2 === 0, berkas: i % 5 === 0 },
 }));
+
+/* Tagihan tambahan di luar sewa bulanan, per kamar. Lahir dari sheet Tambah
+   transaksi. Ini kewajiban, bukan uang yang sudah diterima — karena itu tidak
+   pernah masuk TXN, yang isinya arus kas properti. */
+const TAGIHAN = {};
+let nomorTagihan = 0;
+const tagihanDi = rid => (TAGIHAN[rid] || []).slice().sort((a, b) => b.tgl.localeCompare(a.tgl));
 
 const TXN = {
   p1: [
@@ -1381,7 +1390,7 @@ VIEWS.prop = (pid, tab = 0) => {
   const tabTxn = !t.length
     ? '<div class="sechead"><h2>Transaksi</h2></div>' +
       emptyBox('Belum ada transaksi',
-        'Catat pemasukan dan pengeluaran properti ini — perbaikan, listrik, air — lewat tombol Transaksi.')
+        'Catat pengeluaran properti ini — perbaikan, listrik, air — lewat tombol Pengeluaran.')
     : (() => {
         const masuk  = t.filter(x => x.n > 0).reduce((a, b) => a + b.n, 0);
         const keluar = t.filter(x => x.n < 0).reduce((a, b) => a + b.n, 0);
@@ -1411,14 +1420,15 @@ VIEWS.prop = (pid, tab = 0) => {
     navRow('info',  'Info properti',    p.daerah) +
   '</div>';
 
-  const fab = ['Kamar', 'Transaksi', ''][tab];
+  const fab = ['Kamar', 'Pengeluaran', ''][tab];
 
   return chrome({ back: true, title: p.nama, actions: [{ icon: 'more', act: 'soon', label: 'Menu properti' }] }) +
     '<div class="scroll">' + bigtitle(p.nama) +
       ptabs(['Kamar', 'Transaksi', 'Lainnya'], tab) +
       '<div data-tabbody>' + [tabKamar, tabTxn, tabLain][tab] + '</div>' +
     '</div>' +
-    (fab ? '<button class="fab" ' + (tab === 0 ? 'data-sheet="kamar:' + pid + '"' : 'data-act="soon"') + '>' +
+    (fab ? '<button class="fab" data-sheet="' +
+           (tab === 0 ? 'kamar:' + pid : 'keluar:' + pid) + '">' +
            ic('plus', 20) + '<span class="fab-label">' + fab + '</span></button>' : '');
 };
 
@@ -1443,13 +1453,15 @@ VIEWS.room = (rid, tab = 0) => {
         '</button>' +
         '<div class="lease-head" style="padding-top:14px;border-top:1px solid var(--hair)">' +
           '<span class="mlabel">Masa tinggal</span>' +
-          '<button class="link" data-act="soon">Ubah</button>' +
+          '<button class="link" data-sheet="masa:' + r.id + '">Ubah</button>' +
         '</div>' +
         '<div class="lease-grid"><div class="kv">' +
           '<div><div class="mlabel">Check-in</div><div class="mval">' + tgl(r.masuk) +
             '<span class="sub">' + esc(r.jam) + '</span></div></div>' +
-          '<div><div class="mlabel">Check-out</div><div class="mval muted">Terbuka' +
-            '<span class="sub">tanpa batas</span></div></div>' +
+          '<div><div class="mlabel">Check-out</div>' + (r.keluar
+            ? '<div class="mval">' + tgl(r.keluar) +
+              '<span class="sub">' + lamaTinggal(r.masuk, r.keluar) + '</span></div>'
+            : '<div class="mval muted">Terbuka<span class="sub">tanpa batas</span></div>') + '</div>' +
           '<div><div class="mlabel">Durasi</div><div class="mval">' + durasi(r.masuk) +
             '<span class="sub">' + (r.status === 'booked' ? 'belum mulai' : 'berjalan') + '</span></div></div>' +
           '<div><div class="mlabel">Jumlah orang</div><div class="mval">' + r.orang + ' orang</div></div>' +
@@ -1485,12 +1497,27 @@ VIEWS.room = (rid, tab = 0) => {
       ['Tipe kamar',         r.harga >= 1750000 ? 'Kamar mandi dalam' : 'Kamar mandi luar'],
     ].map(([k, v]) => '<div class="drow"><dt>' + k + '</dt><dd>' + v + '</dd></div>').join('') + '</dl>' +
     '<div style="height:16px"></div>' +
-    '<button class="btn brandsoft block" data-act="soon">' + ic('edit', 17) + ' Ubah harga kamar</button>';
+    '<button class="btn brandsoft block" data-sheet="harga:' + r.id + '">' +
+      ic('edit', 17) + ' Ubah harga kamar</button>';
 
+  /* Tagihan tambahan dari sheet Tambah transaksi, di atas sewa bulanan */
+  const extra = tagihanDi(r.id);
   const tabTxn = kosong
     ? '<div class="sechead"><h2>Transaksi</h2></div>' +
       emptyBox('Belum ada transaksi', 'Transaksi muncul di sini setelah kamar punya penghuni.')
-    : '<div class="sechead"><h2>Tagihan kamar ' + esc(r.no) + '</h2></div>' +
+    : (extra.length
+        ? '<div class="sechead"><h2>Tagihan tambahan</h2><span class="count">' + extra.length + '</span></div>' +
+          '<div class="card flush divide stagger">' + extra.map(x =>
+            '<div class="lrow">' +
+              '<span class="av sm ghost">' + ic(x.jenis === 'lain' ? 'plus' : 'receipt', 17) + '</span>' +
+              '<span class="lrow-body">' +
+                '<span class="lrow-title" style="font-size:14.5px">' + esc(x.ket) + '</span>' +
+                /* Tanpa kata "jatuh tempo": chip status memakan lebar, dan
+                   barisnya terpotong jadi "… jatuh tempo 01 …". */
+                '<span class="lrow-sub">' + rp(x.nominal) + ' · ' + tgl(x.tempo) + '</span>' +
+              '</span>' + statusChip(x.status) + '</div>').join('') + '</div>'
+        : '') +
+      '<div class="sechead"><h2>Tagihan kamar ' + esc(r.no) + '</h2></div>' +
       '<div class="card flush divide stagger">' + [0, 1, 2].map(i => {
         const d = new Date(TODAY.getFullYear(), TODAY.getMonth() - i, Number(r.masuk.split('-')[2]));
         const st = i === 0 ? (r.status === 'booked' ? 'belum' : r.status) : 'lunas';
@@ -1534,7 +1561,10 @@ VIEWS.hist = scope => {
                 '<span class="lrow-title">' + esc(x.nama) + '</span>' +
                 '<span class="lrow-sub">' + tgl(x.masuk) + ' – ' + tgl(x.keluar) + '</span>' +
                 '<span class="lrow-sub">' + (perKamar ? '' : 'Kamar ' + esc(x.no) + ' · ') +
-                  lamaTinggal(x.masuk, x.keluar) + '</span>' +
+                  /* Yang pindah kamar masih menghuni; yang dicatat di sini
+                     hanya bahwa ia tidak lagi di kamar ini. */
+                  (x.pindahKe ? 'Pindah ke kamar ' + esc(x.pindahKe)
+                              : lamaTinggal(x.masuk, x.keluar)) + '</span>' +
               '</span>' +
               '<span class="chev">' + ic('chev', 18) + '</span>' +
             '</button>').join('') + '</div>'
@@ -1590,7 +1620,9 @@ function profilPenghuni(o, bekas) {
         '<h2>' + esc(o.nama) + '</h2>' +
         '<div class="profile-chips">' +
           '<span class="chip brand">Kamar ' + esc(o.no) + '</span>' +
-          (bekas ? '<span class="chip mute">Mantan penghuni</span>' : statusChip(o.status)) +
+          (bekas
+            ? '<span class="chip mute">' + (o.pindahKe ? 'Pindah kamar' : 'Mantan penghuni') + '</span>'
+            : statusChip(o.status)) +
         '</div>' +
         '<div class="profile-btns">' +
           '<button class="btn primary" data-sheet="wa:' + o.id + '|tagih">' + ic('wa', 17) + ' WhatsApp</button>' +
@@ -1735,10 +1767,20 @@ const FORM = {
   catatan: { kunci: '', scope: '', id: '', tgl: '2026-09-27', teks: '', yakin: false, galat: '' },
   edit:    { rid: '', nama: '', hp: '', kelamin: '', asal: '', kerja: '', darurat: '', daruratHp: '', galat: '' },
   wa:      { kunci: '', id: '', tpl: 'kosong', teks: '' },
+  trx:     { kunci: '', rid: '', jenis: 'tagihan', nominal: 0, ket: '',
+             tgl: '2026-09-27', tempo: '2026-10-05', galat: '' },
+  /* `kunci` bikin openSheet() membuang sisa ketikan saat sheet dibuka dari luar.
+     Untuk Hapus sewa itu wajib: tombol dua langkah tidak boleh tetap terkokang. */
+  harga:   { kunci: '', rid: '', nominal: 0, mulai: '2026-10-01', galat: '' },
+  masa:    { kunci: '', rid: '', masuk: '', jam: '', tutup: 'terbuka', keluar: '', orang: 1, galat: '' },
+  pindah:  { kunci: '', rid: '', tujuan: '', tgl: '2026-09-27', galat: '' },
+  hapus:   { kunci: '', rid: '', yakin: false },
+  keluar:  { kunci: '', pid: '', nominal: 0, kategori: 'Listrik', ket: '', tgl: '2026-09-27', galat: '' },
 };
 
 /* Satu-satunya jalur yang nilainya benar-benar angka */
-const NUMERIK = ['tenant.orang', 'bayar.nominal'];
+const NUMERIK = ['tenant.orang', 'bayar.nominal', 'trx.nominal', 'harga.nominal',
+                 'masa.orang', 'keluar.nominal'];
 
 const getF = path => { const k = path.split('.'); return FORM[k[0]][k[1]]; };
 const setF = (path, v) => { const k = path.split('.'); FORM[k[0]][k[1]] = v; };
@@ -1762,7 +1804,19 @@ const LISTS = {
                      'Tangerang','Bekasi'].map(v => ({ v, l: v })) }),
   metode:   () => ({ judul: 'Metode pembayaran', opsi: ['Transfer bank','Tunai','QRIS','E-wallet']
                      .map(v => ({ v, l: v })) }),
+  /* Hanya kamar kosong di properti yang sama boleh jadi tujuan pindah */
+  kamarKosong: () => {
+    const asal = room(FORM.pindah.rid);
+    return { judul: 'Pindah ke kamar', opsi: roomsOf(asal.prop)
+      .filter(r => r.status === 'kosong')
+      .map(r => ({ v: r.id, l: 'Kamar ' + r.no + ' · kosong' })) };
+  },
+  /* Nama-nama yang sama dengan KATEGORI_PENGELUARAN di src/utils/kategoriPengeluaran.ts */
+  kategori: () => ({ judul: 'Kategori pengeluaran', opsi: KATEGORI.map(v => ({ v, l: v })) }),
 };
+
+const KATEGORI = ['Listrik','Air','Internet','Kebersihan','Perbaikan','Deposit Balik',
+                  'Gaji Pembantu','Gaji Pengurus','Iuran','Transfer Tanah','Pajak','Lainnya'];
 
 /* Templat pesan; "telat" sama dengan DEFAULT_TEMPLATE di src/composables/useWAReminder.ts */
 const TPL_WA = {
@@ -2098,9 +2152,12 @@ const SHEETS = {
     const r = room(rid);
     return { title: 'Pilih aksi', sub: r.nama + ' · Kamar ' + r.no, items: [
       { i: 'money',   t: 'Catat pembayaran',  s: 'Tandai sewa periode ini sudah dibayar', sheet: 'bayar:' + r.id },
-      { i: 'receipt', t: 'Tambah tagihan',    s: 'Buat tagihan di luar sewa bulanan' },
-      { i: 'wallet',  t: 'Tambah deposit',    s: 'Catat uang jaminan yang diterima' },
-      { i: 'plus',    t: 'Tambah biaya lain', s: 'Listrik, air, denda, atau kerusakan' },
+      { i: 'receipt', t: 'Tambah tagihan',    s: 'Buat tagihan di luar sewa bulanan',
+        sheet: 'trx:' + r.id + '|tagihan' },
+      { i: 'wallet',  t: 'Tambah deposit',    s: 'Catat uang jaminan yang diterima',
+        sheet: 'trx:' + r.id + '|deposit' },
+      { i: 'plus',    t: 'Tambah biaya lain', s: 'Listrik, air, denda, atau kerusakan',
+        sheet: 'trx:' + r.id + '|lain' },
       { i: 'door',    t: 'Lihat kamar',       s: 'Buka detail kamar ' + r.no, go: 'room/' + r.id },
       { i: 'sliders', t: 'Pengaturan sewa',   s: 'Harga, masa tinggal, pindah kamar', sheet: 'sewa:' + r.id, chev: 1 },
     ] };
@@ -2238,11 +2295,202 @@ const SHEETS = {
   sewa: rid => {
     const r = room(rid);
     return { title: 'Pengaturan sewa', sub: r.nama + ' · Kamar ' + r.no, items: [
-      { i: 'money', t: 'Ubah harga',        s: 'Sekarang ' + rp(r.harga) + ' / bulan' },
-      { i: 'cal',   t: 'Ubah masa tinggal', s: 'Check-in ' + tgl(r.masuk) },
-      { i: 'move',  t: 'Pindah kamar',      s: 'Pindahkan penghuni ke kamar lain' },
-      { i: 'trash', t: 'Hapus sewa',        s: 'Data sewa dan tagihannya ikut terhapus', danger: true },
+      { i: 'money', t: 'Ubah harga',        s: 'Sekarang ' + rp(r.harga) + ' / bulan',
+        sheet: 'harga:' + r.id },
+      { i: 'cal',   t: 'Ubah masa tinggal', s: 'Check-in ' + tgl(r.masuk),
+        sheet: 'masa:' + r.id },
+      { i: 'move',  t: 'Pindah kamar',      s: 'Pindahkan penghuni ke kamar lain',
+        sheet: 'pindah:' + r.id },
+      { i: 'trash', t: 'Hapus sewa',        s: 'Penghuni pindah ke riwayat, datanya tetap ada',
+        sheet: 'hapus:' + r.id, danger: true },
     ] };
+  },
+
+  /* ── Ronde 4: uang dan kontrak sewa ───────── */
+
+  /* Tiga jenis dalam satu sheet; jenis bisa diganti tanpa menutup sheet */
+  trx: arg => {
+    const [rid, jenis] = arg.split('|');
+    const r = room(rid);
+    const F = FORM.trx;
+    if (F.kunci !== arg) Object.assign(F, { kunci: arg, rid, jenis, nominal: 0, ket: '',
+                                           tgl: '2026-09-27', tempo: awalBulanDepan(), galat: '' });
+    const J = TRX_JENIS[F.jenis];
+    const tagih = F.jenis === 'tagihan';
+    return {
+      title: J.judul,
+      sub: r.nama + ' · Kamar ' + r.no,
+      html: '<div class="quick" style="padding:6px 10px 14px">' + Object.keys(TRX_JENIS).map(k =>
+          '<button class="fchip' + (F.jenis === k ? ' is-on' : '') + '" data-jenis="' + k + '">' +
+            TRX_JENIS[k].l + '</button>').join('') + '</div>' +
+        '<div class="fstack" style="padding:0 10px 4px">' +
+          fMoney({ lbl: 'Nominal', req: 1, path: 'trx.nominal', help: J.bantu(r) }) +
+        '</div>' +
+        /* Nol bukan keadaan, melainkan tindakan: "Kosongkan" tidak pernah menyala,
+           supaya sheet yang baru dibuka tidak terlihat seperti sudah dipilihkan. */
+        '<div class="quick" style="padding:10px 10px 4px">' + J.cepat(r).map(([l, v]) =>
+          '<button class="fchip' + (v && F.nominal === v ? ' is-on' : '') + '" data-set="trx.nominal|' + v + '">' +
+          l + '</button>').join('') + '</div>' +
+        '<div class="fstack" style="padding:14px 10px 4px">' +
+          fText({ lbl: 'Keterangan', req: J.ketWajib ? 1 : 0, path: 'trx.ket', ph: J.ph, max: 60 }) +
+          /* Dua tanggal ditumpuk, tidak disandingkan: kolom sempit .fgrid
+             memotong "01 Okt 2026" jadi "01 Okt 2…". */
+          fDate({ lbl: 'Tanggal', path: 'trx.tgl' }) +
+          (tagih ? fDate({ lbl: 'Jatuh tempo', path: 'trx.tempo' }) : '') +
+          '<div class="note info">' + ic('info', 18) + '<span>' + J.catatan + '</span></div>' +
+          (F.galat ? '<div class="note bad">' + ic('warn', 18) + '<span>' + esc(F.galat) + '</span></div>' : '') +
+        '</div>',
+      foot: [['Batal', ''], ['Simpan', J.toast]],
+    };
+  },
+
+  harga: rid => {
+    const r = room(rid);
+    const F = FORM.harga;
+    if (F.kunci !== rid) Object.assign(F, { kunci: rid, rid, nominal: r.harga,
+                                            mulai: awalBulanDepan(), galat: '' });
+    return {
+      title: 'Ubah harga',
+      sub: r.nama + ' · Kamar ' + r.no,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        fMoney({ lbl: 'Harga sewa baru', req: 1, path: 'harga.nominal',
+                 help: 'Sekarang ' + rp(r.harga) + ' / bulan' }) +
+        fDate({ lbl: 'Berlaku dari', path: 'harga.mulai' }) +
+        '<div class="note info">' + ic('info', 18) + '<span>Periode <b>' + periode(r) +
+          '</b> yang sedang berjalan tetap memakai harga lama.</span></div>' +
+        (F.galat ? '<div class="note bad">' + ic('warn', 18) + '<span>' + esc(F.galat) + '</span></div>' : '') +
+      '</div>',
+      foot: [['Batal', ''], ['Simpan', 'Harga sewa diperbarui']],
+    };
+  },
+
+  masa: rid => {
+    const r = room(rid);
+    const F = FORM.masa;
+    if (F.kunci !== rid) Object.assign(F, { kunci: rid, rid, masuk: r.masuk, jam: r.jam,
+      tutup: r.keluar ? 'tanggal' : 'terbuka', keluar: r.keluar, orang: r.orang, galat: '' });
+    return {
+      title: 'Ubah masa tinggal',
+      sub: r.nama + ' · Kamar ' + r.no,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        '<div class="fgrid wide">' + fDate({ lbl: 'Check-in', req: 1, path: 'masa.masuk' }) +
+          fPick({ lbl: 'Jam', path: 'masa.jam', list: 'jam' }) + '</div>' +
+        fPick({ lbl: 'Jumlah orang', path: 'masa.orang', list: 'orang',
+                label: v => v + ' orang' }) +
+      '</div>' +
+      fSec('cal', 'Check-out') +
+      '<div class="fstack" style="padding:0 10px 4px">' +
+        fRadio('masa.tutup', 'terbuka', 'Terbuka', 'Sewa berjalan tanpa batas waktu') +
+        fRadio('masa.tutup', 'tanggal', 'Sampai tanggal', 'Tentukan tanggal check-out') +
+        (F.tutup === 'tanggal'
+          ? fDate({ lbl: 'Tanggal check-out', req: 1, path: 'masa.keluar' }) : '') +
+        (F.galat ? '<div class="note bad">' + ic('warn', 18) + '<span>' + esc(F.galat) + '</span></div>' : '') +
+      '</div>',
+      foot: [['Batal', ''], ['Simpan', 'Masa tinggal diperbarui']],
+    };
+  },
+
+  pindah: rid => {
+    const r = room(rid);
+    const F = FORM.pindah;
+    if (F.kunci !== rid) Object.assign(F, { kunci: rid, rid, tujuan: '', tgl: '2026-09-27', galat: '' });
+    const luang = roomsOf(r.prop).filter(x => x.status === 'kosong');
+    const tuj = F.tujuan ? room(F.tujuan) : null;
+    return {
+      title: 'Pindah kamar',
+      sub: r.nama + ' · Kamar ' + r.no,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' + (luang.length
+        ? fPick({ lbl: 'Pindah ke', req: 1, path: 'pindah.tujuan', list: 'kamarKosong',
+                  label: v => v ? 'Kamar ' + room(v).no : '', ph: 'Pilih kamar kosong' }) +
+          fDate({ lbl: 'Tanggal pindah', path: 'pindah.tgl' }) +
+          '<div class="note info">' + ic('info', 18) + '<span>Bulan berjalan tetap ditagih ' +
+            '<b>kamar ' + esc(r.no) + '</b> penuh. ' +
+            (tuj ? '<b>Kamar ' + esc(tuj.no) + '</b>' : 'Kamar tujuan') +
+            ' mulai ditagih 1 ' + bulanDepan() + '. Sisa hari bulan ini tidak ditagih.</span></div>'
+        : '<div class="note bad">' + ic('warn', 18) + '<span><b>' + esc(prop(r.prop).nama) +
+          '</b> tidak punya kamar kosong. Kosongkan satu kamar dulu.</span></div>') +
+        (F.galat ? '<div class="note bad">' + ic('warn', 18) + '<span>' + esc(F.galat) + '</span></div>' : '') +
+      '</div>',
+      foot: luang.length
+        ? [['Batal', ''], ['Simpan', tuj ? 'Dipindahkan ke kamar ' + tuj.no : 'Penghuni dipindahkan']]
+        : [['Tutup', '']],
+    };
+  },
+
+  hapus: rid => {
+    const r = room(rid);
+    const F = FORM.hapus;
+    if (F.kunci !== rid) Object.assign(F, { kunci: rid, rid, yakin: false });
+    return {
+      title: 'Hapus sewa',
+      sub: r.nama + ' · Kamar ' + r.no,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        '<div class="note info">' + ic('info', 18) + '<span><b>' + esc(r.nama) +
+          '</b> dipindahkan ke riwayat kamar ' + esc(r.no) + ', bukan dihapus. ' +
+          'Datanya tetap bisa dibuka lewat Riwayat penghuni.</span></div>' +
+        '<button class="btn block' + (F.yakin ? ' danger' : '') + '" data-hapussewa>' + ic('trash', 17) +
+          (F.yakin ? ' Ketuk sekali lagi untuk mengakhiri' : ' Akhiri sewa kamar ' + esc(r.no)) +
+        '</button>' +
+      '</div>',
+    };
+  },
+
+  keluar: pid => {
+    const p = prop(pid);
+    const F = FORM.keluar;
+    if (F.kunci !== pid) Object.assign(F, { kunci: pid, pid, nominal: 0, kategori: 'Listrik',
+                                            ket: '', tgl: '2026-09-27', galat: '' });
+    return {
+      title: 'Catat pengeluaran',
+      sub: p.nama,
+      html: '<div class="fstack" style="padding:6px 10px 4px">' +
+        fMoney({ lbl: 'Nominal', req: 1, path: 'keluar.nominal' }) +
+        /* Keduanya satu baris penuh. Di .fgrid.wide kolom sempit memotong
+           "27 Sep 2026", dan kolom sempit mana pun memotong "Transfer Tanah"
+           jadi "Transfer…" — padahal "Gaji Pembantu" dan "Gaji Pengurus"
+           harus bisa dibedakan sekilas. */
+        fDate({ lbl: 'Tanggal', path: 'keluar.tgl' }) +
+        fPick({ lbl: 'Kategori', path: 'keluar.kategori', list: 'kategori' }) +
+        fText({ lbl: 'Keterangan', req: 1, path: 'keluar.ket',
+                ph: 'Mis. Token listrik lantai 2', max: 60 }) +
+        (F.galat ? '<div class="note bad">' + ic('warn', 18) + '<span>' + esc(F.galat) + '</span></div>' : '') +
+      '</div>',
+      foot: [['Batal', ''], ['Simpan', 'Pengeluaran tercatat']],
+    };
+  },
+};
+
+/* Tanggal 1 bulan berikutnya — aturan tagih kamar baru setelah pindah */
+function awalBulanDepan() {
+  const d = new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+}
+const bulanDepan = () =>
+  BLN_FULL[(TODAY.getMonth() + 1) % 12] + ' ' + (TODAY.getFullYear() + (TODAY.getMonth() === 11 ? 1 : 0));
+
+const TRX_JENIS = {
+  tagihan: {
+    l: 'Tagihan', judul: 'Tambah tagihan', ketWajib: true, toast: 'Tagihan ditambahkan',
+    ph: 'Mis. Sewa Oktober 2026',
+    bantu: r => 'Sewa sebulan ' + rp(r.harga),
+    cepat: r => [['Sewa sebulan', r.harga], ['Setengah', Math.round(r.harga / 2)], ['Kosongkan', 0]],
+    catatan: 'Masuk daftar tagihan kamar dengan status <b>Belum</b>. ' +
+             'Belum dihitung sebagai uang masuk sampai dibayar.',
+  },
+  deposit: {
+    l: 'Deposit', judul: 'Tambah deposit', ketWajib: false, toast: 'Deposit tercatat',
+    ph: 'Mis. Uang jaminan',
+    bantu: r => 'Deposit sekarang ' + rp(r.deposit),
+    cepat: r => [['Sewa sebulan', r.harga], ['Rp1.000.000', 1000000], ['Rp500.000', 500000]],
+    catatan: 'Uang yang sudah diterima: masuk arus kas properti dan menambah deposit kamar.',
+  },
+  lain: {
+    l: 'Biaya lain', judul: 'Tambah biaya lain', ketWajib: true, toast: 'Biaya ditambahkan',
+    ph: 'Mis. Listrik September',
+    bantu: () => 'Listrik, air, denda, atau kerusakan',
+    cepat: () => [['Rp50.000', 50000], ['Rp150.000', 150000], ['Rp300.000', 300000]],
+    catatan: 'Ditagihkan ke penghuni, jadi masuk daftar tagihan kamar — ' +
+             'bukan pengeluaran properti.',
   },
 };
 
@@ -2270,8 +2518,19 @@ function openSheet(spec, kembali) {
   sheetEl.className = 'sheet';
   sheetEl.setAttribute('role', 'dialog');
   sheetEl.setAttribute('aria-label', def.title);
-  sheetEl.innerHTML =
-    '<div class="sheet-grab" data-drag></div>' +
+  sheetEl.innerHTML = isiSheet(def);
+
+  phone.append(scrimEl, sheetEl);
+  wireDrag(sheetEl);
+}
+
+/* Seluruh isi sheet, termasuk judul dan kaki. Dipakai openSheet() dan
+   segarkanSheet(): judul dan tombol Simpan bisa berubah tanpa sheet ditutup —
+   sheet Tambah transaksi menggantinya setiap kali jenisnya diganti.
+   Pendengar pointer milik wireDrag() menempel di sheetEl, bukan di isinya,
+   jadi mengganti innerHTML tidak mematikan tarik-turun. */
+function isiSheet(def) {
+  return '<div class="sheet-grab" data-drag></div>' +
     '<div class="sheet-head" data-drag>' +
       '<div class="sheet-title">' + esc(def.title) + '</div>' +
       (def.sub ? '<div class="sheet-sub">' + esc(def.sub) + '</div>' : '') +
@@ -2288,9 +2547,6 @@ function openSheet(spec, kembali) {
     (def.foot ? '<div class="sheet-foot">' + def.foot.map(([l, pesan], i) =>
       '<button class="btn' + (i ? ' primary' : '') + '"' +
         (pesan ? ' data-simpan="' + pesan + '"' : ' data-tutup') + '>' + l + '</button>').join('') + '</div>' : '');
-
-  phone.append(scrimEl, sheetEl);
-  wireDrag(sheetEl);
 }
 
 function closeSheet(instan) {
@@ -2619,8 +2875,7 @@ function specSheet() {
 function segarkanSheet() {
   if (!sheetEl || !sheetSpec) return false;
   const [key, arg] = specSheet();
-  const def = SHEETS[key](arg);
-  if (def.html) sheetEl.querySelector('.sheet-body').innerHTML = def.html;
+  sheetEl.innerHTML = isiSheet(SHEETS[key](arg));
   return true;
 }
 function segarkanForm() {
@@ -2668,7 +2923,112 @@ function terapkanHash() {
    10. PENANGAN KLIK
    ═══════════════════════════════════════════════ */
 /* Penyimpan per sheet/formulir. Mengembalikan false = tahan, jangan tutup. */
+let nomorMantan = MANTAN.length;
+
+/* Arus kas properti: hanya uang yang benar-benar berpindah, terbaru di atas.
+   Tagihan tidak lewat sini — itu kewajiban, bukan uang yang sudah diterima. */
+function catatKas(pid, t, d, n) {
+  (TXN[pid] || (TXN[pid] = [])).push({ t, d, n });
+  TXN[pid].sort((a, b) => b.d.localeCompare(a.d));
+}
+
+/* Satu jalur menuju riwayat, dipakai Pindah kamar dan Hapus sewa.
+   `pindahKe` kosong berarti benar-benar check-out. */
+function keRiwayat(r, keluar, pindahKe) {
+  MANTAN.push({
+    id: 'x' + (++nomorMantan), rid: r.id, prop: r.prop, no: r.no,
+    nama: r.nama, kelamin: r.kelamin, asal: r.asal, kerja: r.kerja,
+    masuk: r.masuk, keluar, hp: r.hp, darurat: r.darurat, daruratHp: r.daruratHp,
+    dok: Object.assign({}, r.dok), pindahKe,
+  });
+}
+
+const kosongkan = r => Object.assign(r, {
+  nama: '', harga: 0, status: 'kosong', masuk: '', jam: '', keluar: '', orang: 0,
+  kelamin: '', asal: '', kerja: '', hp: '', darurat: '', daruratHp: '',
+  tglTagih: 0, deposit: 0, dok: { wajah: false, ktp: false, berkas: false },
+});
+
 const PENYIMPAN = {
+  'sheet:trx': () => {
+    const F = FORM.trx;
+    const J = TRX_JENIS[F.jenis];
+    const r = room(F.rid);
+    if (!F.nominal) { F.galat = 'Nominal harus lebih dari nol.'; segarkanSheet(); return false; }
+    if (J.ketWajib && !F.ket.trim()) {
+      F.galat = 'Keterangan wajib diisi supaya barisnya bisa dibaca di daftar.';
+      segarkanSheet(); return false;
+    }
+    if (F.jenis === 'deposit') {
+      r.deposit += F.nominal;
+      catatKas(r.prop, (F.ket.trim() || 'Deposit') + ' · Kamar ' + r.no, F.tgl, F.nominal);
+    } else {
+      (TAGIHAN[F.rid] || (TAGIHAN[F.rid] = [])).push({
+        id: 't' + (++nomorTagihan), jenis: F.jenis, ket: F.ket.trim(), nominal: F.nominal,
+        tgl: F.tgl, tempo: F.jenis === 'tagihan' ? F.tempo : F.tgl, status: 'belum',
+      });
+    }
+    F.kunci = ''; F.galat = '';
+    segarkanForm();
+    return true;
+  },
+
+  'sheet:harga': () => {
+    const F = FORM.harga;
+    if (!F.nominal) { F.galat = 'Harga sewa harus lebih dari nol.'; segarkanSheet(); return false; }
+    room(F.rid).harga = F.nominal;
+    F.kunci = ''; F.galat = '';
+    segarkanForm();
+    return true;
+  },
+
+  'sheet:masa': () => {
+    const F = FORM.masa;
+    if (F.tutup === 'tanggal') {
+      if (!F.keluar) { F.galat = 'Pilih tanggal check-out dulu.'; segarkanSheet(); return false; }
+      /* Tanggal ISO dibandingkan sebagai teks — jangan lewat new Date() */
+      if (F.keluar <= F.masuk) {
+        F.galat = 'Check-out harus setelah check-in.'; segarkanSheet(); return false;
+      }
+    }
+    Object.assign(room(F.rid), { masuk: F.masuk, jam: F.jam, orang: F.orang,
+                                 keluar: F.tutup === 'tanggal' ? F.keluar : '' });
+    F.kunci = ''; F.galat = '';
+    segarkanForm();
+    return true;
+  },
+
+  'sheet:pindah': () => {
+    const F = FORM.pindah;
+    if (!F.tujuan) { F.galat = 'Pilih kamar tujuan dulu.'; segarkanSheet(); return false; }
+    const asal = room(F.rid), tuj = room(F.tujuan);
+    keRiwayat(asal, F.tgl, tuj.no);
+    /* Harga ikut penghuni: kamar tujuan yang kosong harganya nol */
+    Object.assign(tuj, {
+      nama: asal.nama, status: asal.status, harga: tuj.harga || asal.harga,
+      masuk: asal.masuk, jam: asal.jam, keluar: asal.keluar, orang: asal.orang,
+      kelamin: asal.kelamin, asal: asal.asal, kerja: asal.kerja, hp: asal.hp,
+      darurat: asal.darurat, daruratHp: asal.daruratHp,
+      tglTagih: asal.tglTagih, deposit: asal.deposit, dok: Object.assign({}, asal.dok),
+    });
+    /* Berkas unggahan menempel di id kamar, jadi ikut dipindahkan */
+    if (DOK[asal.id]) { DOK[tuj.id] = DOK[asal.id]; delete DOK[asal.id]; }
+    kosongkan(asal);
+    F.kunci = ''; F.galat = '';
+    segarkanForm();
+    return true;
+  },
+
+  'sheet:keluar': () => {
+    const F = FORM.keluar;
+    if (!F.nominal) { F.galat = 'Nominal harus lebih dari nol.'; segarkanSheet(); return false; }
+    if (!F.ket.trim()) { F.galat = 'Keterangan wajib diisi.'; segarkanSheet(); return false; }
+    catatKas(F.pid, F.ket.trim() + ' · ' + F.kategori, F.tgl, -F.nominal);
+    F.kunci = ''; F.galat = '';
+    segarkanForm();
+    return true;
+  },
+
   'sheet:catatan': () => {
     const F = FORM.catatan;
     const teks = F.teks.trim();
@@ -2703,7 +3063,8 @@ phone.addEventListener('click', e => {
     '[data-go],[data-back],[data-sheet],[data-act],[data-tab],[data-f],' +
     '[data-form],[data-set],[data-toggle],[data-radio],[data-addkomp],[data-delkomp],' +
     '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan],[data-hapuscat],' +
-    '[data-dok],[data-vtutup],[data-vganti],[data-vhapus],[data-tpl],[data-wa]');
+    '[data-dok],[data-vtutup],[data-vganti],[data-vhapus],[data-tpl],[data-wa],' +
+    '[data-jenis],[data-hapussewa]');
   if (!t) return;
 
   if (t.dataset.tab !== undefined) {
@@ -2792,6 +3153,29 @@ phone.addEventListener('click', e => {
   }
 
   if (t.hasAttribute('data-tutup')) { closeSheet(); return; }
+
+  /* Ganti jenis transaksi tanpa menutup sheet. Judul, pintasan nominal, dan
+     pesan toast ikut berubah, jadi sheet digambar ulang utuh. */
+  if (t.dataset.jenis) {
+    const F = FORM.trx;
+    F.jenis = t.dataset.jenis;
+    F.kunci = F.rid + '|' + F.jenis;
+    sheetSpec = 'trx:' + F.kunci;
+    segarkanSheet();
+    return;
+  }
+
+  if (t.hasAttribute('data-hapussewa')) {
+    const F = FORM.hapus;
+    if (!F.yakin) { F.yakin = true; segarkanSheet(); return; }
+    const r = room(F.rid);
+    const no = r.no;
+    keRiwayat(r, '2026-09-27');
+    kosongkan(r);
+    F.kunci = '';
+    closeSheet(); segarkanForm(); toast('Sewa kamar ' + no + ' diakhiri');
+    return;
+  }
 
   if (t.hasAttribute('data-hapuscat')) {
     const F = FORM.catatan;
