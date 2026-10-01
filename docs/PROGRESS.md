@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 233/233 hijau ·
-mockup `_smoke.cjs` 95/95 hijau · **port tahap 1 selesai**
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 278/278 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–2 selesai**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -190,9 +190,20 @@ Yang perlu diingat saat port:
 Kontrak dan urutan enam tahapnya:
 `docs/superpowers/specs/2026-10-01-port-mobile-ke-aplikasi-design.md`
 
-**Tahap 1 selesai.** Fondasi berdiri: `src/style.mobile.css` hasil panen,
-`MobIcon` / `MobScreen` / `MobileShell`, rute `/m` dengan tiga tab, dan tiga
-layar yang masih kosong.
+**Tahap 1 selesai.** Fondasi: `src/style.mobile.css` hasil panen,
+`MobIcon` / `MobScreen` / `MobTabs` / `MobileShell`, rute `/m`.
+
+**Tahap 2 selesai.** Beranda, detail properti, dan detail kamar membaca store
+sungguhan. Model-view bersamanya di `composables/useMobile.ts`.
+
+Tiga aturan yang diangkat jadi milik bersama saat tahap 2, karena sudah
+terduplikasi sebelum shell mobile ada:
+
+| Berkas | Dulu |
+|---|---|
+| `utils/statusTagihan.ts` | fungsi lokal di TagihanView |
+| `composables/useUrutKamar.ts` | **tiga** salinan `sortByKamar`, sudah mulai berbeda |
+| `utils/statusKamar.ts` | baru — menggabungkan status hunian dan status uang jadi satu chip |
 
 Yang wajib diingat sebelum menyentuh apa pun di sini:
 
@@ -209,8 +220,13 @@ Yang wajib diingat sebelum menyentuh apa pun di sini:
 - **`/m` belum jadi bawaan** dan belum ada pengalihan otomatis dari layar
   sempit. Itu tahap 6, setelah alur intinya setara.
 
-Tahap berikutnya: **tahap 2 — layar baca** (beranda, detail properti, detail
-kamar) dari store sungguhan.
+Satu kebiasaan yang dibawa dari ronde 5 mockup dan sebaiknya diteruskan:
+**jangan merender tombol yang belum menuju ke mana-mana.** Chip statistik di
+beranda masih berupa angka (bukan tombol) karena layar filternya belum diport,
+dan detail kamar baru punya tiga tab karena isi tab "Lainnya" belum ada.
+
+Tahap berikutnya: **tahap 3 — tab Penghuni dan Kalender**, termasuk cari dan
+filter.
 
 ### Peta data Kamaru → kosmanager
 
