@@ -3,9 +3,11 @@ import { useKamarStore } from '../stores/kamar'
 import { usePenghuniStore } from '../stores/penghuni'
 import { useTagihanStore } from '../stores/tagihan'
 import { usePropertiesStore } from '../stores/properties'
-import { useOccupancy, tglKeluar } from './useOccupancy'
+import { useOccupancy, tglKeluar, sudahKeluar } from './useOccupancy'
 import { useUrutKamar } from './useUrutKamar'
 import { statusKamar, type StatusKamarTampil } from '../utils/statusKamar'
+import { statusTagihan } from '../utils/statusTagihan'
+import { kamarDiBulan } from '../utils/riwayatKamar'
 import { bulanIni, today } from '../utils/date'
 import type { Kamar, Penghuni, Property, Tagihan } from '../types'
 
@@ -36,7 +38,7 @@ export function useMobile() {
   const tagihanStore = useTagihanStore()
   const properties = usePropertiesStore()
   const { penghuniDiKamar } = useOccupancy()
-  const { urutkanKamar } = useUrutKamar()
+  const { urutkan, urutkanKamar } = useUrutKamar()
 
   const bulan = computed(() => bulanIni())
   const hari = computed(() => today())
@@ -107,10 +109,106 @@ export function useMobile() {
     return h
   }
 
+  /* ── Penghuni ─────────────────────────────── */
+
+  /** Penghuni yang masih menghuni hari ini, urut seperti daftar kamar. */
+  function penghuniAktif(property_id?: string): Penghuni[] {
+    const ps = penghuniStore.items.filter(p =>
+      (!property_id || p.property_id === property_id) && !sudahKeluar(p, hari.value))
+    return urutkan(ps)
+  }
+
+  /**
+   * Tagihan milik seseorang pada sebuah bulan.
+   *
+   * `penghuni_id` dipakai bila ada — satu kamar bisa dihuni dua orang, dan
+   * tanpa itu tagihan roommate ikut terbawa. Data lama belum punya field itu,
+   * jadi jatuh kembali ke pasangan kamar+properti.
+   */
+  function tagihanPenghuni(p: Penghuni, bln = bulan.value): Tagihan[] {
+    const sebulan = tagihanStore.items.filter(t =>
+      t.property_id === p.property_id && t.bulan === bln)
+    const milik = sebulan.filter(t => t.penghuni_id === p.id)
+    if (milik.length) return milik
+    return sebulan.filter(t => !t.penghuni_id && t.kamar === kamarDiBulan(p, bln))
+  }
+
+  /** Status yang tampil di chip penghuni — aturan yang sama dengan kartu kamar. */
+  function statusPenghuni(p: Penghuni): StatusKamarTampil {
+    const berlaku = tagihanPenghuni(p).filter(t => !t.hangus)
+    if (!berlaku.length) return 'belum'
+    const hasil = berlaku.map(t => statusTagihan(t, hari.value))
+    if (hasil.some(h => h.status === 'telat' || h.telat)) return 'telat'
+    if (hasil.every(h => h.status === 'lunas')) return 'lunas'
+    return 'belum'
+  }
+
+  /* ── Kalender ─────────────────────────────── */
+
+  /**
+   * Agenda satu tanggal: siapa masuk, dan tagihan mana yang jatuh tempo.
+   *
+   * Dipakai juga untuk menurunkan penanda titik di kalender, supaya keduanya
+   * tidak pernah bercerita berbeda — pelajaran dari mockup, di mana tanggal
+   * bertitik "jatuh tempo" sempat punya agenda kosong.
+   */
+  function agendaTanggal(iso: string): Acara[] {
+    const out: Acara[] = []
+
+    for (const p of penghuniStore.items) {
+      if (p.masuk !== iso) continue
+      out.push({
+        jenis: 'checkin', iso, nama: p.nama, kamar: kamarDiBulan(p, bulan.value) || p.kamar,
+        property_id: p.property_id, nilai: 'Check-in',
+      })
+    }
+
+    for (const t of tagihanStore.items) {
+      if (t.jatuh_tempo !== iso || t.hangus) continue
+      const h = statusTagihan(t, hari.value)
+      /* Yang sudah lunas tidak lagi jatuh tempo — menandainya hanya menakuti. */
+      if (h.status === 'lunas') continue
+      out.push({
+        jenis: h.telat ? 'telat' : 'tempo', iso, nama: t.penghuni, kamar: t.kamar,
+        property_id: t.property_id, nilai: String(h.sisa),
+      })
+    }
+
+    return out
+  }
+
+  /**
+   * Penanda titik per tanggal untuk satu bulan tampilan.
+   * Kuncinya tanggal (1-31), isinya jenis yang muncul pada tanggal itu.
+   */
+  function penandaBulan(tahun: number, bulanIdx: number): Map<number, Set<Acara['jenis']>> {
+    const peta = new Map<number, Set<Acara['jenis']>>()
+    const jml = new Date(tahun, bulanIdx + 1, 0).getDate()
+    for (let d = 1; d <= jml; d++) {
+      const iso = `${tahun}-${String(bulanIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      const acara = agendaTanggal(iso)
+      if (!acara.length) continue
+      peta.set(d, new Set(acara.map(a => a.jenis)))
+    }
+    return peta
+  }
+
   return {
     bulan, hari, daftarProperti,
     kamarDi, kamarSatu, tagihanKamar, statusKini, penghuniKamar, namaPenghuni, hitungan,
+    penghuniAktif, tagihanPenghuni, statusPenghuni,
+    agendaTanggal, penandaBulan,
   }
+}
+
+export interface Acara {
+  jenis: 'checkin' | 'tempo' | 'telat'
+  iso: string
+  nama: string
+  kamar: string
+  property_id: string
+  /** Untuk check-in berisi label, untuk tagihan berisi sisa dalam rupiah. */
+  nilai: string
 }
 
 /** Inisial untuk avatar — maksimal dua huruf, seperti di mockup. */
