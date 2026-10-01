@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 278/278 hijau ·
-mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–2 selesai**
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 314/314 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–4 selesai**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -196,6 +196,12 @@ Kontrak dan urutan enam tahapnya:
 **Tahap 2 selesai.** Beranda, detail properti, dan detail kamar membaca store
 sungguhan. Model-view bersamanya di `composables/useMobile.ts`.
 
+**Tahap 3 selesai.** Tab Penghuni (cari + filter) dan Kalender (penanda,
+geser bulan, tanggal bisa dipilih, agenda ikut).
+
+**Tahap 4 dimulai.** Catat pembayaran dari detail kamar — aksi pertama yang
+benar-benar menulis. `MobSheet` jadi mekanisme bottom sheet-nya.
+
 Tiga aturan yang diangkat jadi milik bersama saat tahap 2, karena sudah
 terduplikasi sebelum shell mobile ada:
 
@@ -204,6 +210,8 @@ terduplikasi sebelum shell mobile ada:
 | `utils/statusTagihan.ts` | fungsi lokal di TagihanView |
 | `composables/useUrutKamar.ts` | **tiga** salinan `sortByKamar`, sudah mulai berbeda |
 | `utils/statusKamar.ts` | baru — menggabungkan status hunian dan status uang jadi satu chip |
+| `composables/useBayarTagihan.ts` | jalur tulis pembayaran, dulu di dalam TagihanView |
+| `utils/lamaHuni.ts` | baru — lama menghuni dalam bahasa manusia |
 
 Yang wajib diingat sebelum menyentuh apa pun di sini:
 
@@ -225,8 +233,19 @@ Satu kebiasaan yang dibawa dari ronde 5 mockup dan sebaiknya diteruskan:
 beranda masih berupa angka (bukan tombol) karena layar filternya belum diport,
 dan detail kamar baru punya tiga tab karena isi tab "Lainnya" belum ada.
 
-Tahap berikutnya: **tahap 3 — tab Penghuni dan Kalender**, termasuk cari dan
-filter.
+Dua hal yang belum ada di shell mobile dan sebaiknya menyusul bersama:
+
+- **Pemilih properti.** Desktop punya di bilah atas; shell mobile menampilkan
+  seluruh properti sekaligus. Itu sengaja — tab Penghuni dan Kalender memang
+  lintas properti di mockup — tapi suatu saat perlu diputuskan apakah
+  `app.currentPropertyId` ikut berlaku di sini.
+- **Sisa aksi uang:** tambah tagihan, deposit, biaya lain, pengeluaran, ubah
+  harga, masa tinggal, pindah kamar, hapus sewa. Pindah kamar dan hapus sewa
+  sudah punya composable sendiri di aplikasi (`useKeluarPenghuni`,
+  `utils/riwayatKamar`) — pakai itu, jangan tulis aturan kedua.
+
+Tahap berikutnya: **tahap 5 — sisa aksi uang dan layar pendukung** (catatan,
+foto, riwayat penghuni), lalu **tahap 6 — jadikan bawaan**.
 
 ### Peta data Kamaru → kosmanager
 
