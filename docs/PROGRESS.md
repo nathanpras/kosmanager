@@ -3,7 +3,7 @@
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
 **Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 221/221 hijau ·
-mockup `_smoke.cjs` 80/80 hijau
+mockup `_smoke.cjs` 95/95 hijau
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -16,7 +16,7 @@ mockup `_smoke.cjs` 80/80 hijau
 | Jalur | Isi | Status |
 |---|---|---|
 | **A. Aplikasi** | Vue 3 + Pinia + Firestore di `src/` | Aktif dikembangkan. Tampilan desktop dianggap selesai. |
-| **B. Prototype mobile** | Mockup HTML sekali pakai bergaya aplikasi **Kamaru**, di `docs/superpowers/mockups/` | Ronde 1–4 selesai. Belum di-port ke `src/`. |
+| **B. Prototype mobile** | Mockup HTML sekali pakai bergaya aplikasi **Kamaru**, di `docs/superpowers/mockups/` | Ronde 1–5 selesai, **tidak ada lagi tombol buntu**. Belum di-port ke `src/`. |
 
 Jalur B **tidak menyentuh `src/` sama sekali**.
 
@@ -87,9 +87,10 @@ kali mockup diterbitkan ulang.
 |---|---|
 | `docs/superpowers/specs/2026-09-27-kosmanager-mobile-kamaru-design.md` | Kontrak desain ronde 1–3 |
 | `docs/superpowers/specs/2026-10-01-kosmanager-mobile-ronde-4-design.md` | Kontrak desain ronde 4 |
+| `docs/superpowers/specs/2026-10-01-kosmanager-mobile-ronde-5-design.md` | Kontrak desain ronde 5 |
 | `docs/superpowers/mockups/kosmanager-mobile.html` | Mockup, satu berkas mandiri |
-| `docs/superpowers/mockups/_smoke.cjs` | 80 langkah uji di jsdom |
-| `docs/superpowers/mockups/_shots.cjs` | 38 potret layar via chromium (Windows, macOS, Linux) |
+| `docs/superpowers/mockups/_smoke.cjs` | 95 langkah uji di jsdom |
+| `docs/superpowers/mockups/_shots.cjs` | 50 potret layar via chromium (Windows, macOS, Linux) |
 
 ```
 # mockup — cukup buka berkasnya, tidak perlu server
@@ -164,15 +165,32 @@ port nanti:
 - Pindah kamar memakai aturan 23 Agustus: bulan berjalan tetap ditagih kamar
   lama penuh, kamar baru mulai tanggal 1 bulan berikutnya.
 
+**Ronde 5 — sepuluh jalan buntu terakhir.** Kontraknya ada di
+`docs/superpowers/specs/2026-10-01-kosmanager-mobile-ronde-5-design.md`.
+Galeri foto kamar, info properti, logo properti, tiga menu bertitik tiga,
+notifikasi, layar cari, dan tanggal kalender yang bisa dipilih.
+
+Setelah ronde ini **tidak ada satu pun tombol yang hanya memunculkan toast** —
+dijaga oleh satu langkah uji penutup yang menelusuri 20 rute, 15 sheet, dan 3
+formulir lalu menggagalkan uji bila menemukan `data-act="soon"` yang dirender.
+
+Yang perlu diingat saat port:
+
+- Notifikasi dan agenda kalender **diturunkan dari `ROOMS`**, bukan daftar
+  tersimpan. Mengubah status kamar langsung mengubah keduanya.
+- Ikon cari di layar Penghuni **memfokuskan kolom cari yang sudah ada**, bukan
+  membuka layar cari kedua.
+- Menu bertitik tiga hanya berisi pintasan. Tidak ada layar yang satu-satunya
+  jalannya lewat menu itu.
+- Foto kamar disimpan di `FOTO[rid]`, terpisah dari `DOK` yang isinya dokumen
+  penghuni — penghuni berganti, kamarnya tetap.
+
 ### Berikutnya — belum dikerjakan
 
-1. **Port ke aplikasi.** Lapis `@layer tokens` dan `@layer components` di dalam
-   mockup sengaja ditulis untuk disalin utuh ke `src/style.css`; hanya lapis
-   `screens` dan markup yang perlu dirakit ulang jadi komponen Vue.
-2. **Ronde 5 kandidat.** Sepuluh jalan buntu yang tersisa, semuanya di luar
-   tema uang: foto kamar, info properti, uploader logo properti, menu
-   properti / kamar / kalender, notifikasi, cari di beranda, cari di tab
-   Penghuni, dan tap tanggal di kalender.
+1. **Port ke aplikasi.** Satu-satunya pekerjaan besar yang tersisa di jalur B.
+   Lapis `@layer tokens` dan `@layer components` di dalam mockup sengaja
+   ditulis untuk disalin utuh ke `src/style.css`; hanya lapis `screens` dan
+   markup yang perlu dirakit ulang jadi komponen Vue.
 
 ### Peta data Kamaru → kosmanager
 
@@ -225,6 +243,37 @@ Di jalur B, dicatat supaya tidak terulang.
   'files')` dan mengganti `URL.createObjectURL`. Uji tautan `wa.me` memasang
   `preventDefault` di `document` sebelum mengklik. Kalau tidak, jsdom
   melaporkan "Not implemented: navigation".
+- **Potret bisa menangkap layar di tengah animasi dan terlihat seperti bug.**
+  Layar Kalender terpotret kosong melompong setelah tanggal diketuk. Isinya
+  ternyata lengkap di DOM — 31 sel tanggal, 3 anak `.stagger` — hanya
+  transparan: `getAnimations()` melaporkan `rise:running@0`, sedangkan tanpa
+  klik `rise:finished@1`. Waktu virtual chromium bisa melompat tanpa menjalankan
+  satu frame animasi pun, dan `animation-fill-mode: both` membuat elemen yang
+  animasinya beku di detik nol tampil pada keadaan `from`, yaitu `opacity: 0`.
+  Sekarang runner memanggil `getAnimations().forEach(a => a.finish())` sebelum
+  dipotret. **Jangan percaya potret kosong sebelum DOM-nya diukur.**
+- **`_shots.cjs` tidak pernah membaca `document.title`.** Runner-nya menulis
+  kegagalan langkah ke sana sejak ronde 2, dan tidak ada satu pun yang
+  membacanya — jadi setiap langkah potret yang error lolos diam-diam selama
+  tiga ronde. Sekarang `--dump-dom` ikut dipanggil, judulnya dibaca, dan run
+  gagal bila ada yang menulis `GAGAL`.
+- **Penanda dan daftar yang menceritakan hal sama dari dua aturan berbeda.**
+  Titik "jatuh tempo" di kalender ikut menandai kamar yang sudah lunas,
+  sedangkan agenda di bawahnya tidak — tanggal 5 bertitik biru tapi agendanya
+  0. Satu aturan sekarang dipakai keduanya (`PUNYA_TAGIHAN`), dijaga uji
+  "setiap tanggal bertitik tagihan punya agenda".
+- **Baris daftar tiga tingkat selalu kurang lebar.** Di layar Notifikasi,
+  `properti · nominal` dalam satu baris terpotong jadi
+  `Raffles Kost Citra 1 · Rp1.750.000 bel…`, dan setelah nominalnya dipindah ke
+  kolom sendiri, `nama · Kamar X` masih memotong nama panjang jadi
+  `Kevin Tanoto · Kam…`. Yang berhasil: nilai berdiri sendiri di kanan, nama
+  sendirian di satu baris, nomor kamar dan properti digabung di baris bawahnya.
+  Nama properti tidak boleh dibuang — kamar 101–107 ada di **kedua** properti.
+- **Audit ikon sempat buta terhadap ikon yang dititipkan sebagai data.**
+  Regex-nya hanya mencari `ic('nama')`, padahal item sheet, notifikasi, dan
+  agenda menulis `i: 'nama'` lalu memanggil `ic(n.i)`. Salah ketik di sana
+  merender kotak kosong tanpa error. Setelah regexnya ditambah, ikon yang
+  terawasi naik dari 17 jadi 27.
 - **Kolom sempit memotong nilai tanpa memberi tanda.** Di `.fgrid.wide`
   (`1.4fr 1fr`) kolom kanan memotong `27 Sep 2026` jadi `27 Sep 2…`, dan kolom
   sempit mana pun memotong kategori `Transfer Tanah` jadi `Transfer…` —
