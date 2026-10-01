@@ -9,11 +9,11 @@ import { useLogStore }        from '../stores/log'
 import { useProperty }        from '../composables/useProperty'
 import { useToast }           from '../composables/useToast'
 import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupancy'
-import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { useKeluarPenghuni }  from '../composables/useKeluarPenghuni'
 import { useUrutKamar } from '../composables/useUrutKamar'
 import { usePindahKamar, GagalPindah } from '../composables/usePindahKamar'
-import { kamarDiBulan, koreksiKamar, awalBulanBerikutnya } from '../utils/riwayatKamar'
+import { useSimpanPenghuni, GagalSimpanPenghuni } from '../composables/useSimpanPenghuni'
+import { kamarDiBulan, awalBulanBerikutnya } from '../utils/riwayatKamar'
 import { fmtTgl, fmt }        from '../utils/format'
 import { today, bulanIni, bulanFromTgl, bulanKey } from '../utils/date'
 import type { Penghuni }      from '../types'
@@ -28,9 +28,9 @@ const log        = useLogStore()
 const { filterByProperty } = useProperty()
 const { show: toast } = useToast()
 const { kamarMasihTerisi } = useOccupancy()
-const { tagihanUntukKamar } = useTagihanCalc()
 const { keluarkan } = useKeluarPenghuni()
 const { pindahkan, kamarTujuan: daftarKamarTujuan } = usePindahKamar()
+const { tambah: tambahPenghuni, ubah: ubahPenghuni } = useSimpanPenghuni()
 
 /* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
 const { urutkan: sortByKamar } = useUrutKamar()
@@ -113,26 +113,6 @@ function findKamar(nomor: string, property_id: string) {
   return kamar.items.find(k => k.nomor === nomor && k.property_id === property_id)
 }
 
-/**
- * Tagihan bulan masuk dibuat di sini karena autoGenerateNextMonth hanya mengurus
- * bulan depan — tanpa ini bulan masuk selalu bolong dan harus diinput manual.
- */
-async function buatTagihanBulanMasuk(p: Penghuni) {
-  const bln = bulanFromTgl(p.masuk)
-  if (!bln) return
-  const existing = new Set<string>()
-  for (const t of tagihan.items.filter(t => t.bulan === bln && t.property_id === p.property_id)) {
-    for (const k of kunciTagihan(t)) existing.add(k)
-  }
-  for (const draft of tagihanUntukKamar(kamarDiBulan(p, bln), p.property_id, bln)) {
-    if (kunciTagihan({ ...draft, property_id: p.property_id }).some(k => existing.has(k))) continue
-    await tagihan.add({
-      ...draft, status: 'belum', property_id: p.property_id,
-      createdAt: new Date().toISOString(),
-    })
-  }
-}
-
 const showModal  = ref(false)
 const editId     = ref<string | null>(null)
 const form       = ref<Partial<Penghuni>>({})
@@ -157,38 +137,18 @@ function openEdit(p: Penghuni) {
 }
 
 async function save() {
-  if (!form.value.nama || !form.value.kamar || !form.value.hp) { toast('Nama, kamar, dan no HP wajib diisi', 'error'); return }
   try {
     if (editId.value) {
-      const original = penghuni.items.find(p => p.id === editId.value)
-      const data: Partial<Penghuni> = { ...form.value }
-      // Mengganti kamar di sini adalah pembetulan salah input, bukan pindahan:
-      // entri riwayat terakhir ikut ditulis ulang supaya tidak lahir pindahan
-      // palsu. Pindah sungguhan lewat tombol Pindah (🔁).
-      if (original && original.kamar !== data.kamar && (original.riwayat_kamar?.length ?? 0) > 0) {
-        data.riwayat_kamar = koreksiKamar(original, data.kamar ?? '')
-      }
-      await penghuni.update(editId.value, data)
-      if (original && original.kamar !== form.value.kamar) {
-        // Kamar lama hanya dikosongkan bila tidak ada roommate yang tertinggal.
-        if (!kamarMasihTerisi(original.kamar, original.property_id, original.id)) {
-          const oldRoom = findKamar(original.kamar, original.property_id)
-          if (oldRoom) await kamar.update(oldRoom.id, { status: 'kosong' })
-        }
-        const newRoom = findKamar(form.value.kamar!, form.value.property_id!)
-        if (newRoom && newRoom.status === 'kosong') await kamar.update(newRoom.id, { status: 'terisi' })
-      }
+      await ubahPenghuni(editId.value, form.value)
       toast('Penghuni diperbarui', 'success')
     } else {
-      await penghuni.add(form.value as Omit<Penghuni, 'id'>)
-      const k = findKamar(form.value.kamar!, form.value.property_id!)
-      if (k && k.status === 'kosong') await kamar.update(k.id, { status: 'terisi' })
-      await log.add(`${form.value.nama} masuk kamar ${form.value.kamar}`, 'green', form.value.property_id ?? '')
-      await buatTagihanBulanMasuk(form.value as Penghuni)
+      await tambahPenghuni(form.value)
       toast('Penghuni ditambahkan', 'success')
     }
     showModal.value = false
-  } catch { toast('Gagal menyimpan penghuni', 'error') }
+  } catch (e) {
+    toast(e instanceof GagalSimpanPenghuni ? e.message : 'Gagal menyimpan penghuni', 'error')
+  }
 }
 
 const confirmEvict = ref(false)

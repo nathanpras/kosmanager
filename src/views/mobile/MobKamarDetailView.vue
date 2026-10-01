@@ -21,6 +21,8 @@ import MobPindahSheet from '../../components/mobile/MobPindahSheet.vue'
 import MobKeluarSheet from '../../components/mobile/MobKeluarSheet.vue'
 import MobHargaSheet from '../../components/mobile/MobHargaSheet.vue'
 import MobTagihanSheet from '../../components/mobile/MobTagihanSheet.vue'
+import MobPenghuniSheet from '../../components/mobile/MobPenghuniSheet.vue'
+import { useSimpanPenghuni, GagalSimpanPenghuni } from '../../composables/useSimpanPenghuni'
 import { useKeluarPenghuni } from '../../composables/useKeluarPenghuni'
 import { useKamarStore } from '../../stores/kamar'
 import { usePindahKamar, GagalPindah } from '../../composables/usePindahKamar'
@@ -68,6 +70,25 @@ const kamarStore = useKamarStore()
 const keluarTarget = ref<Penghuni | null>(null)
 const sheetHarga = ref(false)
 const tagihanTarget = ref<Penghuni | null>(null)
+const { tambah: tambahPenghuni, ubah: ubahPenghuni } = useSimpanPenghuni()
+const sheetPenghuni = ref(false)
+const ubahTarget = ref<Penghuni | null>(null)
+
+async function simpanPenghuni(data: Partial<Penghuni>) {
+  try {
+    if (ubahTarget.value) {
+      await ubahPenghuni(ubahTarget.value.id, data)
+      toast('Data penghuni diperbarui', 'success')
+    } else {
+      await tambahPenghuni(data)
+      toast('Penghuni ditambahkan', 'success')
+    }
+    sheetPenghuni.value = false
+    ubahTarget.value = null
+  } catch (e) {
+    toast(e instanceof GagalSimpanPenghuni ? e.message : 'Gagal menyimpan penghuni', 'error')
+  }
+}
 
 async function simpanTagihan(bln: string, nomorKamar: string, jml: number, tempo: string) {
   const p = tagihanTarget.value
@@ -161,6 +182,7 @@ const CHIP: Record<string, { label: string; cls: string }> = {
           </div>
           <div class="lease-head" style="padding-top:14px;border-top:1px solid var(--hair)">
             <span class="mlabel">Masa tinggal</span>
+            <button class="link" @click="ubahTarget = p; sheetPenghuni = true">Ubah data</button>
             <button class="link" @click="pindahTarget = p">Pindah kamar</button>
             <button class="link" style="color:var(--bad)" @click="keluarTarget = p">Akhiri sewa</button>
           </div>
@@ -212,6 +234,10 @@ const CHIP: Record<string, { label: string; cls: string }> = {
         <div class="emptystate-art"><MobIcon name="door" :size="40" /></div>
         <h3>Kamar ini kosong</h3>
         <p>Tambahkan penghuni untuk mulai mencatat sewa dan tagihan kamar {{ nomor }}.</p>
+        <div style="height:14px"></div>
+        <button class="btn primary" @click="ubahTarget = null; sheetPenghuni = true">
+          <MobIcon name="plus" :size="17" /> Tambah penghuni
+        </button>
       </div>
     </template>
 
@@ -278,6 +304,15 @@ const CHIP: Record<string, { label: string; cls: string }> = {
       :penghuni="pindahTarget"
       @tutup="pindahTarget = null"
       @simpan="simpanPindah"
+    />
+
+    <MobPenghuniSheet
+      v-if="sheetPenghuni"
+      :nomor-kamar="nomor"
+      :property-id="pid"
+      :penghuni="ubahTarget"
+      @tutup="sheetPenghuni = false; ubahTarget = null"
+      @simpan="simpanPenghuni"
     />
 
     <MobTagihanSheet

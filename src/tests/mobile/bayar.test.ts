@@ -371,3 +371,61 @@ describe('tambah tagihan dari shell mobile', () => {
     expect(w.findAll('.btn.brandsoft').some(b => b.text().includes('Tambah tagihan'))).toBe(false)
   })
 })
+
+describe('tambah dan ubah penghuni dari shell mobile', () => {
+  beforeEach(() => {
+    useKamarStore().items.push({
+      id: 'k9', nomor: '109', tipe: '', harga: 1_500_000, status: 'kosong', property_id: 'p1',
+    } as Kamar)
+  })
+
+  async function bukaKamarKosong() {
+    await router.push('/m/prop/p1/kamar/109')
+    await router.isReady()
+    const w = mount(RouterView, { global: { plugins: [router] } })
+    await flushPromises()
+    await w.findAll('.btn').find(b => b.text().includes('Tambah penghuni'))!.trigger('click')
+    return w
+  }
+
+  it('menolak nomor HP yang tidak valid tanpa menulis', async () => {
+    const tulis: unknown[] = []
+    usePenghuniStore().add = (async (x: unknown) => { tulis.push(x) }) as never
+
+    const w = await bukaKamarKosong()
+    await w.findAll('.sheet input')[0].setValue('Budi')
+    await w.findAll('.sheet input')[1].setValue('12')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(0)
+    expect(w.find('.sheet .note.bad').text()).toContain('belum valid')
+  })
+
+  it('menambah penghuni ke kamar tempat sheetnya dibuka', async () => {
+    const tulis: Array<Record<string, unknown>> = []
+    usePenghuniStore().add = (async (x: Record<string, unknown>) => { tulis.push(x) }) as never
+    useKamarStore().update = (async () => {}) as never
+    useTagihanStore().add = (async () => {}) as never
+
+    const w = await bukaKamarKosong()
+    await w.findAll('.sheet input')[0].setValue('Budi Santoso')
+    await w.findAll('.sheet input')[1].setValue('0812 3456 7890')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(1)
+    expect(tulis[0]).toMatchObject({ nama: 'Budi Santoso', kamar: '109', property_id: 'p1' })
+  })
+
+  it('mengatakan bahwa tagihan bulan masuk ikut dibuat', async () => {
+    const w = await bukaKamarKosong()
+    expect(w.find('.sheet .note.info').text()).toContain('bulan masuk')
+  })
+
+  it('ubah data terisi dari penghuni yang ada', async () => {
+    const w = await bukaKamar()
+    await w.findAll('.link').find(b => b.text().includes('Ubah data'))!.trigger('click')
+    expect((w.findAll('.sheet input')[0].element as HTMLInputElement).value).toBe('Hizkia Nogie')
+  })
+})
