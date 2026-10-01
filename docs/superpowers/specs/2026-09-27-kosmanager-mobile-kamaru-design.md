@@ -226,8 +226,9 @@ masuk database diputuskan setelah mockup dievaluasi.
     - "Buka WhatsApp" adalah tautan `https://wa.me/<nomor>?text=…` dengan
       `target=_blank`.
     - HP tidak valid menonaktifkan tombol itu dan memunculkan `.note` merah.
-    - Sandbox artifact mungkin memblokir navigasi ke luar. Ini dicek di link
-      hidup; kalau benar terblokir, ditambahkan tombol "Salin pesan".
+    - Sudah dicoba di link hidup (1 Oktober 2026): sandbox artifact **tidak**
+      memblokir navigasi ke luar, tombol langsung membuka WhatsApp dengan
+      pesannya terbawa. Tombol cadangan "Salin pesan" tidak jadi dibuat.
 
 ## Aturan tipografi yang lahir dari pengujian
 

@@ -141,10 +141,10 @@ kembali ke sheet induknya, kalender bisa digeser antar bulan.
   dengan tombol Ganti dan Hapus.
 - Sheet WhatsApp dengan templat per status tagihan yang membuka `wa.me`.
 
-Ada satu hal yang belum terkonfirmasi. Tombol **Buka WhatsApp** belum dicoba
-di link hidup dari HP, jadi belum pasti sandbox artifact mengizinkan navigasi
-ke `wa.me`. Kalau ternyata diblokir, tambahkan tombol "Salin pesan" sesuai
-Tugas 7 langkah 4 di rencana.
+**Sudah dikonfirmasi 1 Oktober 2026:** tombol **Buka WhatsApp** dicoba di link
+hidup dan langsung membuka WhatsApp dengan pesannya terbawa. Sandbox artifact
+**tidak** memblokir navigasi ke `wa.me`, jadi tombol "Salin pesan" yang
+disiapkan sebagai cadangan tidak jadi dibuat.
 
 **Ronde 4 — uang dan kontrak sewa.** Kontraknya ada di
 `docs/superpowers/specs/2026-10-01-kosmanager-mobile-ronde-4-design.md`.
