@@ -224,13 +224,14 @@ describe('detail kamar', () => {
 })
 
 describe('catat pengeluaran dari detail properti', () => {
-  it('FAB hanya muncul di tab Transaksi', async () => {
+  it('FAB mengikuti tab: Kamar menambah kamar, Transaksi menambah pengeluaran', async () => {
     const w = await pasang('/m/prop/p1')
-    expect(w.find('.fab').exists()).toBe(false)
+    expect(w.find('.fab').text()).toContain('Kamar')
 
     await w.findAll('.ptab')[1].trigger('click')
     expect(w.find('.fab').text()).toContain('Pengeluaran')
 
+    /* Tab Lainnya hanya keterangan — tidak ada yang ditambahkan dari sana. */
     await w.findAll('.ptab')[2].trigger('click')
     expect(w.find('.fab').exists()).toBe(false)
   })
@@ -326,5 +327,43 @@ describe('ubah data kos dari detail properti', () => {
     const label = w.findAll('.sheet .field-lbl').map(l => l.text())
     expect(label.some(l => l.toLowerCase().includes('saldo'))).toBe(false)
     expect(w.find('.sheet .note.info').text()).toContain('desktop')
+  })
+})
+
+describe('tambah kamar dari detail properti', () => {
+  it('menolak nomor kosong dan harga nol tanpa menulis', async () => {
+    const tulis: unknown[] = []
+    useKamarStore().add = (async (x: unknown) => { tulis.push(x) }) as never
+
+    const w = await pasang('/m/prop/p1')
+    await w.find('.fab').trigger('click')
+    const simpan = () => w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!
+
+    await simpan().trigger('click')
+    expect(w.find('.sheet .note.bad').text()).toContain('Nomor kamar')
+
+    await w.findAll('.sheet input')[0].setValue('208')
+    await simpan().trigger('click')
+    expect(w.find('.sheet .note.bad').text()).toContain('Harga sewa')
+
+    expect(tulis).toHaveLength(0)
+  })
+
+  it('menulis kamar baru ke properti yang sedang dibuka, berstatus kosong', async () => {
+    const tulis: Array<Record<string, unknown>> = []
+    useKamarStore().add = (async (x: Record<string, unknown>) => { tulis.push(x) }) as never
+    useLogStore().add = (async () => {}) as never
+
+    const w = await pasang('/m/prop/p1')
+    await w.find('.fab').trigger('click')
+    await w.findAll('.sheet input')[0].setValue('208')
+    await w.findAll('.sheet input')[1].setValue('1600000')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(1)
+    expect(tulis[0]).toMatchObject({
+      nomor: '208', harga: 1_600_000, property_id: 'p1', status: 'kosong',
+    })
   })
 })

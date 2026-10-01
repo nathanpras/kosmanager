@@ -20,6 +20,9 @@ import { bulanKey } from '../../utils/date'
 import { fmt, fmtTgl } from '../../utils/format'
 import MobPengeluaranSheet from '../../components/mobile/MobPengeluaranSheet.vue'
 import MobPropertiSheet from '../../components/mobile/MobPropertiSheet.vue'
+import MobKamarSheet from '../../components/mobile/MobKamarSheet.vue'
+import { useKamarStore } from '../../stores/kamar'
+import type { Kamar } from '../../types'
 import type { Property } from '../../types'
 import { useLogStore } from '../../stores/log'
 import { useToast } from '../../composables/useToast'
@@ -60,6 +63,19 @@ const log = useLogStore()
 const { show: toast } = useToast()
 const sheetPengeluaran = ref(false)
 const sheetProperti = ref(false)
+const kamarStore = useKamarStore()
+const sheetKamar = ref(false)
+
+async function simpanKamar(data: Partial<Kamar>) {
+  try {
+    await kamarStore.add(data as Omit<Kamar, 'id'>)
+    await log.add(`Kamar ${data.nomor} ditambahkan`, 'green', pid.value)
+    sheetKamar.value = false
+    toast('Kamar ditambahkan', 'success')
+  } catch {
+    toast('Gagal menambahkan kamar', 'error')
+  }
+}
 
 async function simpanProperti(data: Partial<Property>) {
   try {
@@ -180,12 +196,27 @@ function bukaKamar(nomor: string) {
       </dl>
     </template>
 
-    <template v-if="tab === 1" #fab>
+    <template v-if="tab === 0" #fab>
+      <button class="fab" @click="sheetKamar = true">
+        <MobIcon name="plus" :size="20" />
+        <span class="fab-label">Kamar</span>
+      </button>
+    </template>
+
+    <template v-else-if="tab === 1" #fab>
       <button class="fab" @click="sheetPengeluaran = true">
         <MobIcon name="plus" :size="20" />
         <span class="fab-label">Pengeluaran</span>
       </button>
     </template>
+
+    <MobKamarSheet
+      v-if="sheetKamar"
+      :property-id="pid"
+      :nama-properti="properti?.nama ?? ''"
+      @tutup="sheetKamar = false"
+      @simpan="simpanKamar"
+    />
 
     <MobPropertiSheet
       v-if="sheetProperti && properti"
