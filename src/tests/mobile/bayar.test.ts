@@ -231,3 +231,92 @@ describe('catat pembayaran dari shell mobile', () => {
     expect(updateDipanggil).toHaveLength(0)
   })
 })
+
+describe('akhiri sewa dari shell mobile', () => {
+  async function bukaKeluar() {
+    const w = await bukaKamar()
+    await w.findAll('.link').find(b => b.text().includes('Akhiri sewa'))!.trigger('click')
+    return w
+  }
+
+  it('menyebut bahwa penghuni pindah ke riwayat, bukan dihapus', async () => {
+    const w = await bukaKeluar()
+    expect(w.find('.sheet .note.info').text()).toContain('bukan dihapus')
+  })
+
+  it('butuh dua ketukan — satu ketukan tidak menulis apa pun', async () => {
+    const tulis: unknown[] = []
+    usePenghuniStore().update = (async (...a: unknown[]) => { tulis.push(a) }) as never
+
+    const w = await bukaKeluar()
+    const tombol = () => w.findAll('.sheet .btn.block')[0]
+    await tombol().trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(0)
+    expect(tombol().classes()).toContain('danger')
+    expect(tombol().text()).toContain('sekali lagi')
+  })
+
+  it('ketukan kedua menulis tanggal keluar lewat useKeluarPenghuni', async () => {
+    const tulis: Array<[string, Partial<Penghuni>]> = []
+    usePenghuniStore().update = (async (id: string, patch: Partial<Penghuni>) => {
+      tulis.push([id, patch])
+      Object.assign(usePenghuniStore().items.find(p => p.id === id)!, patch)
+    }) as never
+    useKamarStore().update = (async () => {}) as never
+
+    const w = await bukaKeluar()
+    await w.findAll('.sheet .btn.block')[0].trigger('click')
+    await w.findAll('.sheet .btn.block')[0].trigger('click')
+    await flushPromises()
+
+    expect(tulis[0]).toEqual(['h1', { tgl_keluar: '2026-09-20' }])
+  })
+})
+
+describe('ubah harga kamar dari shell mobile', () => {
+  async function bukaHarga() {
+    const w = await bukaKamar()
+    await w.findAll('.ptab')[1].trigger('click')
+    await w.findAll('.btn.brandsoft').find(b => b.text().includes('Ubah harga'))!.trigger('click')
+    return w
+  }
+
+  it('terisi harga yang berlaku sekarang', async () => {
+    const w = await bukaHarga()
+    expect((w.find('.sheet .field-in').element as HTMLInputElement).value).toContain('1.800.000')
+  })
+
+  it('mengatakan bahwa tagihan yang sudah terbit tidak ikut berubah', async () => {
+    const w = await bukaHarga()
+    expect(w.find('.sheet .note.info').text()).toContain('tidak ikut')
+  })
+
+  it('harga nol ditahan dan tidak menulis apa pun', async () => {
+    const tulis: unknown[] = []
+    useKamarStore().update = (async (...a: unknown[]) => { tulis.push(a) }) as never
+
+    const w = await bukaHarga()
+    await w.find('.sheet .field-in').setValue('0')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(0)
+    expect(w.find('.sheet .note.bad').exists()).toBe(true)
+  })
+
+  it('menulis harga baru ke dokumen kamar', async () => {
+    const tulis: Array<[string, Partial<Kamar>]> = []
+    useKamarStore().update = (async (id: string, patch: Partial<Kamar>) => {
+      tulis.push([id, patch])
+    }) as never
+
+    const w = await bukaHarga()
+    await w.find('.sheet .field-in').setValue('1950000')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toEqual([['k1', { harga: 1_950_000 }]])
+  })
+})

@@ -18,6 +18,10 @@ import { fmt, fmtTgl } from '../../utils/format'
 import { sortBulanDesc } from '../../utils/date'
 import MobBayarSheet from '../../components/mobile/MobBayarSheet.vue'
 import MobPindahSheet from '../../components/mobile/MobPindahSheet.vue'
+import MobKeluarSheet from '../../components/mobile/MobKeluarSheet.vue'
+import MobHargaSheet from '../../components/mobile/MobHargaSheet.vue'
+import { useKeluarPenghuni } from '../../composables/useKeluarPenghuni'
+import { useKamarStore } from '../../stores/kamar'
 import { usePindahKamar, GagalPindah } from '../../composables/usePindahKamar'
 import { bulanFromTgl } from '../../utils/date'
 import { useBayarTagihan } from '../../composables/useBayarTagihan'
@@ -58,6 +62,35 @@ const subSheet = computed(() => {
 })
 
 const { pindahkan } = usePindahKamar()
+const { keluarkan } = useKeluarPenghuni()
+const kamarStore = useKamarStore()
+const keluarTarget = ref<Penghuni | null>(null)
+const sheetHarga = ref(false)
+
+async function simpanKeluar(tgl: string) {
+  const p = keluarTarget.value
+  if (!p) return
+  try {
+    /* Seluruh urusan tagihan ada di useKeluarPenghuni(): tagihan direkonsiliasi
+       sekamar-sekamar, bukan per orang. Jangan ditiru di sini. */
+    await keluarkan(p, tgl)
+    keluarTarget.value = null
+    toast('Sewa diakhiri', 'success')
+  } catch {
+    toast('Gagal mengakhiri sewa', 'error')
+  }
+}
+
+async function simpanHarga(harga: number) {
+  if (!kamar.value) return
+  try {
+    await kamarStore.update(kamar.value.id, { harga })
+    sheetHarga.value = false
+    toast('Harga sewa diperbarui', 'success')
+  } catch {
+    toast('Gagal memperbarui harga', 'error')
+  }
+}
 const pindahTarget = ref<Penghuni | null>(null)
 
 async function simpanPindah(tujuan: string, tgl: string) {
@@ -111,6 +144,7 @@ const CHIP: Record<string, { label: string; cls: string }> = {
           <div class="lease-head" style="padding-top:14px;border-top:1px solid var(--hair)">
             <span class="mlabel">Masa tinggal</span>
             <button class="link" @click="pindahTarget = p">Pindah kamar</button>
+            <button class="link" style="color:var(--bad)" @click="keluarTarget = p">Akhiri sewa</button>
           </div>
           <div class="lease-grid">
             <div class="kv">
@@ -182,6 +216,10 @@ const CHIP: Record<string, { label: string; cls: string }> = {
         <div class="drow"><dt>Tipe kamar</dt><dd class="wrap">{{ kamar?.tipe || '–' }}</dd></div>
         <div class="drow"><dt>Kategori</dt><dd class="wrap">{{ kamar?.kategori || '–' }}</dd></div>
       </dl>
+      <div style="height:16px"></div>
+      <button class="btn brandsoft block" @click="sheetHarga = true">
+        <MobIcon name="edit" :size="17" /> Ubah harga kamar
+      </button>
     </template>
 
     <!-- Transaksi -->
@@ -215,6 +253,20 @@ const CHIP: Record<string, { label: string; cls: string }> = {
       :penghuni="pindahTarget"
       @tutup="pindahTarget = null"
       @simpan="simpanPindah"
+    />
+
+    <MobKeluarSheet
+      v-if="keluarTarget"
+      :penghuni="keluarTarget"
+      @tutup="keluarTarget = null"
+      @simpan="simpanKeluar"
+    />
+
+    <MobHargaSheet
+      v-if="sheetHarga && kamar"
+      :kamar="kamar"
+      @tutup="sheetHarga = false"
+      @simpan="simpanHarga"
     />
 
     <MobBayarSheet
