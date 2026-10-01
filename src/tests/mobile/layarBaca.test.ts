@@ -275,3 +275,56 @@ describe('catat pengeluaran dari detail properti', () => {
     })
   })
 })
+
+describe('ubah data kos dari detail properti', () => {
+  async function bukaUbah() {
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[2].trigger('click')
+    await w.findAll('.link').find(b => b.text() === 'Ubah')!.trigger('click')
+    return w
+  }
+
+  it('terisi data properti yang sedang dibuka', async () => {
+    const w = await bukaUbah()
+    const isian = w.findAll('.sheet input')
+    expect((isian[0].element as HTMLInputElement).value).toBe('Raffles Kost Citra 1')
+    expect((isian[1].element as HTMLInputElement).value).toBe('Kalideres')
+  })
+
+  it('nama kosong ditahan dan tidak menulis apa pun', async () => {
+    const tulis: unknown[] = []
+    usePropertiesStore().updateProperty = (async (...a: unknown[]) => { tulis.push(a) }) as never
+
+    const w = await bukaUbah()
+    await w.findAll('.sheet input')[0].setValue('')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(0)
+    expect(w.find('.sheet .note.bad').exists()).toBe(true)
+  })
+
+  it('menulis perubahan ke properti yang benar', async () => {
+    const tulis: Array<[string, Record<string, unknown>]> = []
+    usePropertiesStore().updateProperty = (async (id: string, d: Record<string, unknown>) => {
+      tulis.push([id, d])
+    }) as never
+
+    const w = await bukaUbah()
+    await w.findAll('.sheet input')[1].setValue('Cengkareng Barat')
+    await w.findAll('.sheet input')[3].setValue('BCA')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(1)
+    expect(tulis[0][0]).toBe('p1')
+    expect(tulis[0][1]).toMatchObject({ alamat: 'Cengkareng Barat', bank_nama: 'BCA' })
+  })
+
+  it('tidak menawarkan saldo awal — tempatnya di desktop, dan sheet mengatakannya', async () => {
+    const w = await bukaUbah()
+    const label = w.findAll('.sheet .field-lbl').map(l => l.text())
+    expect(label.some(l => l.toLowerCase().includes('saldo'))).toBe(false)
+    expect(w.find('.sheet .note.info').text()).toContain('desktop')
+  })
+})

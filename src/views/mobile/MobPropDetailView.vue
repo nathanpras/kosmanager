@@ -19,6 +19,8 @@ import { nilaiDibayar, tglPembayaran } from '../../utils/saldo'
 import { bulanKey } from '../../utils/date'
 import { fmt, fmtTgl } from '../../utils/format'
 import MobPengeluaranSheet from '../../components/mobile/MobPengeluaranSheet.vue'
+import MobPropertiSheet from '../../components/mobile/MobPropertiSheet.vue'
+import type { Property } from '../../types'
 import { useLogStore } from '../../stores/log'
 import { useToast } from '../../composables/useToast'
 
@@ -57,6 +59,17 @@ const totalKeluar = computed(() => transaksi.value.filter(x => x.n < 0).reduce((
 const log = useLogStore()
 const { show: toast } = useToast()
 const sheetPengeluaran = ref(false)
+const sheetProperti = ref(false)
+
+async function simpanProperti(data: Partial<Property>) {
+  try {
+    await properties.updateProperty(pid.value, data)
+    sheetProperti.value = false
+    toast('Data kos diperbarui', 'success')
+  } catch {
+    toast('Gagal memperbarui data kos', 'error')
+  }
+}
 
 async function simpanPengeluaran(deskripsi: string, jumlah: number, kategori: string, tgl: string) {
   try {
@@ -147,7 +160,10 @@ function bukaKamar(nomor: string) {
 
     <!-- Lainnya -->
     <template v-else>
-      <div class="sechead"><h2>Keterangan</h2></div>
+      <div class="sechead">
+        <h2>Keterangan</h2>
+        <button class="link" @click="sheetProperti = true">Ubah</button>
+      </div>
       <dl class="card flush divide stagger">
         <div class="drow"><dt>Alamat</dt><dd class="wrap">{{ properti?.alamat || '–' }}</dd></div>
         <div class="drow"><dt>Telepon</dt><dd>{{ properti?.no_hp || '–' }}</dd></div>
@@ -170,6 +186,13 @@ function bukaKamar(nomor: string) {
         <span class="fab-label">Pengeluaran</span>
       </button>
     </template>
+
+    <MobPropertiSheet
+      v-if="sheetProperti && properti"
+      :properti="properti"
+      @tutup="sheetProperti = false"
+      @simpan="simpanProperti"
+    />
 
     <MobPengeluaranSheet
       v-if="sheetPengeluaran"
