@@ -25,6 +25,8 @@ function buatRouter(): Router {
         component: MobileShell,
         children: [
           { path: '', name: 'm-properti', component: MobPropertiView },
+          { path: 'keluhan', name: 'm-keluhan', component: Kosong },
+          { path: 'log', name: 'm-log', component: Kosong },
           { path: 'pengaturan', name: 'm-pengaturan', component: MobPengaturanView },
         ],
       },
@@ -54,22 +56,37 @@ async function pasang(ke: string) {
   return w
 }
 
+async function bukaMenu(w: ReturnType<typeof mount>) {
+  await w.findAll('.topbar .iconbtn')
+    .find(b => b.attributes('aria-label') === 'Menu')!.trigger('click')
+}
+
 describe('menu di beranda', () => {
-  it('menu hanya memuat tujuan yang rutenya sudah ada', async () => {
+  it('setiap tujuan di menu punya rutenya — tidak ada jalan buntu', async () => {
+    /* Menu yang menampilkan layar yang belum jadi persis jalan buntu yang
+       dihabiskan di ronde 5 mockup. */
     const w = await pasang('/m')
-    await w.findAll('.topbar .iconbtn')
-      .find(b => b.attributes('aria-label') === 'Menu')!.trigger('click')
+    await bukaMenu(w)
     const item = w.findAll('.sheet .aitem')
     expect(item.length).toBeGreaterThan(0)
-    expect(item.map(i => i.text())).toSatisfy((t: string[]) =>
-      t.every(x => x.includes('Pengaturan')))
+
+    const namaRute = router.getRoutes().map(r => r.name)
+    for (let i = 0; i < item.length; i++) {
+      const w2 = await pasang('/m')
+      await bukaMenu(w2)
+      await w2.findAll('.sheet .aitem')[i].trigger('click')
+      await flushPromises()
+      expect(namaRute).toContain(router.currentRoute.value.name)
+      expect(String(router.currentRoute.value.name)).toMatch(/^m-/)
+    }
   })
 
-  it('mengetuk Pengaturan membukanya', async () => {
+  it('Pengaturan bisa dibuka dari menu', async () => {
     const w = await pasang('/m')
-    await w.findAll('.topbar .iconbtn')
-      .find(b => b.attributes('aria-label') === 'Menu')!.trigger('click')
-    await w.find('.sheet .aitem').trigger('click')
+    await bukaMenu(w)
+    const pengaturan = w.findAll('.sheet .aitem').find(i => i.text().includes('Pengaturan'))
+    expect(pengaturan).toBeTruthy()
+    await pengaturan!.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('m-pengaturan')
   })
