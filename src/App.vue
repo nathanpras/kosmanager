@@ -12,13 +12,14 @@ import { usePropertiesStore }  from './stores/properties'
 import { useSettingsStore }    from './stores/settings'
 import { useLogStore }         from './stores/log'
 import { useViewportInsets }   from './composables/useViewportInsets'
+import { useTampilanMobile }   from './composables/useTampilanMobile'
 import { useTagihanCalc, kunciTagihan } from './composables/useTagihanCalc'
 import { kamarDiBulan } from './utils/riwayatKamar'
 import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
 import { useBiometrik }        from './composables/useBiometrik'
 import { useSinkronPublik }    from './composables/useSinkronPublik'
 
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import AppSidebar   from './components/layout/AppSidebar.vue'
 import AppTopBar    from './components/layout/AppTopBar.vue'
@@ -37,6 +38,7 @@ const settings    = useSettingsStore()
 const log         = useLogStore()
 
 useViewportInsets()
+const tampilan = useTampilanMobile()
 const { tagihanUntukKamar } = useTagihanCalc()
 const biometrik = useBiometrik()
 const { sinkronSemua } = useSinkronPublik()
@@ -47,6 +49,7 @@ const w = window
    desktop — sidebar, bilah atas, dan nav bawah lama — tidak ikut dirender di
    bawah /m. Keduanya tidak boleh hidup bersamaan: dua navigasi di satu layar. */
 const route = useRoute()
+const router = useRouter()
 const diShellMobile = computed(() => route.path === '/m' || route.path.startsWith('/m/'))
 
 type PinMode = 'enter' | 'setup' | 'confirm' | 'change'
@@ -150,6 +153,13 @@ async function loadData() {
   app.initProperty()
   app.isReady = true
   showApp.value = true
+
+  /* Layar sempit dibawa ke shell mobile — kecuali pernah memilih keluar.
+     Dilakukan setelah data siap, bukan saat mount: mengalihkan di layar PIN
+     hanya membuat alamatnya berkedip sebelum ada yang bisa dilihat. */
+  if (tampilan.perluAlihkan() && !diShellMobile.value) {
+    router.replace('/m').catch(() => {})
+  }
   // Auto-routines run sequentially so each can use results of the previous
   ;(async () => {
     await autoGenerateNextMonth()

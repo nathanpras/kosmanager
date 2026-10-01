@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useTampilanMobile } from '../composables/useTampilanMobile'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBiometrik }        from '../composables/useBiometrik'
 import { useEkspor }           from '../composables/useEkspor'
@@ -12,6 +13,14 @@ import { useMigrasiKamar }     from '../composables/useMigrasiKamar'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 
 const router = useRouter()
+const tampilanMobile = useTampilanMobile()
+
+/* Menekan ini membatalkan pilihan "tetap di tampilan lama", supaya layar sempit
+   kembali dibawa ke shell mobile saat aplikasi dibuka. */
+function bukaTampilanMobile() {
+  tampilanMobile.pilihMobile()
+  router.push('/m')
+}
 
 const settings   = useSettingsStore()
 const properties = usePropertiesStore()
@@ -327,7 +336,7 @@ const appVersion = '2.0.0'
             pengerjaan dan belum menggantikan tampilan yang sekarang. Tombol
             kembali HP atau ikon kembali membawa Anda keluar dari sana.
           </p>
-          <button class="btn btn-primary" @click="router.push('/m')">Coba tampilan mobile baru</button>
+          <button class="btn btn-primary" @click="bukaTampilanMobile">Coba tampilan mobile baru</button>
         </div>
       </div>
 

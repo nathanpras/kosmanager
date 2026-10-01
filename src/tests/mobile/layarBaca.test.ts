@@ -431,3 +431,18 @@ describe('ubah pengeluaran dari tab Transaksi', () => {
     expect(tulis[0][1]).toMatchObject({ jumlah: 500_000 })
   })
 })
+
+describe('jalan keluar dari shell mobile', () => {
+  it('menekan ✕ mengingat pilihan supaya tidak dibawa ke sini lagi', async () => {
+    localStorage.clear()
+    const w = await pasang('/m')
+    await w.findAll('.topbar .iconbtn')
+      .find(b => b.attributes('aria-label')?.includes('tampilan lama'))!.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/')
+    /* Tanpa ini, membuka aplikasi lagi akan menyeretnya kembali — jalan keluar
+       yang dilupakan sama saja dengan tidak ada jalan keluar. */
+    expect(localStorage.getItem('kosmanager:tampilan')).toBe('lama')
+  })
+})

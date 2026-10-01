@@ -13,6 +13,7 @@ import MobIcon from '../../components/mobile/MobIcon.vue'
 import MobMenuSheet from '../../components/mobile/MobMenuSheet.vue'
 import { useMobile } from '../../composables/useMobile'
 import { useSettingsStore } from '../../stores/settings'
+import { useTampilanMobile } from '../../composables/useTampilanMobile'
 import { useTagihanStore } from '../../stores/tagihan'
 import { usePengeluaranStore } from '../../stores/pengeluaran'
 import { hitungSaldo, gabungSaldo } from '../../utils/saldo'
@@ -21,6 +22,7 @@ import { fmtTgl } from '../../utils/format'
 
 const router = useRouter()
 const settings = useSettingsStore()
+const tampilan = useTampilanMobile()
 const { daftarProperti, hitungan, hari } = useMobile()
 
 const sapaan = computed(() => {
@@ -92,9 +94,16 @@ function keMenu(ke: string) {
 /* Jalan keluar. Selama shell ini belum jadi bawaan, orang bisa mendarat di
    sini tanpa riwayat navigasi — tanpa tombol ini mereka terjebak, dan satu-
    satunya jalan keluar adalah mengetik ulang alamatnya. */
+function keTampilanLama() {
+  /* Pilihannya diingat: orang yang menekan ini tidak akan dibawa ke sini lagi
+     saat membuka aplikasi. Bisa dinyalakan lagi lewat Pengaturan. */
+  tampilan.pilihLama()
+  router.push('/')
+}
+
 const AKSI = [
   { ikon: 'more', label: 'Menu', onKlik: () => { menuTerbuka.value = true } },
-  { ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: () => router.push('/') },
+  { ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: keTampilanLama },
 ]
 </script>
 
