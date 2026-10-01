@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 314/314 hijau ·
-mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–4 selesai**
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 332/332 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–5 berjalan**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -199,8 +199,12 @@ sungguhan. Model-view bersamanya di `composables/useMobile.ts`.
 **Tahap 3 selesai.** Tab Penghuni (cari + filter) dan Kalender (penanda,
 geser bulan, tanggal bisa dipilih, agenda ikut).
 
-**Tahap 4 dimulai.** Catat pembayaran dari detail kamar — aksi pertama yang
+**Tahap 4 selesai.** Catat pembayaran dari detail kamar — aksi pertama yang
 benar-benar menulis. `MobSheet` jadi mekanisme bottom sheet-nya.
+
+**Tahap 5 berjalan.** Pindah kamar (detail kamar) dan Catat pengeluaran (FAB
+di tab Transaksi properti). Sisa aksi mockup belum: tambah tagihan, deposit,
+biaya lain, ubah harga, ubah masa tinggal, hapus sewa.
 
 Tiga aturan yang diangkat jadi milik bersama saat tahap 2, karena sudah
 terduplikasi sebelum shell mobile ada:
@@ -212,6 +216,7 @@ terduplikasi sebelum shell mobile ada:
 | `utils/statusKamar.ts` | baru — menggabungkan status hunian dan status uang jadi satu chip |
 | `composables/useBayarTagihan.ts` | jalur tulis pembayaran, dulu di dalam TagihanView |
 | `utils/lamaHuni.ts` | baru — lama menghuni dalam bahasa manusia |
+| `composables/usePindahKamar.ts` | aturan pindah kamar, dulu di dalam PenghuniView |
 
 Yang wajib diingat sebelum menyentuh apa pun di sini:
 
@@ -239,10 +244,10 @@ Dua hal yang belum ada di shell mobile dan sebaiknya menyusul bersama:
   seluruh properti sekaligus. Itu sengaja — tab Penghuni dan Kalender memang
   lintas properti di mockup — tapi suatu saat perlu diputuskan apakah
   `app.currentPropertyId` ikut berlaku di sini.
-- **Sisa aksi uang:** tambah tagihan, deposit, biaya lain, pengeluaran, ubah
-  harga, masa tinggal, pindah kamar, hapus sewa. Pindah kamar dan hapus sewa
-  sudah punya composable sendiri di aplikasi (`useKeluarPenghuni`,
-  `utils/riwayatKamar`) — pakai itu, jangan tulis aturan kedua.
+- **Sisa aksi uang:** tambah tagihan, deposit, biaya lain, ubah harga, ubah
+  masa tinggal, hapus sewa. Hapus sewa sudah punya `useKeluarPenghuni` di
+  aplikasi — pakai itu, jangan tulis aturan kedua. Pola yang sudah terbentuk:
+  **angkat aturannya jadi composable lebih dulu, baru dipakai dua tampilan.**
 
 Tahap berikutnya: **tahap 5 — sisa aksi uang dan layar pendukung** (catatan,
 foto, riwayat penghuni), lalu **tahap 6 — jadikan bawaan**.
