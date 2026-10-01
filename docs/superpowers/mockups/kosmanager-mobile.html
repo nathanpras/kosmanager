@@ -186,6 +186,16 @@
   }
   .iconbtn:hover { background: var(--ground-2); }
   .iconbtn:active { transform: scale(.86); transition-duration: 90ms; }
+  .iconbtn { position: relative; }
+  /* Lencana lonceng; tidak pernah dirender saat hitungannya nol */
+  .iconbtn .badge {
+    position: absolute; top: 6px; right: 5px; min-width: 17px; height: 17px;
+    padding: 0 4px; border-radius: var(--r-pill);
+    background: var(--bad); color: #fff;
+    font-size: 10.5px; font-weight: 700; line-height: 17px; text-align: center;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 0 0 2px var(--ground);
+  }
 
   /* ── Area gulir ────────────────────────────── */
   .scroll {
@@ -325,6 +335,8 @@
   .av.gold { background: var(--gold-tint); color: var(--gold-ink); }
   .av.ghost{ background: var(--sunken);    color: var(--ink-3); }
   .av.pos  { background: var(--ok-tint);   color: var(--ok); }
+  .av.neg  { background: var(--bad-tint);  color: var(--bad); }
+  .av.due  { background: var(--warn-tint); color: var(--warn); }
 
   .roomno {
     flex: none; display: grid; place-items: center;
@@ -361,6 +373,8 @@
     font-variant-numeric: tabular-nums;
   }
   .drow dd.act { flex: none; max-width: none; }
+  /* Nilai panjang seperti alamat: turun baris, bukan dipotong jadi "Jl. Citra Raya Blok…" */
+  .drow dd.wrap { white-space: normal; overflow: visible; text-overflow: clip; }
 
   /* ── Tab pil bergeser ──────────────────────── */
   .tabdock {
@@ -686,6 +700,7 @@
     transition: transform 260ms var(--e-press), border-color 200ms linear;
   }
   .uploader:active { transform: scale(.96); transition-duration: 90ms; }
+  .uploader.has-img { position: relative; overflow: hidden; border-style: solid; }
   .uploader span { font-size: 12px; font-weight: 600; }
   .uploader b { font-size: 10.5px; font-weight: 500; color: var(--ink-3); opacity: .8; }
 
@@ -876,6 +891,8 @@
   .cal-day:active { transform: scale(.88); transition-duration: 90ms; }
   .cal-day.blank { pointer-events: none; }
   .cal-day.today { background: var(--brand-deep); color: #fff; font-weight: 500; }
+  /* Tanggal yang sedang dipilih: cincin, bukan isian — supaya "hari ini" tetap terbaca */
+  .cal-day.is-sel { box-shadow: inset 0 0 0 2px var(--brand); font-weight: 700; }
   .cal-dots { position: absolute; bottom: 6px; display: flex; gap: 3px; }
   .cal-dots i { width: 4.5px; height: 4.5px; border-radius: 50%; display: block; }
   .cal-day.today .cal-dots i { box-shadow: 0 0 0 1.5px var(--brand-deep); }
@@ -988,9 +1005,20 @@ const ic = (n, s = 21) =>
    ═══════════════════════════════════════════════ */
 const TODAY = new Date(2026, 8, 27);   // 27 Sep 2026
 
+/* tipe, alamat, hp, dan sewa belum ada di Firestore — isian dummy, sesuai
+   aturan induk: gap hanya ditampilkan, tidak membuat skema baru. */
 const PROPS = [
-  { id: 'p1', nama: 'Raffles Kost Citra 1', daerah: 'Kalideres, Jakarta Barat', init: 'RC', tone: '' },
-  { id: 'p2', nama: 'Raffles Kost Waru 23', daerah: 'Cengkareng, Jakarta Barat', init: 'RW', tone: 'gold' },
+  /* `singkat` dipakai di baris daftar yang sempit. Kedua properti berawalan
+     "Raffles Kost", jadi memotong dari depan justru membuang pembedanya —
+     dan kamar 101-107 ada di keduanya, jadi pembeda itu wajib terbaca. */
+  { id: 'p1', nama: 'Raffles Kost Citra 1', singkat: 'Citra 1',
+    daerah: 'Kalideres, Jakarta Barat', init: 'RC', tone: '',
+    tipe: 'Kos', sewa: 'Sewa per kamar', hp: '0851 5623 7605',
+    alamat: 'Jl. Citra Raya Blok C1 No. 12' },
+  { id: 'p2', nama: 'Raffles Kost Waru 23', singkat: 'Waru 23',
+    daerah: 'Cengkareng, Jakarta Barat', init: 'RW', tone: 'gold',
+    tipe: 'Kos', sewa: 'Sewa per kamar', hp: '0851 5623 7606',
+    alamat: 'Jl. Waru Raya No. 23' },
 ];
 
 /* status: lunas | belum | telat | kosong | booked */
@@ -1119,8 +1147,24 @@ const SLOT = {
   wajah: { i: 'camera', t: 'Foto wajah',  accept: 'image/*',                 capture: 'user' },
   ktp:   { i: 'idcard', t: 'KTP',         accept: 'image/*',                 capture: 'environment' },
   lain:  { i: 'file',   t: 'Berkas lain', accept: 'image/*,application/pdf', capture: '' },
+  /* Foto kamar, bukan dokumen penghuni — lihat FOTO di bawah */
+  foto:  { i: 'camera', t: 'Foto kamar',  accept: 'image/*',                 capture: 'environment' },
+  logo:  { i: 'img',    t: 'Logo',        accept: 'image/*',                 capture: '' },
 };
+
+/* Foto kamar. Terpisah dari DOK: DOK berkunci id kamar tetapi isinya dokumen
+   milik penghuninya, jadi menumpuk foto kamar di sana akan mencampur dua hal
+   yang umurnya berbeda — penghuni berganti, kamarnya tetap. */
+const FOTO = {};
+const fotoDi = rid => FOTO[rid] || [];
+const ringkasFoto = rid => {
+  const n = fotoDi(rid).length;
+  return n ? n + ' foto' : 'Belum ada foto';
+};
+
 const berkasDi = (id, slot, idx) => {
+  if (slot === 'foto') return idx === 'new' ? null : fotoDi(id)[+idx];
+  if (slot === 'logo') return FORM.prop.logo;
   const d = dokOf(pemilik(id));
   return slot === 'lain' ? (idx === 'new' ? null : d.lain[+idx]) : d[slot];
 };
@@ -1233,8 +1277,14 @@ function chrome(o) {
     (o.back ? '<button class="iconbtn" data-back aria-label="Kembali">' + ic('back') + '</button>' : '') +
     '<h1 class="tb-title">' + numify(o.title) + '</h1>' +
     (o.actions || []).map(a =>
-      '<button class="iconbtn" ' + (a.form ? 'data-form="' + a.form + '"' : 'data-act="' + a.act + '"') +
-        ' aria-label="' + esc(a.label) + '">' + ic(a.icon) + '</button>'
+      '<button class="iconbtn" ' +
+        (a.form ? 'data-form="' + a.form + '"'
+        : a.sheet ? 'data-sheet="' + a.sheet + '"'
+        : a.go ? 'data-go="' + a.go + '"'
+        : 'data-act="' + a.act + '"') +
+        ' aria-label="' + esc(a.label) + '">' + ic(a.icon) +
+        (a.badge ? '<span class="badge">' + a.badge + '</span>' : '') +
+      '</button>'
     ).join('') +
   '</header>';
 }
@@ -1266,6 +1316,8 @@ function roomRow(r, tampilProp) {
   '</button>';
 }
 
+/* Sejak ronde 5 setiap pemanggil selalu memberi `go`; cabang "soon" tinggal
+   jaring pengaman kalau kelak ada baris baru yang lupa diberi tujuan. */
 const navRow = (icon, judul, sub, go) =>
   '<button class="card tap lrow" ' + (go ? 'data-go="' + go + '"' : 'data-act="soon"') + '>' +
     '<span class="av sq ghost">' + ic(icon, 19) + '</span>' +
@@ -1328,7 +1380,11 @@ VIEWS.home = () => {
 
   return chrome({
     title: 'Daftar properti',
-    actions: [{ icon: 'bell', act: 'soon', label: 'Notifikasi' }, { icon: 'search', act: 'soon', label: 'Cari' }],
+    actions: [
+      /* badge 0 tidak dirender — chrome() memeriksa kebenarannya, bukan keberadaannya */
+      { icon: 'bell',   go: 'notif', label: 'Notifikasi', badge: jumlahNotif() },
+      { icon: 'search', go: 'cari',  label: 'Cari' },
+    ],
   }) + '<div class="scroll">' + bigtitle('Daftar properti') + '<div class="stagger">' +
 
     '<section class="card hero">' +
@@ -1417,12 +1473,13 @@ VIEWS.prop = (pid, tab = 0) => {
   const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
     navRow('note',  'Catatan internal', ringkasCatatan(pid), 'notes/' + pid) +
     navRow('users', 'Riwayat penghuni', ringkasRiwayat(pid), 'hist/' + pid) +
-    navRow('info',  'Info properti',    p.daerah) +
+    navRow('info',  'Info properti',    p.daerah, 'info/' + pid) +
   '</div>';
 
   const fab = ['Kamar', 'Pengeluaran', ''][tab];
 
-  return chrome({ back: true, title: p.nama, actions: [{ icon: 'more', act: 'soon', label: 'Menu properti' }] }) +
+  return chrome({ back: true, title: p.nama,
+                  actions: [{ icon: 'more', sheet: 'menuprop:' + pid, label: 'Menu properti' }] }) +
     '<div class="scroll">' + bigtitle(p.nama) +
       ptabs(['Kamar', 'Transaksi', 'Lainnya'], tab) +
       '<div data-tabbody>' + [tabKamar, tabTxn, tabLain][tab] + '</div>' +
@@ -1531,11 +1588,12 @@ VIEWS.room = (rid, tab = 0) => {
 
   const tabLain = '<div class="sechead"><h2>Lainnya</h2></div><div class="stack-v stagger">' +
     navRow('note',   'Catatan kamar',    ringkasCatatan(r.id), 'notes/' + r.id) +
-    navRow('camera', 'Foto kamar',       'Belum ada foto') +
+    navRow('camera', 'Foto kamar',       ringkasFoto(r.id), 'foto/' + r.id) +
     navRow('users',  'Riwayat penghuni', ringkasRiwayat(r.id), 'hist/' + r.id) +
   '</div>';
 
-  return chrome({ back: true, title: 'Kamar ' + r.no, actions: [{ icon: 'more', act: 'soon', label: 'Menu kamar' }] }) +
+  return chrome({ back: true, title: 'Kamar ' + r.no,
+                  actions: [{ icon: 'more', sheet: 'menukamar:' + r.id, label: 'Menu kamar' }] }) +
     '<div class="scroll">' + bigtitle('Kamar ' + r.no) +
       ptabs(['Penghuni', 'Harga', 'Transaksi', 'Lainnya'], tab) +
       '<div data-tabbody>' + [tabPenghuni, tabHarga, tabTxn, tabLain][tab] + '</div>' +
@@ -1595,6 +1653,163 @@ VIEWS.notes = scope => {
     '<button class="fab" data-sheet="catatan:' + scope + '|new">' + ic('plus', 20) +
       '<span class="fab-label">Catatan</span></button>';
 };
+
+/* ── Ronde 5: foto kamar, info properti, notifikasi, cari ── */
+
+const drow = (k, v, wrap) =>
+  '<div class="drow"><dt>' + k + '</dt><dd' + (wrap ? ' class="wrap"' : '') + '>' + esc(v) + '</dd></div>';
+
+VIEWS.foto = rid => {
+  const r = room(rid);
+  const list = fotoDi(rid);
+  const judul = 'Foto kamar ' + r.no;
+  return chrome({ back: true, title: judul }) +
+    '<div class="scroll">' + bigtitle(judul) +
+      '<div data-tabbody>' +
+        '<div class="sechead"><h2>Galeri</h2><span class="count">' + list.length + '</span></div>' +
+        '<p class="fnote">Foto hanya tersimpan selama halaman terbuka.</p>' +
+        '<div class="docgrid stagger">' +
+          list.map((b, i) =>
+            '<button class="doc filled' + (b.url ? ' has-img' : '') + '" data-dok="' + rid + '|foto|' + i + '">' +
+              (b.url ? '<img class="doc-img" src="' + esc(b.url) + '" alt="">' : ic('camera', 25)) +
+              '<span>' + esc(b.nama) + '</span></button>').join('') +
+          '<button class="doc add" data-dok="' + rid + '|foto|new">' + ic('plus', 25) +
+            '<span>' + (list.length ? 'Tambah' : 'Foto pertama') + '</span></button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+};
+
+VIEWS.info = pid => {
+  const p = prop(pid);
+  const rs = roomsOf(pid);
+  const isi = rs.filter(r => r.status !== 'kosong').length;
+  const harga = rs.filter(r => r.harga).map(r => r.harga);
+  const rentang = !harga.length ? '–'
+    : Math.min(...harga) === Math.max(...harga) ? rp(harga[0]) + ' / bulan'
+    : rp(Math.min(...harga)) + ' – ' + rp(Math.max(...harga)) + ' / bulan';
+
+  return chrome({ back: true, title: 'Info properti' }) +
+    '<div class="scroll">' + bigtitle('Info properti') +
+      '<div data-tabbody><div class="stagger">' +
+
+        '<section class="card profile">' +
+          '<div class="av lg sq ' + p.tone + '">' + esc(p.init) + '</div>' +
+          '<h2>' + esc(p.nama) + '</h2>' +
+          '<div class="profile-chips">' +
+            '<span class="chip brand">' + esc(p.tipe) + '</span>' +
+            '<span class="chip mute fig">' + isi + '/' + rs.length + ' terisi</span>' +
+          '</div>' +
+        '</section>' +
+
+        '<div class="sechead"><h2>Keterangan</h2></div>' +
+        '<dl class="card flush divide">' +
+          drow('Jenis',      p.tipe) +
+          drow('Jenis sewa', p.sewa) +
+          drow('Alamat',     p.alamat, true) +
+          drow('Daerah',     p.daerah, true) +
+          drow('Telepon',    p.hp) +
+        '</dl>' +
+
+        '<div class="sechead"><h2>Ringkasan kamar</h2></div>' +
+        '<dl class="card flush divide">' +
+          drow('Jumlah kamar', String(rs.length)) +
+          drow('Terisi',       isi + ' dari ' + rs.length) +
+          drow('Kosong',       String(rs.length - isi)) +
+          drow('Harga sewa',   rentang, true) +
+        '</dl>' +
+
+      '</div></div>' +
+    '</div>';
+};
+
+/* Notifikasi diturunkan dari ROOMS, bukan daftar karangan — begitu data
+   berubah, daftarnya ikut berubah. Urut dari yang paling mendesak. */
+function daftarNotif() {
+  const out = [];
+  ROOMS.forEach(r => { if (r.status === 'telat') out.push({ r, av: 'neg', i: 'warn',
+    t: 'Pembayaran telat', v: rp(r.harga) }); });
+  ROOMS.forEach(r => { if (r.status === 'belum') out.push({ r, av: 'due', i: 'receipt',
+    t: 'Jatuh tempo', v: 'Tgl ' + r.tglTagih }); });
+  ROOMS.forEach(r => { if (r.masuk === '2026-09-27') out.push({ r, av: 'pos', i: 'in',
+    t: 'Check-in hari ini', v: r.jam }); });
+  /* Yang check-in hari ini sudah disebut di atas; jangan dihitung dua kali */
+  ROOMS.forEach(r => { if (r.status === 'booked' && r.masuk !== '2026-09-27') out.push({ r, av: '', i: 'cal',
+    t: 'Kamar booked', v: tgl(r.masuk) }); });
+  return out;
+}
+const jumlahNotif = () => ROOMS.filter(r => r.status === 'telat' || r.status === 'belum').length;
+
+VIEWS.notif = () => {
+  const list = daftarNotif();
+  return chrome({ back: true, title: 'Notifikasi' }) +
+    '<div class="scroll">' + bigtitle('Notifikasi') +
+      '<div data-tabbody>' +
+        '<div class="sechead"><h2>Perlu dilihat</h2><span class="count">' + list.length + '</span></div>' +
+        (list.length
+          ? '<div class="stack-v stagger">' + list.map(n =>
+              /* Nilainya berdiri sendiri di kanan: kalau digabung ke baris
+                 properti, "Raffles Kost Citra 1 · Rp1.750.000 bel…" terpotong. */
+              '<button class="card tap lrow" data-go="room/' + n.r.id + '">' +
+                '<span class="av sm ' + n.av + '">' + ic(n.i, 18) + '</span>' +
+                '<span class="lrow-body">' +
+                  '<span class="lrow-title">' + n.t + '</span>' +
+                  '<span class="lrow-sub">' + esc(n.r.nama) + '</span>' +
+                  '<span class="lrow-sub">Kamar ' + esc(n.r.no) + ' · ' +
+                    esc(prop(n.r.prop).singkat) + '</span>' +
+                '</span>' +
+                '<span class="lrow-trail">' +
+                  '<span class="chip mute fig">' + esc(n.v) + '</span>' +
+                  '<span class="chev">' + ic('chev', 18) + '</span></span>' +
+              '</button>').join('') + '</div>'
+          : emptyBox('Tidak ada notifikasi', 'Semua tagihan lunas dan tidak ada agenda hari ini.')) +
+      '</div>' +
+    '</div>';
+};
+
+let cariQ = '';
+
+function hasilCari(q) {
+  const s = q.trim().toLowerCase();
+  if (!s) return emptyBox('Mau cari apa?',
+    'Ketik nama penghuni, nomor kamar, atau nama properti.');
+
+  /* Kamar dicocokkan ke nomornya saja. Kalau nama properti ikut dicocokkan,
+     satu kata "Citra" akan mengembalikan seluruh 19 kamar. */
+  const hp = PROPS.filter(p => (p.nama + ' ' + p.daerah).toLowerCase().includes(s));
+  const hk = ROOMS.filter(r => r.no.toLowerCase().includes(s));
+  const ho = tenants().filter(r => (r.nama + ' ' + r.hp).toLowerCase().includes(s));
+
+  if (!hp.length && !hk.length && !ho.length)
+    return emptyBox('Tidak ditemukan', 'Tidak ada yang cocok dengan “' + esc(q.trim()) + '”.');
+
+  const seksi = (judul, n, isi) => !n ? '' :
+    '<div class="sechead"><h2>' + judul + '</h2><span class="count">' + n + '</span></div>' +
+    '<div class="stack-v">' + isi + '</div>';
+
+  return seksi('Properti', hp.length, hp.map(p =>
+      '<button class="card tap lrow" data-go="prop/' + p.id + '">' +
+        '<span class="av sq ' + p.tone + '">' + esc(p.init) + '</span>' +
+        '<span class="lrow-body"><span class="lrow-title">' + esc(p.nama) + '</span>' +
+        '<span class="lrow-sub">' + esc(p.daerah) + '</span></span>' +
+        '<span class="chev">' + ic('chev', 18) + '</span></button>').join('')) +
+    seksi('Kamar', hk.length, hk.map(r => roomRow(r, true)).join('')) +
+    seksi('Penghuni', ho.length, ho.map(r =>
+      '<button class="card tap lrow" data-go="tenant/' + r.id + '">' +
+        '<span class="av">' + esc(inisial(r.nama)) + '</span>' +
+        '<span class="lrow-body"><span class="lrow-title">' + esc(r.nama) + '</span>' +
+        '<span class="lrow-sub">Kamar ' + esc(r.no) + ' · ' + esc(r.hp) + '</span></span>' +
+        '<span class="lrow-trail">' + statusChip(r.status) +
+          '<span class="chev">' + ic('chev', 18) + '</span></span></button>').join(''));
+}
+
+VIEWS.cari = () => chrome({ back: true, title: 'Cari' }) +
+  '<div class="scroll">' + bigtitle('Cari') +
+    '<div class="search">' + ic('search', 18) +
+      '<input placeholder="Nama, nomor kamar, atau properti" data-cari ' +
+        'value="' + esc(cariQ) + '" aria-label="Cari"></div>' +
+    '<div data-tabbody><div data-hasil>' + hasilCari(cariQ) + '</div></div>' +
+  '</div>';
 
 /* Profil penghuni. bekas = true untuk mantan penghuni: baca saja */
 function profilPenghuni(o, bekas) {
@@ -1661,7 +1876,8 @@ const TFILTER = {
 
 VIEWS.tenants = () => {
   const list = tenants().filter(TFILTER[tenantFilter]);
-  return chrome({ title: 'Penghuni', actions: [{ icon: 'search', act: 'soon', label: 'Cari' }] }) +
+  return chrome({ title: 'Penghuni',
+                  actions: [{ icon: 'search', act: 'fokuscari', label: 'Cari penghuni' }] }) +
     '<div class="scroll">' + bigtitle('Penghuni') +
       '<div class="search">' + ic('search', 18) +
         '<input placeholder="Cari nama atau nomor kamar" data-search aria-label="Cari penghuni"></div>' +
@@ -1692,33 +1908,68 @@ VIEWS.tenants = () => {
 const BLN_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 let calY = 2026, calM = 8;
 
+let calSel = '';            /* tanggal terpilih di kalender, ISO; kosong = hari ini */
+
+/* Agenda satu tanggal: check-in pada tanggal itu, lalu tagihan yang jatuh
+   tempo pada tanggalnya. Tanggal diurai secara tekstual, bukan lewat Date. */
+/* Status yang benar-benar punya tagihan berjalan */
+const PUNYA_TAGIHAN = ['belum', 'telat'];
+
+function agendaHari(iso) {
+  const hari = Number(iso.split('-')[2]);
+  const out = [];
+  ROOMS.forEach(r => { if (r.masuk === iso) out.push({ r, av: 'pos', i: 'in',
+    t: 'Check-in ' + r.nama, v: r.jam }); });
+  ROOMS.forEach(r => {
+    if (r.tglTagih !== hari || !PUNYA_TAGIHAN.includes(r.status)) return;
+    out.push({ r, av: r.status === 'telat' ? 'neg' : 'due', i: 'receipt',
+      t: (r.status === 'telat' ? 'Telat · ' : 'Jatuh tempo · ') + r.nama, v: rp(r.harga) });
+  });
+  return out;
+}
+
 VIEWS.calendar = () => {
   const Y = calY, M = calM;
   const offset = (new Date(Y, M, 1).getDay() + 6) % 7;      // pekan mulai Senin
   const jml = new Date(Y, M + 1, 0).getDate();
+  const K = FORM.kal;
 
   const tanda = {};
   const tandai = (d, w) => { (tanda[d] = tanda[d] || new Set()).add(w); };
   ROOMS.forEach(r => {
     if (!r.masuk) return;
     const [y, m, d] = r.masuk.split('-').map(Number);
-    if (y === Y && m - 1 === M) tandai(d, 'in');
-    if (r.tglTagih) tandai(r.tglTagih, r.status === 'telat' ? 'late' : 'due');
+    if (K.in && y === Y && m - 1 === M) tandai(d, 'in');
+    /* Satu aturan untuk titik dan untuk agenda. Kalau titiknya ikut menandai
+       kamar yang sudah lunas, tanggal 5 bertitik biru tapi agendanya kosong —
+       penandanya jadi bohong. */
+    if (!r.tglTagih || !PUNYA_TAGIHAN.includes(r.status)) return;
+    const telat = r.status === 'telat';
+    if (telat ? K.late : K.due) tandai(r.tglTagih, telat ? 'late' : 'due');
   });
   const WARNA = { in: 'var(--ok)', due: 'var(--brand)', late: 'var(--bad)' };
+
+  const pad = n => String(n).padStart(2, '0');
+  const isoHari = d => Y + '-' + pad(M + 1) + '-' + pad(d);
 
   let sel = '';
   for (let i = 0; i < offset; i++) sel += '<span class="cal-day blank"></span>';
   for (let d = 1; d <= jml; d++) {
     const t = tanda[d] ? [...tanda[d]] : [];
+    const iso = isoHari(d);
     const ini = (Y === 2026 && M === 8 && d === 27);
-    sel += '<button class="cal-day' + (ini ? ' today' : '') + '" data-act="soon">' + d +
+    sel += '<button class="cal-day' + (ini ? ' today' : '') + (iso === calSel ? ' is-sel' : '') +
+      '" data-hari="' + iso + '">' + d +
       (t.length ? '<span class="cal-dots">' +
         t.map(k => '<i style="background:' + WARNA[k] + '"></i>').join('') + '</span>' : '') +
     '</button>';
   }
 
-  return chrome({ title: 'Kalender', actions: [{ icon: 'more', act: 'soon', label: 'Menu kalender' }] }) +
+  const tglAgenda = calSel || '2026-09-27';
+  const acara = agendaHari(tglAgenda);
+
+  return chrome({ title: 'Kalender',
+                  actions: [{ icon: 'more', sheet: 'menukal', label: 'Menu kalender' }] }) +
     '<div class="scroll">' + bigtitle('Kalender') + '<div data-tabbody><div class="stagger">' +
       '<section class="card" style="padding:16px 14px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px">' +
@@ -1732,22 +1983,28 @@ VIEWS.calendar = () => {
           sel +
         '</div>' +
         '<div class="legend">' +
-          '<span><i style="background:var(--ok)"></i>Check-in</span>' +
-          '<span><i style="background:var(--brand)"></i>Jatuh tempo</span>' +
-          '<span><i style="background:var(--bad)"></i>Telat</span>' +
+          (K.in   ? '<span><i style="background:var(--ok)"></i>Check-in</span>' : '') +
+          (K.due  ? '<span><i style="background:var(--brand)"></i>Jatuh tempo</span>' : '') +
+          (K.late ? '<span><i style="background:var(--bad)"></i>Telat</span>' : '') +
         '</div>' +
       '</section>' +
-      '<div class="sechead"><h2>Agenda hari ini</h2><span class="count">' +
-        ROOMS.filter(HITUNG.checkin).length + '</span></div>' +
-      ROOMS.filter(HITUNG.checkin).map(r =>
-        '<button class="card tap lrow" data-go="room/' + r.id + '">' +
-          '<span class="av" style="background:var(--ok-tint);color:var(--ok)">' + ic('in', 19) + '</span>' +
-          '<span class="lrow-body">' +
-            '<span class="lrow-title">Check-in ' + esc(r.nama) + '</span>' +
-            '<span class="lrow-sub">' + esc(prop(r.prop).nama) + ' · Kamar ' + esc(r.no) + ' · ' + esc(r.jam) + '</span>' +
-          '</span>' +
-          '<span class="chev">' + ic('chev', 18) + '</span>' +
-        '</button>').join('') +
+      '<div class="sechead"><h2>' +
+        (calSel ? 'Agenda ' + tgl(calSel) : 'Agenda hari ini') +
+        '</h2><span class="count">' + acara.length + '</span></div>' +
+      (acara.length
+        ? acara.map(n =>
+            '<button class="card tap lrow" data-go="room/' + n.r.id + '">' +
+              '<span class="av ' + n.av + '">' + ic(n.i, 19) + '</span>' +
+              '<span class="lrow-body">' +
+                '<span class="lrow-title">' + esc(n.t) + '</span>' +
+                '<span class="lrow-sub">Kamar ' + esc(n.r.no) + ' · ' +
+                  esc(prop(n.r.prop).singkat) + '</span>' +
+              '</span>' +
+              '<span class="lrow-trail">' +
+                '<span class="chip mute fig">' + esc(n.v) + '</span>' +
+                '<span class="chev">' + ic('chev', 18) + '</span></span>' +
+            '</button>').join('')
+        : emptyBox('Tidak ada agenda', 'Tidak ada check-in maupun tagihan jatuh tempo pada tanggal ini.')) +
     '</div></div></div>';
 };
 
@@ -1759,9 +2016,11 @@ const FORM = {
   tenant: { prop: 'p1', kamar: '', masuk: '2026-09-27', jam: '14:00', keluar: '', jamKeluar: '',
             harga: 0, nama: '', hp: '', orang: 1, kelamin: '', asal: '', kerja: '',
             sudahBayar: false, komponen: [] },
-  prop:   { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false, sewa: '',
+  prop:   { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false, sewa: '', logo: null,
             negara: 'Indonesia', alamat: '', provinsi: '', kota: '', kecamatan: '', pos: '',
             pakaiHp: true, hp: '' },
+  /* Penanda mana yang digambar di kalender; diubah lewat Menu kalender */
+  kal:    { in: true, due: true, late: true },
   kamar:  { prop: 'p1', no: '', tipe: '', desk: '', tampilDesk: false, belumSewa: false },
   bayar:  { rid: '', nominal: 0, tgl: '2026-09-27', metode: 'Transfer bank', catatan: '' },
   catatan: { kunci: '', scope: '', id: '', tgl: '2026-09-27', teks: '', yakin: false, galat: '' },
@@ -2046,8 +2305,10 @@ function formProp() {
   }
 
   return kepala + '<div class="scroll isform"><div data-tabbody>' +
-      '<button class="uploader" data-act="soon">' + ic('img', 26) +
-        '<span>Logo</span><b>opsional</b></button>' +
+      '<button class="uploader' + (F.logo ? ' has-img' : '') + '" data-dok="prop|logo|">' +
+        (F.logo && F.logo.url
+          ? '<img class="doc-img" src="' + esc(F.logo.url) + '" alt="Logo properti">'
+          : ic('img', 26) + '<span>Logo</span><b>opsional</b>') + '</button>' +
       '<p class="fnote" style="text-align:center;margin-bottom:4px">Lengkapi keterangan rumah ini.</p>' +
 
       fSec('build', 'Jenis sewa') +
@@ -2139,7 +2400,9 @@ function mulaiForm(spec) {
     Object.assign(FORM.edit, { rid: r.id, nama: r.nama, hp: r.hp, kelamin: r.kelamin, asal: r.asal,
                                kerja: r.kerja, darurat: r.darurat, daruratHp: r.daruratHp, galat: '' });
   } else {
-    Object.assign(FORM.prop, { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false, sewa: '' });
+    lepasUrl(FORM.prop.logo);
+    Object.assign(FORM.prop, { step: 1, nama: '', tipe: '', desk: '', tampilDesk: false,
+                               sewa: '', logo: null });
   }
   ke('form/' + jenis);
 }
@@ -2305,6 +2568,49 @@ const SHEETS = {
         sheet: 'hapus:' + r.id, danger: true },
     ] };
   },
+
+  /* ── Ronde 5: menu bertitik tiga ───────────
+     Isinya hanya pintasan ke layar yang sudah bisa dicapai lewat jalan lain.
+     Menaruh satu-satunya jalan ke sebuah layar di balik menu ini berarti
+     menyembunyikannya. */
+  menuprop: pid => {
+    const p = prop(pid);
+    return { title: 'Menu properti', sub: p.nama, items: [
+      { i: 'info',  t: 'Info properti',     s: 'Alamat, telepon, ringkasan kamar', go: 'info/' + pid },
+      { i: 'note',  t: 'Catatan internal',  s: ringkasCatatan(pid), go: 'notes/' + pid },
+      { i: 'users', t: 'Riwayat penghuni',  s: ringkasRiwayat(pid), go: 'hist/' + pid },
+      { i: 'plus',  t: 'Tambah kamar',      s: 'Kamar baru di ' + p.nama, sheet: 'kamar:' + pid },
+      { i: 'out',   t: 'Catat pengeluaran', s: 'Perbaikan, listrik, air', sheet: 'keluar:' + pid },
+    ] };
+  },
+
+  menukamar: rid => {
+    const r = room(rid);
+    const kosong = r.status === 'kosong';
+    const items = [
+      { i: 'camera', t: 'Foto kamar',       s: ringkasFoto(rid),     go: 'foto/' + rid },
+      { i: 'note',   t: 'Catatan kamar',    s: ringkasCatatan(rid),  go: 'notes/' + rid },
+      { i: 'users',  t: 'Riwayat penghuni', s: ringkasRiwayat(rid),  go: 'hist/' + rid },
+    ];
+    if (kosong) items.push(
+      { i: 'plus', t: 'Tambah penghuni', s: 'Kamar ' + r.no + ' masih kosong', form: 'tenant:' + rid });
+    else items.push(
+      { i: 'sliders', t: 'Aksi',             s: 'Pembayaran, tagihan, deposit',      sheet: 'aksi:' + rid, chev: 1 },
+      { i: 'money',   t: 'Pengaturan sewa',  s: 'Harga, masa tinggal, pindah kamar', sheet: 'sewa:' + rid, chev: 1 });
+    return { title: 'Menu kamar',
+             sub: kosong ? 'Kamar ' + r.no : r.nama + ' · Kamar ' + r.no, items };
+  },
+
+  /* Kalender dengan tiga jenis titik sekaligus jadi ramai; sakelar ini
+     membuat menunya berguna, bukan sekadar terisi. */
+  menukal: () => ({
+    title: 'Menu kalender', sub: 'Penanda yang ditampilkan',
+    html: '<div style="padding:0 12px 6px">' +
+      fToggle('Check-in',    'Titik hijau pada tanggal masuk',       'kal.in') +
+      fToggle('Jatuh tempo', 'Titik biru pada tanggal tagih',        'kal.due') +
+      fToggle('Telat',       'Titik merah pada tagihan yang telat',  'kal.late') +
+    '</div>',
+  }),
 
   /* ── Ronde 4: uang dan kontrak sewa ───────── */
 
@@ -2537,8 +2843,13 @@ function isiSheet(def) {
     '</div>' +
     '<div class="sheet-body">' + (def.items
       ? def.items.map(it =>
+        /* Cabang terakhir tinggal jaring pengaman: sejak ronde 5 tidak ada
+           lagi item sheet yang dirender tanpa tujuan. */
         '<button class="aitem' + (it.danger ? ' danger' : '') + '" ' +
-          (it.go ? 'data-go="' + it.go + '"' : it.sheet ? 'data-sheet="' + it.sheet + '"' : 'data-act="soon"') + '>' +
+          (it.go ? 'data-go="' + it.go + '"'
+          : it.sheet ? 'data-sheet="' + it.sheet + '"'
+          : it.form ? 'data-form="' + it.form + '"'
+          : 'data-act="soon"') + '>' +
           '<span class="aitem-ic">' + ic(it.i, 19) + '</span>' +
           '<span class="aitem-t">' + esc(it.t) + '<small>' + esc(it.s) + '</small></span>' +
           (it.chev ? '<span class="chev" style="color:var(--ink-3)">' + ic('chev', 17) + '</span>' : '') +
@@ -2651,9 +2962,30 @@ function pilihBerkas(id, slot, idx) {
 const lepasUrl = b => { if (b && b.url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(b.url); };
 
 function terimaBerkas(tj, f) {
-  const d = dokOf(pemilik(tj.id));
   const baru = { nama: f.name, tipe: f.type === 'application/pdf' ? 'pdf' : 'image',
                  url: typeof URL.createObjectURL === 'function' ? URL.createObjectURL(f) : '' };
+
+  if (tj.slot === 'logo') {
+    lepasUrl(FORM.prop.logo);
+    FORM.prop.logo = baru;
+    tujuanBerkas = null;
+    segarkanForm();
+    toast('Logo dipilih');
+    return;
+  }
+
+  if (tj.slot === 'foto') {
+    const daftar = FOTO[tj.id] || (FOTO[tj.id] = []);
+    if (tj.idx === 'new') daftar.push(baru);
+    else { lepasUrl(daftar[+tj.idx]); daftar[+tj.idx] = baru; }
+    tujuanBerkas = null;
+    tutupPenampil();
+    segarkanForm();
+    toast(tj.idx === 'new' ? 'Foto ditambahkan' : 'Foto diganti');
+    return;
+  }
+
+  const d = dokOf(pemilik(tj.id));
   if (tj.slot !== 'lain') { lepasUrl(d[tj.slot]); d[tj.slot] = baru; }
   else if (tj.idx === 'new') d.lain.push(baru);
   else { lepasUrl(d.lain[+tj.idx]); d.lain[+tj.idx] = baru; }
@@ -2665,7 +2997,8 @@ function terimaBerkas(tj, f) {
 
 function bukaPenampil(id, slot, idx) {
   tutupPenampil();
-  const o = pemilik(id);
+  /* Foto milik kamar, bukan orang: kamar kosong tidak punya nama penghuni */
+  const o = slot === 'foto' ? { nama: 'Kamar ' + room(id).no } : pemilik(id);
   const b = berkasDi(id, slot, idx);
   const S = SLOT[slot];
   const ref = id + '|' + slot + '|' + idx;
@@ -2717,9 +3050,10 @@ const depth = r =>
   isModal(r) ? 9 :
   r.startsWith('ex/') ? 4 :
   (r.startsWith('hist/') || r.startsWith('notes/')) ? lingkupDalam(r) :
-  r.startsWith('tenant/') ? 3 :
-  r.startsWith('room/')   ? 2 :
-  (r.startsWith('prop/') || r.startsWith('filter/')) ? 1 : 0;
+  (r.startsWith('tenant/') || r.startsWith('foto/')) ? 3 :
+  (r.startsWith('room/') || r.startsWith('info/')) ? 2 :
+  (r.startsWith('prop/') || r.startsWith('filter/')) ? 1 :
+  (r === 'notif' || r === 'cari') ? 1 : 0;
 
 const tabState = {};
 let saatIni = null, layarEl = null;
@@ -2736,6 +3070,8 @@ function render(rute) {
   if (nama === 'hist')   return VIEWS.hist(arg);
   if (nama === 'ex')     return VIEWS.ex(arg);
   if (nama === 'notes')  return VIEWS.notes(arg);
+  if (nama === 'foto')   return VIEWS.foto(arg);
+  if (nama === 'info')   return VIEWS.info(arg);
   return (VIEWS[nama] || VIEWS.home)();
 }
 
@@ -2803,6 +3139,13 @@ function aktifkan(el) {
     lastY = y;
   }, { passive: true });
 
+  const kotak = el.querySelector('[data-cari]');
+  if (kotak) kotak.addEventListener('input', () => {
+    cariQ = kotak.value;
+    const wadah = el.querySelector('[data-hasil]');
+    if (wadah) { wadah.innerHTML = hasilCari(cariQ); stagger(wadah); }
+  });
+
   const cari = el.querySelector('[data-search]');
   if (cari) cari.addEventListener('input', () => {
     const q = cari.value.trim().toLowerCase();
@@ -2817,13 +3160,17 @@ const stagger = scope =>
     [...g.children].forEach((c, i) => c.style.setProperty('--i', i)));
 
 /* Ganti isi tab saja: elemen ptabs tetap sama supaya indikatornya bisa morph */
-function swapBody(layar, rute) {
+/* `tanpaGerak` untuk perubahan kecil di dalam layar yang sama — memilih
+   tanggal di kalender tidak boleh membuat kartu kalendernya ikut
+   beranimasi masuk lagi dari nol. */
+function swapBody(layar, rute, tanpaGerak) {
   const tmp = document.createElement('div');
   tmp.innerHTML = render(rute);
 
   const baru = tmp.querySelector('[data-tabbody]');
   const lama = layar.querySelector('[data-tabbody]');
   if (!baru || !lama) { layar.innerHTML = render(rute); aktifkan(layar); return; }
+  if (tanpaGerak) baru.querySelectorAll('.stagger').forEach(g => g.classList.remove('stagger'));
   lama.replaceWith(baru);
 
   const fabLama = layar.querySelector('.fab');
@@ -2878,9 +3225,9 @@ function segarkanSheet() {
   sheetEl.innerHTML = isiSheet(SHEETS[key](arg));
   return true;
 }
-function segarkanForm() {
+function segarkanForm(tanpaGerak) {
   const el = modalEl || layarEl;
-  if (el && el.querySelector('[data-tabbody]')) swapBody(el, saatIni);
+  if (el && el.querySelector('[data-tabbody]')) swapBody(el, saatIni, tanpaGerak);
 }
 const sheetPemilih = () => sheetSpec && /^(pilih|tanggal):/.test(sheetSpec);
 
@@ -3064,7 +3411,7 @@ phone.addEventListener('click', e => {
     '[data-form],[data-set],[data-toggle],[data-radio],[data-addkomp],[data-delkomp],' +
     '[data-scal],[data-cal],[data-step],[data-tutup],[data-simpan],[data-hapuscat],' +
     '[data-dok],[data-vtutup],[data-vganti],[data-vhapus],[data-tpl],[data-wa],' +
-    '[data-jenis],[data-hapussewa]');
+    '[data-jenis],[data-hapussewa],[data-hari]');
   if (!t) return;
 
   if (t.dataset.tab !== undefined) {
@@ -3111,7 +3458,13 @@ phone.addEventListener('click', e => {
     return;
   }
 
-  if (t.dataset.toggle) { setF(t.dataset.toggle, !getF(t.dataset.toggle)); nilaiBerubah(); return; }
+  if (t.dataset.toggle) {
+    setF(t.dataset.toggle, !getF(t.dataset.toggle));
+    nilaiBerubah();
+    /* Sakelar penanda mengubah kalender di belakang sheet, bukan isi sheet-nya */
+    if (t.dataset.toggle.startsWith('kal.')) segarkanForm();
+    return;
+  }
 
   if (t.dataset.radio) {
     const [path, v] = t.dataset.radio.split('|');
@@ -3135,9 +3488,17 @@ phone.addEventListener('click', e => {
     return;
   }
 
+  if (t.dataset.hari) {
+    calSel = calSel === t.dataset.hari ? '' : t.dataset.hari;
+    /* Hanya tanggal terpilih dan agendanya yang berubah; kalendernya diam */
+    segarkanForm(true); return;
+  }
+
   if (t.dataset.cal) {
     const m = calM + +t.dataset.cal;
     calY += Math.floor(m / 12); calM = (m % 12 + 12) % 12;
+    /* Tanggal terpilih milik bulan lama; pindah bulan membatalkannya */
+    calSel = '';
     segarkanForm(); return;
   }
 
@@ -3206,6 +3567,8 @@ phone.addEventListener('click', e => {
 
   if (t.dataset.dok) {
     const [id, slot, idx] = t.dataset.dok.split('|');
+    /* Logo tidak punya penampil layar penuh: ditekan lagi berarti mengganti */
+    if (slot === 'logo') { pilihBerkas(id, slot, idx); return; }
     if (berkasDi(id, slot, idx)) bukaPenampil(id, slot, idx); else pilihBerkas(id, slot, idx);
     return;
   }
@@ -3213,6 +3576,11 @@ phone.addEventListener('click', e => {
   if (t.dataset.vganti) { const [id, slot, idx] = t.dataset.vganti.split('|'); pilihBerkas(id, slot, idx); return; }
   if (t.dataset.vhapus) {
     const [id, slot, idx] = t.dataset.vhapus.split('|');
+    if (slot === 'foto') {
+      lepasUrl((FOTO[id] || []).splice(+idx, 1)[0]);
+      tutupPenampil(); segarkanForm(); toast('Foto dihapus');
+      return;
+    }
     const d = dokOf(pemilik(id));
     if (slot === 'lain') lepasUrl(d.lain.splice(+idx, 1)[0]);
     else { lepasUrl(d[slot]); d[slot] = null; }
@@ -3223,6 +3591,19 @@ phone.addEventListener('click', e => {
   if (t.dataset.go) { closeSheet(); ke(t.dataset.go); return; }
   if (t.hasAttribute('data-back')) { history.back(); return; }
   if (t.dataset.sheet) { openSheet(t.dataset.sheet); return; }
+  /* Layar Penghuni sudah punya kolom cari sejak ronde 1; ikon di header
+     mengarahkan ke sana, bukan membuat kotak cari kedua. */
+  if (t.dataset.act === 'fokuscari') {
+    const layar = t.closest('.screen');
+    const inp = layar && layar.querySelector('[data-search]');
+    if (inp) {
+      const sc = layar.querySelector('.scroll');
+      if (sc) sc.scrollTop = 0;
+      inp.focus();
+    }
+    return;
+  }
+
   if (t.dataset.act === 'soon') { closeSheet(); toast('Belum dibuat di ronde 1'); }
 });
 
