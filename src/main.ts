@@ -1,6 +1,9 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import './style.css'
+/* Seluruh aturannya diawali `.kmob`, jadi aman dimuat global: tanpa leluhur
+   itu tidak satu pun yang berlaku. Lihat berkasnya untuk alasannya. */
+import './style.mobile.css'
 import App from './App.vue'
 import router from './router'
 import {

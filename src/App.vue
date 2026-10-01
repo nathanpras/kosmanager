@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { MONTHS_FULL }         from './utils/format'
 import { authReady }          from './firebase'
 import { useAppStore }         from './stores/app'
@@ -17,6 +17,8 @@ import { kamarDiBulan } from './utils/riwayatKamar'
 import { DEFAULT_TGL_JATUH_TEMPO } from './utils/billing'
 import { useBiometrik }        from './composables/useBiometrik'
 import { useSinkronPublik }    from './composables/useSinkronPublik'
+
+import { useRoute } from 'vue-router'
 
 import AppSidebar   from './components/layout/AppSidebar.vue'
 import AppTopBar    from './components/layout/AppTopBar.vue'
@@ -40,6 +42,12 @@ const biometrik = useBiometrik()
 const { sinkronSemua } = useSinkronPublik()
 
 const w = window
+
+/* Shell mobile mengambil seluruh layar dan membawa dok sendiri, jadi rangka
+   desktop — sidebar, bilah atas, dan nav bawah lama — tidak ikut dirender di
+   bawah /m. Keduanya tidak boleh hidup bersamaan: dua navigasi di satu layar. */
+const route = useRoute()
+const diShellMobile = computed(() => route.path === '/m' || route.path.startsWith('/m/'))
 
 type PinMode = 'enter' | 'setup' | 'confirm' | 'change'
 const pinMode   = ref<PinMode>('enter')
@@ -206,6 +214,8 @@ onMounted(async () => {
     @biometrik="bukaBiometrik"
   />
 
+  <RouterView v-else-if="showApp && diShellMobile" />
+
   <div v-else-if="showApp" class="shell">
     <AppSidebar @change-pin="pinMode = 'change'; showPin = true" />
     <div class="main">
@@ -214,6 +224,6 @@ onMounted(async () => {
     </div>
   </div>
 
-  <AppBottomNav v-if="showApp" />
+  <AppBottomNav v-if="showApp && !diShellMobile" />
   <AppToast />
 </template>
