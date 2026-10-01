@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 221/221 hijau ·
-mockup `_smoke.cjs` 95/95 hijau
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 233/233 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **port tahap 1 selesai**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -185,12 +185,32 @@ Yang perlu diingat saat port:
 - Foto kamar disimpan di `FOTO[rid]`, terpisah dari `DOK` yang isinya dokumen
   penghuni — penghuni berganti, kamarnya tetap.
 
-### Berikutnya — belum dikerjakan
+### Port ke aplikasi — sedang berjalan
 
-1. **Port ke aplikasi.** Satu-satunya pekerjaan besar yang tersisa di jalur B.
-   Lapis `@layer tokens` dan `@layer components` di dalam mockup sengaja
-   ditulis untuk disalin utuh ke `src/style.css`; hanya lapis `screens` dan
-   markup yang perlu dirakit ulang jadi komponen Vue.
+Kontrak dan urutan enam tahapnya:
+`docs/superpowers/specs/2026-10-01-port-mobile-ke-aplikasi-design.md`
+
+**Tahap 1 selesai.** Fondasi berdiri: `src/style.mobile.css` hasil panen,
+`MobIcon` / `MobScreen` / `MobileShell`, rute `/m` dengan tiga tab, dan tiga
+layar yang masih kosong.
+
+Yang wajib diingat sebelum menyentuh apa pun di sini:
+
+- **Setiap selektor di `src/style.mobile.css` diawali `.kmob`.** Itu syarat,
+  bukan gaya penulisan. `src/style.css` seluruhnya tanpa lapisan, dan aturan
+  tanpa lapisan menang atas aturan berlapis — jadi `@layer` tidak bisa dipakai
+  untuk melindungi diri. Dijaga uji `src/tests/mobile/isolasiCss.test.ts`.
+- **Berkas itu hasil panen**, bukan tulisan tangan. Kalau bentuknya perlu
+  berubah, ubah mockup-nya lalu jalankan
+  `python3 docs/superpowers/mockups/_panen-css.py` — supaya mockup tetap jadi
+  acuan desain yang sahih.
+- **Nama `@keyframes` berawalan `kmob-`.** Nama keyframes bersifat global;
+  `modalIn`, `sheetUp`, dan `toastIn` ada di kedua stylesheet.
+- **`/m` belum jadi bawaan** dan belum ada pengalihan otomatis dari layar
+  sempit. Itu tahap 6, setelah alur intinya setara.
+
+Tahap berikutnya: **tahap 2 — layar baca** (beranda, detail properti, detail
+kamar) dari store sungguhan.
 
 ### Peta data Kamaru → kosmanager
 
