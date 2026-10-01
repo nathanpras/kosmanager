@@ -60,6 +60,7 @@ const menuTerbuka = ref(false)
    persis jalan buntu yang dihabiskan di ronde 5 mockup — sisanya ditambahkan
    di sini begitu layarnya berdiri. */
 const MENU = [
+  { ikon: 'receipt', judul: 'Tagihan',    sub: 'Seluruh tagihan per bulan',       ke: 'm-tagihan' },
   { ikon: 'build',   judul: 'Keluhan',    sub: 'Laporan kerusakan dan perbaikan', ke: 'm-keluhan' },
   { ikon: 'money',   judul: 'Laporan',    sub: 'Pemasukan, pengeluaran, hunian',  ke: 'm-laporan' },
   { ikon: 'note',    judul: 'Riwayat',    sub: 'Catatan aktivitas aplikasi',      ke: 'm-log' },

@@ -14,10 +14,11 @@ import { statusTagihan, type KodeStatusTagihan } from '../utils/statusTagihan'
 import type { DraftTagihan }   from '../composables/useTagihanCalc'
 import { useUrutKamar } from '../composables/useUrutKamar'
 import { useBayarTagihan } from '../composables/useBayarTagihan'
+import { useInvoice } from '../composables/useInvoice'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
-import { today, bulanIni, monthsBack, bulanKey } from '../utils/date'
+import { today, bulanIni, monthsBack } from '../utils/date'
 import type { Tagihan, TagihanStatus } from '../types'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
 import BayarDiMukaDialog       from '../components/shared/BayarDiMukaDialog.vue'
@@ -49,6 +50,7 @@ const allMonths  = computed(() => months.value.includes(nextBulan.value) ? month
 /* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
 const { urutkan: sortByKamar } = useUrutKamar()
 const { catat: catatPembayaran, batalkan: batalkanPembayaran } = useBayarTagihan()
+const { idsUntuk: idsInvoice } = useInvoice()
 
 const filtered  = computed(() => filterByProperty(tagihan.items))
 
@@ -263,8 +265,7 @@ const showBayarDiMuka = ref(false)
 const lastBayarRef = ref<string | null>(null)
 function onBatchSaved(bayarRef: string) {
   lastBayarRef.value = bayarRef
-  invoiceIds.value = tagihan.items.filter(x => x.bayar_ref === bayarRef)
-    .sort((a, b) => bulanKey(a.bulan).localeCompare(bulanKey(b.bulan))).map(x => x.id)
+  invoiceIds.value = idsInvoice({ id: '', bayar_ref: bayarRef } as Tagihan)
   showInvoice.value = true
 }
 
@@ -272,9 +273,7 @@ function onBatchSaved(bayarRef: string) {
 const showInvoice = ref(false)
 const invoiceIds  = ref<string[]>([])
 function bukaInvoice(t: Tagihan) {
-  invoiceIds.value = t.bayar_ref
-    ? tagihan.items.filter(x => x.bayar_ref === t.bayar_ref).sort((a, b) => bulanKey(a.bulan).localeCompare(bulanKey(b.bulan))).map(x => x.id)
-    : [t.id]
+  invoiceIds.value = idsInvoice(t)
   showInvoice.value = true
 }
 </script>

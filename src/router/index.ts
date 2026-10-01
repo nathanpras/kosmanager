@@ -33,6 +33,7 @@ const router = createRouter({
 
         /* Dicapai lewat menu ⋮ di beranda — bukan pekerjaan harian, jadi tidak
            menuntut satu tab sendiri. */
+        { path: 'tagihan',    name: 'm-tagihan',    component: () => import('../views/mobile/MobTagihanListView.vue') },
         { path: 'keluhan',    name: 'm-keluhan',    component: () => import('../views/mobile/MobKeluhanView.vue') },
         { path: 'laporan',    name: 'm-laporan',    component: () => import('../views/mobile/MobLaporanView.vue') },
         { path: 'log',        name: 'm-log',        component: () => import('../views/mobile/MobLogView.vue') },

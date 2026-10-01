@@ -28,6 +28,7 @@ function buatRouter(): Router {
           /* Seluruh tujuan menu harus ada di sini. Kalau menu bertambah dan
              rutenya lupa didaftarkan, uji di bawah menangkapnya — bukan
              membiarkannya jadi penolakan async yang tak terlihat. */
+          { path: 'tagihan', name: 'm-tagihan', component: Kosong },
           { path: 'keluhan', name: 'm-keluhan', component: Kosong },
           { path: 'laporan', name: 'm-laporan', component: Kosong },
           { path: 'log', name: 'm-log', component: Kosong },
