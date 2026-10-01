@@ -18,6 +18,9 @@ import { usePengeluaranStore } from '../../stores/pengeluaran'
 import { nilaiDibayar, tglPembayaran } from '../../utils/saldo'
 import { bulanKey } from '../../utils/date'
 import { fmt, fmtTgl } from '../../utils/format'
+import MobPengeluaranSheet from '../../components/mobile/MobPengeluaranSheet.vue'
+import { useLogStore } from '../../stores/log'
+import { useToast } from '../../composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +53,21 @@ const transaksi = computed(() => {
 
 const totalMasuk = computed(() => transaksi.value.filter(x => x.n > 0).reduce((s, x) => s + x.n, 0))
 const totalKeluar = computed(() => transaksi.value.filter(x => x.n < 0).reduce((s, x) => s + x.n, 0))
+
+const log = useLogStore()
+const { show: toast } = useToast()
+const sheetPengeluaran = ref(false)
+
+async function simpanPengeluaran(deskripsi: string, jumlah: number, kategori: string, tgl: string) {
+  try {
+    await pengeluaranStore.add({ deskripsi, jumlah, kategori, tgl, property_id: pid.value })
+    await log.add(`Pengeluaran ${deskripsi} ${fmt(jumlah)}`, 'red', pid.value)
+    sheetPengeluaran.value = false
+    toast('Pengeluaran tercatat', 'success')
+  } catch {
+    toast('Gagal mencatat pengeluaran', 'error')
+  }
+}
 
 function bukaKamar(nomor: string) {
   router.push({ name: 'm-kamar', params: { id: pid.value, nomor } })
@@ -145,5 +163,19 @@ function bukaKamar(nomor: string) {
         <div class="drow"><dt>Telat</dt><dd>{{ hit.telat }}</dd></div>
       </dl>
     </template>
+
+    <template v-if="tab === 1" #fab>
+      <button class="fab" @click="sheetPengeluaran = true">
+        <MobIcon name="plus" :size="20" />
+        <span class="fab-label">Pengeluaran</span>
+      </button>
+    </template>
+
+    <MobPengeluaranSheet
+      v-if="sheetPengeluaran"
+      :nama-properti="properti?.nama ?? ''"
+      @tutup="sheetPengeluaran = false"
+      @simpan="simpanPengeluaran"
+    />
   </MobScreen>
 </template>

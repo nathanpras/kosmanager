@@ -12,7 +12,8 @@ import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupanc
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { useKeluarPenghuni }  from '../composables/useKeluarPenghuni'
 import { useUrutKamar } from '../composables/useUrutKamar'
-import { kamarDiBulan, catatPindah, koreksiKamar, awalBulanBerikutnya } from '../utils/riwayatKamar'
+import { usePindahKamar, GagalPindah } from '../composables/usePindahKamar'
+import { kamarDiBulan, koreksiKamar, awalBulanBerikutnya } from '../utils/riwayatKamar'
 import { fmtTgl, fmt }        from '../utils/format'
 import { today, bulanIni, bulanFromTgl, bulanKey } from '../utils/date'
 import type { Penghuni }      from '../types'
@@ -29,6 +30,7 @@ const { show: toast } = useToast()
 const { kamarMasihTerisi } = useOccupancy()
 const { tagihanUntukKamar } = useTagihanCalc()
 const { keluarkan } = useKeluarPenghuni()
+const { pindahkan, kamarTujuan: daftarKamarTujuan } = usePindahKamar()
 
 /* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
 const { urutkan: sortByKamar } = useUrutKamar()
@@ -228,12 +230,8 @@ const bulanBerjalan = computed(() => bulanFromTgl(pindahTgl.value) ?? '')
 const bulanEfektif  = computed(() => bulanFromTgl(pindahEfektif.value) ?? '')
 
 /** Kamar kosong di properti yang sama — kamar yang ditempati sekarang tidak dihitung. */
-const kamarTujuan = computed(() => {
-  const p = pindahTarget.value
-  if (!p) return []
-  return kamar.items.filter(k =>
-    k.property_id === p.property_id && k.status === 'kosong' && k.nomor !== p.kamar)
-})
+const kamarTujuan = computed(() =>
+  pindahTarget.value ? daftarKamarTujuan(pindahTarget.value) : [])
 
 /**
  * Kamar yang masih ditagihkan bulan ini bila berbeda dengan kamar yang
@@ -255,32 +253,14 @@ function askPindah(p: Penghuni) {
 async function doPindah() {
   const p = pindahTarget.value
   if (!p) return
-  const tujuan = pindahTujuan.value
-  const efektif = pindahEfektif.value
-  if (!tujuan || !efektif) { toast('Kamar tujuan dan tanggal pindah wajib diisi', 'error'); return }
-  if (tujuan === p.kamar) { toast('Kamar tujuan sama dengan kamar sekarang', 'error'); return }
-  // Dibaca sebelum update: store memutakhirkan objek yang sama, jadi setelah
-  // ini p.kamar sudah berisi kamar tujuan.
-  const kamarLama = p.kamar
   showPindah.value = false
   try {
-    await penghuni.update(p.id, {
-      kamar: tujuan,
-      riwayat_kamar: catatPindah(p, tujuan, efektif),
-    })
-    // Kamar lama hanya dikosongkan bila tidak ada roommate yang tertinggal.
-    if (!kamarMasihTerisi(kamarLama, p.property_id, p.id)) {
-      const lama = findKamar(kamarLama, p.property_id)
-      if (lama) await kamar.update(lama.id, { status: 'kosong' })
-    }
-    const baru = findKamar(tujuan, p.property_id)
-    if (baru && baru.status === 'kosong') await kamar.update(baru.id, { status: 'terisi' })
-    await log.add(
-      `${p.nama} pindah dari kamar ${kamarLama} ke ${tujuan} — tagihan kamar ${tujuan} mulai ${bulanFromTgl(efektif)}`,
-      'blue', p.property_id,
-    )
-    toast('Penghuni dipindahkan', 'success')
-  } catch { toast('Gagal memindahkan penghuni', 'error') }
+    const efektif = await pindahkan(p, pindahTujuan.value, pindahTgl.value)
+    toast(`Penghuni dipindahkan — tagihan kamar baru mulai ${bulanFromTgl(efektif)}`, 'success')
+  } catch (e) {
+    if (e instanceof GagalPindah) { showPindah.value = true; toast(e.message, 'error') }
+    else toast('Gagal memindahkan penghuni', 'error')
+  }
 }
 
 const showKeluar   = ref(false)

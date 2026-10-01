@@ -12,6 +12,7 @@ import { useTagihanStore } from '../../stores/tagihan'
 import { usePengeluaranStore } from '../../stores/pengeluaran'
 import { usePropertiesStore } from '../../stores/properties'
 import { useSettingsStore } from '../../stores/settings'
+import { useLogStore } from '../../stores/log'
 import type { Kamar, Penghuni, Property, Tagihan } from '../../types'
 
 /**
@@ -205,5 +206,58 @@ describe('detail kamar', () => {
   it('dok turun di layar drill-down', async () => {
     const w = await pasang('/m/prop/p1/kamar/101')
     expect(w.find('.dock').classes()).toContain('is-hidden')
+  })
+})
+
+describe('catat pengeluaran dari detail properti', () => {
+  it('FAB hanya muncul di tab Transaksi', async () => {
+    const w = await pasang('/m/prop/p1')
+    expect(w.find('.fab').exists()).toBe(false)
+
+    await w.findAll('.ptab')[1].trigger('click')
+    expect(w.find('.fab').text()).toContain('Pengeluaran')
+
+    await w.findAll('.ptab')[2].trigger('click')
+    expect(w.find('.fab').exists()).toBe(false)
+  })
+
+  it('menahan simpan tanpa nominal dan tanpa keterangan', async () => {
+    const tulis: unknown[] = []
+    usePengeluaranStore().add = (async (x: unknown) => { tulis.push(x) }) as never
+
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[1].trigger('click')
+    await w.find('.fab').trigger('click')
+
+    const simpan = () => w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!
+    await simpan().trigger('click')
+    expect(w.find('.sheet .note.bad').text()).toContain('Nominal')
+
+    await w.findAll('.sheet .field-in')[0].setValue('480000')
+    await simpan().trigger('click')
+    expect(w.find('.sheet .note.bad').text()).toContain('Keterangan')
+
+    expect(tulis).toHaveLength(0)
+  })
+
+  it('menulis pengeluaran ke properti yang sedang dibuka', async () => {
+    const tulis: Array<Record<string, unknown>> = []
+    usePengeluaranStore().add = (async (x: Record<string, unknown>) => { tulis.push(x) }) as never
+    useLogStore().add = (async () => {}) as never
+
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[1].trigger('click')
+    await w.find('.fab').trigger('click')
+
+    const isian = w.findAll('.sheet .field-in')
+    await isian[0].setValue('480000')
+    await w.findAll('.sheet .field-in').at(-1)!.setValue('Token listrik blok A')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(1)
+    expect(tulis[0]).toMatchObject({
+      deskripsi: 'Token listrik blok A', jumlah: 480_000, property_id: 'p1',
+    })
   })
 })

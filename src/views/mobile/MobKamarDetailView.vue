@@ -17,9 +17,12 @@ import { tglKeluar } from '../../composables/useOccupancy'
 import { fmt, fmtTgl } from '../../utils/format'
 import { sortBulanDesc } from '../../utils/date'
 import MobBayarSheet from '../../components/mobile/MobBayarSheet.vue'
+import MobPindahSheet from '../../components/mobile/MobPindahSheet.vue'
+import { usePindahKamar, GagalPindah } from '../../composables/usePindahKamar'
+import { bulanFromTgl } from '../../utils/date'
 import { useBayarTagihan } from '../../composables/useBayarTagihan'
 import { useToast } from '../../composables/useToast'
-import type { Tagihan } from '../../types'
+import type { Penghuni, Tagihan } from '../../types'
 
 const route = useRoute()
 const tagihanStore = useTagihanStore()
@@ -53,6 +56,21 @@ const subSheet = computed(() => {
   const p = penghuni.value[0]
   return p ? `${p.nama} · Kamar ${nomor.value}` : `Kamar ${nomor.value}`
 })
+
+const { pindahkan } = usePindahKamar()
+const pindahTarget = ref<Penghuni | null>(null)
+
+async function simpanPindah(tujuan: string, tgl: string) {
+  const p = pindahTarget.value
+  if (!p) return
+  try {
+    const efektif = await pindahkan(p, tujuan, tgl)
+    pindahTarget.value = null
+    toast(`Dipindahkan ke kamar ${tujuan} — tagihan mulai ${bulanFromTgl(efektif)}`, 'success')
+  } catch (e) {
+    toast(e instanceof GagalPindah ? e.message : 'Gagal memindahkan penghuni', 'error')
+  }
+}
 
 async function simpanBayar(jumlah: number, tgl: string) {
   const t = bayarTarget.value
@@ -90,7 +108,11 @@ const CHIP: Record<string, { label: string; cls: string }> = {
               <span class="lrow-sub">{{ p.hp || 'Nomor HP belum diisi' }}</span>
             </span>
           </div>
-          <div class="lease-grid" style="padding-top:14px;border-top:1px solid var(--hair)">
+          <div class="lease-head" style="padding-top:14px;border-top:1px solid var(--hair)">
+            <span class="mlabel">Masa tinggal</span>
+            <button class="link" @click="pindahTarget = p">Pindah kamar</button>
+          </div>
+          <div class="lease-grid">
             <div class="kv">
               <div>
                 <div class="mlabel">Check-in</div>
@@ -187,6 +209,13 @@ const CHIP: Record<string, { label: string; cls: string }> = {
         <p>Tagihan kamar ini akan muncul di sini setelah dibuat.</p>
       </div>
     </template>
+
+    <MobPindahSheet
+      v-if="pindahTarget"
+      :penghuni="pindahTarget"
+      @tutup="pindahTarget = null"
+      @simpan="simpanPindah"
+    />
 
     <MobBayarSheet
       v-if="bayarTarget"

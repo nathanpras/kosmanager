@@ -92,6 +92,64 @@ async function bukaSheet() {
   return w
 }
 
+describe('pindah kamar dari shell mobile', () => {
+  beforeEach(() => {
+    useKamarStore().items.push({
+      id: 'k2', nomor: '203', tipe: '', harga: 0, status: 'kosong', property_id: 'p1',
+    } as Kamar)
+    usePenghuniStore().update = (async (id: string, patch: Partial<Penghuni>) => {
+      Object.assign(usePenghuniStore().items.find(p => p.id === id)!, patch)
+    }) as never
+    useKamarStore().update = (async () => {}) as never
+  })
+
+  async function bukaPindah() {
+    const w = await bukaKamar()
+    await w.findAll('.link').find(b => b.text().includes('Pindah kamar'))!.trigger('click')
+    return w
+  }
+
+  it('menuliskan aturan penagihan dengan nomor kamar dan bulan yang sebenarnya', async () => {
+    const w = await bukaPindah()
+    const nota = w.find('.sheet .note.info').text()
+    expect(nota).toContain('kamar 101')
+    expect(nota).toContain('1 Oktober 2026')
+  })
+
+  it('hanya menawarkan kamar kosong di properti yang sama', async () => {
+    const w = await bukaPindah()
+    const opsi = w.findAll('.sheet select option').map(o => o.text())
+    expect(opsi).toEqual(['Pilih kamar kosong', 'Kamar 203 · kosong'])
+  })
+
+  it('menahan simpan tanpa kamar tujuan', async () => {
+    const w = await bukaPindah()
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+    expect(w.find('.sheet .note.bad').exists()).toBe(true)
+    expect(usePenghuniStore().items[0].kamar).toBe('101')
+  })
+
+  it('memindahkan lewat composable yang sama dengan desktop', async () => {
+    const w = await bukaPindah()
+    await w.find('.sheet select').setValue('203')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    const p = usePenghuniStore().items[0]
+    expect(p.kamar).toBe('203')
+    /* Yang menentukan penagihan: riwayat berlaku 1 bulan berikutnya. */
+    expect(p.riwayat_kamar?.at(-1)).toMatchObject({ kamar: '203', sejak: '2026-10-01' })
+  })
+
+  it('tanpa kamar kosong, sheetnya berkata jujur dan tidak punya tombol Simpan', async () => {
+    useKamarStore().items = useKamarStore().items.filter(k => k.nomor !== '203')
+    const w = await bukaPindah()
+    expect(w.find('.sheet .note.bad').text()).toContain('Tidak ada kamar kosong')
+    expect(w.findAll('.sheet-foot .btn').map(b => b.text())).toEqual(['Tutup'])
+  })
+})
+
 describe('catat pembayaran dari shell mobile', () => {
   it('tombolnya hanya muncul untuk tagihan yang belum lunas', async () => {
     const w = await bukaKamar()
