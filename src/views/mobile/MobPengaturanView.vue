@@ -59,15 +59,21 @@ async function simpanInfo() {
 
 /* ── Properti ── */
 const propTarget = ref<Property | null>(null)
+const propBaru = ref(false)
 
 async function simpanProperti(data: Partial<Property>) {
-  if (!propTarget.value) return
   try {
-    await properties.updateProperty(propTarget.value.id, data)
-    propTarget.value = null
-    toast('Data kos diperbarui', 'success')
+    if (propBaru.value) {
+      await properties.addProperty({ ...data, created_at: new Date().toISOString() } as Omit<Property, 'id'>)
+      propBaru.value = false
+      toast('Properti ditambahkan', 'success')
+    } else if (propTarget.value) {
+      await properties.updateProperty(propTarget.value.id, data)
+      propTarget.value = null
+      toast('Data kos diperbarui', 'success')
+    }
   } catch {
-    toast('Gagal memperbarui data kos', 'error')
+    toast('Gagal menyimpan properti', 'error')
   }
 }
 
@@ -133,6 +139,7 @@ const appVersion = '2.0'
       <!-- Properti -->
       <div class="sechead">
         <h2>Properti</h2><span class="count">{{ properties.items.length }}</span>
+        <button class="link" @click="propBaru = true">Tambah</button>
       </div>
       <div class="stack-v">
         <button
@@ -321,9 +328,9 @@ const appVersion = '2.0'
     </MobSheet>
 
     <MobPropertiSheet
-      v-if="propTarget"
+      v-if="propTarget || propBaru"
       :properti="propTarget"
-      @tutup="propTarget = null"
+      @tutup="propTarget = null; propBaru = false"
       @simpan="simpanProperti"
     />
   </MobScreen>

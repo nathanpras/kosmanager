@@ -168,3 +168,39 @@ describe('layar Pengaturan', () => {
     expect(nota).toContain('saldo awal')
   })
 })
+
+describe('tambah properti dari Pengaturan', () => {
+  it('nama kosong ditahan tanpa menulis', async () => {
+    const tulis: unknown[] = []
+    usePropertiesStore().addProperty = (async (x: unknown) => { tulis.push(x) }) as never
+
+    const w = await pasang('/m/pengaturan')
+    await w.findAll('.link').find(b => b.text() === 'Tambah')!.trigger('click')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(0)
+    expect(w.find('.sheet .note.bad').exists()).toBe(true)
+  })
+
+  it('properti baru ditulis dengan tanggal pembuatan', async () => {
+    const tulis: Array<Record<string, unknown>> = []
+    usePropertiesStore().addProperty = (async (x: Record<string, unknown>) => { tulis.push(x) }) as never
+
+    const w = await pasang('/m/pengaturan')
+    await w.findAll('.link').find(b => b.text() === 'Tambah')!.trigger('click')
+    await w.findAll('.sheet input')[0].setValue('Raffles Kos 24')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(1)
+    expect(tulis[0]).toMatchObject({ nama: 'Raffles Kos 24' })
+    expect(tulis[0].created_at).toBeTruthy()
+  })
+
+  it('sheet properti baru tidak menyinggung saldo awal — belum ada apa pun untuk diatur', async () => {
+    const w = await pasang('/m/pengaturan')
+    await w.findAll('.link').find(b => b.text() === 'Tambah')!.trigger('click')
+    expect(w.find('.sheet').text()).not.toContain('Saldo awal')
+  })
+})

@@ -13,6 +13,10 @@ import MobIcon from '../../components/mobile/MobIcon.vue'
 import MobMenuSheet from '../../components/mobile/MobMenuSheet.vue'
 import { useMobile } from '../../composables/useMobile'
 import { useSettingsStore } from '../../stores/settings'
+import { useTagihanStore } from '../../stores/tagihan'
+import { usePengeluaranStore } from '../../stores/pengeluaran'
+import { hitungSaldo, gabungSaldo } from '../../utils/saldo'
+import { fmt } from '../../utils/format'
 import { fmtTgl } from '../../utils/format'
 
 const router = useRouter()
@@ -32,6 +36,19 @@ const sapaan = computed(() => {
 const namaPemilik = computed(() => (settings.data.nama ?? '').trim())
 
 const semua = computed(() => hitungan())
+
+/* Saldo berjalan seluruh properti. Angkanya hanya seakurat data yang dicatat
+   di aplikasi — bukan saldo bank sungguhan — dan properti yang belum mengatur
+   saldo awal ditandai, bukan diam-diam dihitung nol. */
+const tagihanStore = useTagihanStore()
+const pengeluaranStore = usePengeluaranStore()
+
+const saldo = computed(() => gabungSaldo(
+  daftarProperti.value.map(p => hitungSaldo(p, tagihanStore.items, pengeluaranStore.items))))
+
+const adaYangBelumDiatur = computed(() =>
+  daftarProperti.value.some(p =>
+    hitungSaldo(p, tagihanStore.items, pengeluaranStore.items).belumDiatur))
 
 const STAT = [
   { kunci: 'terisi',   label: 'Terisi',      nada: '' },
@@ -101,6 +118,28 @@ const AKSI = [
             :class="semua[s.kunci] ? s.nada : 'is-zero'"
           >{{ s.label }} <b>{{ semua[s.kunci] }}</b></span>
         </div>
+      </section>
+
+      <div class="sechead"><h2>Saldo berjalan</h2></div>
+      <section class="card">
+        <div class="mlabel">Saldo seluruh properti</div>
+        <div class="price">{{ fmt(saldo.saldo) }}</div>
+        <div class="lease-grid" style="padding:14px 0 0">
+          <div class="kv">
+            <div>
+              <div class="mlabel">Masuk</div>
+              <div class="mval" style="color:var(--ok)">{{ fmt(saldo.masuk) }}</div>
+            </div>
+            <div>
+              <div class="mlabel">Keluar</div>
+              <div class="mval" style="color:var(--bad)">{{ fmt(saldo.keluar) }}</div>
+            </div>
+          </div>
+        </div>
+        <p v-if="adaYangBelumDiatur" class="fnote" style="margin:12px 0 0">
+          Sebagian properti belum mengatur saldo awal, jadi angkanya dihitung
+          dari nol. Atur di tampilan desktop.
+        </p>
       </section>
 
       <div class="sechead">

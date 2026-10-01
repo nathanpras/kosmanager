@@ -21,6 +21,8 @@ import { fmt, fmtTgl } from '../../utils/format'
 import MobPengeluaranSheet from '../../components/mobile/MobPengeluaranSheet.vue'
 import MobPropertiSheet from '../../components/mobile/MobPropertiSheet.vue'
 import MobKamarSheet from '../../components/mobile/MobKamarSheet.vue'
+import MobUbahPengeluaranSheet from '../../components/mobile/MobUbahPengeluaranSheet.vue'
+import type { Pengeluaran } from '../../types'
 import { useKamarStore } from '../../stores/kamar'
 import type { Kamar } from '../../types'
 import type { Property } from '../../types'
@@ -65,6 +67,34 @@ const sheetPengeluaran = ref(false)
 const sheetProperti = ref(false)
 const kamarStore = useKamarStore()
 const sheetKamar = ref(false)
+const ubahPengeluaran = ref<Pengeluaran | null>(null)
+
+async function simpanUbahPengeluaran(data: Partial<Pengeluaran>) {
+  const x = ubahPengeluaran.value
+  if (!x) return
+  try {
+    await pengeluaranStore.update(x.id, data)
+    ubahPengeluaran.value = null
+    toast('Pengeluaran diperbarui', 'success')
+  } catch { toast('Gagal memperbarui pengeluaran', 'error') }
+}
+
+async function hapusPengeluaran() {
+  const x = ubahPengeluaran.value
+  if (!x) return
+  try {
+    await pengeluaranStore.remove(x.id)
+    await log.add(`Pengeluaran ${x.deskripsi} dihapus`, 'red', pid.value)
+    ubahPengeluaran.value = null
+    toast('Pengeluaran dihapus', 'success')
+  } catch { toast('Gagal menghapus pengeluaran', 'error') }
+}
+
+/** Dokumen pengeluaran di balik satu baris arus kas; tagihan tidak bisa diubah dari sini. */
+function pengeluaranDari(ket: string): Pengeluaran | null {
+  return pengeluaranStore.items.find(p =>
+    p.property_id === pid.value && `${p.deskripsi} · ${p.kategori}` === ket) ?? null
+}
 
 async function simpanKamar(data: Partial<Kamar>) {
   try {
@@ -154,7 +184,14 @@ function bukaKamar(nomor: string) {
         </section>
         <div class="sechead"><h2>Riwayat</h2><span class="count">{{ transaksi.length }}</span></div>
         <div class="card flush divide">
-          <div v-for="(x, i) in transaksi" :key="i" class="lrow">
+          <component
+            :is="x.n < 0 && pengeluaranDari(x.t) ? 'button' : 'div'"
+            v-for="(x, i) in transaksi"
+            :key="i"
+            class="lrow"
+            :class="{ tap: x.n < 0 && pengeluaranDari(x.t) }"
+            @click="x.n < 0 && (ubahPengeluaran = pengeluaranDari(x.t))"
+          >
             <span class="av sm" :class="x.n > 0 ? 'pos' : 'ghost'">
               <MobIcon :name="x.n > 0 ? 'in' : 'out'" :size="17" />
             </span>
@@ -165,7 +202,7 @@ function bukaKamar(nomor: string) {
             <span class="txn-amt" :class="x.n > 0 ? 'in' : 'out'">
               {{ x.n > 0 ? '+' : '−' }}{{ fmt(Math.abs(x.n)) }}
             </span>
-          </div>
+          </component>
         </div>
       </div>
       <div v-else class="card emptystate">
@@ -209,6 +246,14 @@ function bukaKamar(nomor: string) {
         <span class="fab-label">Pengeluaran</span>
       </button>
     </template>
+
+    <MobUbahPengeluaranSheet
+      v-if="ubahPengeluaran"
+      :pengeluaran="ubahPengeluaran"
+      @tutup="ubahPengeluaran = null"
+      @simpan="simpanUbahPengeluaran"
+      @hapus="hapusPengeluaran"
+    />
 
     <MobKamarSheet
       v-if="sheetKamar"

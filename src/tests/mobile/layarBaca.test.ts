@@ -367,3 +367,67 @@ describe('tambah kamar dari detail properti', () => {
     })
   })
 })
+
+describe('saldo di beranda', () => {
+  it('menjumlahkan saldo seluruh properti', async () => {
+    usePropertiesStore().items[0] = {
+      ...usePropertiesStore().items[0], saldo_awal: 5_000_000, saldo_awal_tgl: '2026-09-01',
+    }
+    const w = await pasang('/m')
+    /* 5.000.000 + 1.800.000 masuk − 450.000 keluar */
+    expect(w.text()).toContain('6.350.000')
+  })
+
+  it('menandai properti yang belum mengatur saldo awal, bukan diam-diam nol', async () => {
+    const w = await pasang('/m')
+    expect(w.text()).toContain('belum mengatur saldo awal')
+  })
+})
+
+describe('ubah pengeluaran dari tab Transaksi', () => {
+  it('baris pengeluaran bisa diketuk, baris pemasukan tidak', async () => {
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[1].trigger('click')
+    const baris = w.findAll('[data-tabbody] .lrow, .card.flush.divide .lrow')
+    const keluar = baris.find(b => b.text().includes('Token listrik'))!
+    const masuk = baris.find(b => b.text().includes('Hizkia'))!
+    expect(keluar.element.tagName).toBe('BUTTON')
+    expect(masuk.element.tagName).toBe('DIV')
+  })
+
+  it('hapus butuh dua ketukan', async () => {
+    const dihapus: string[] = []
+    usePengeluaranStore().remove = (async (id: string) => { dihapus.push(id) }) as never
+    useLogStore().add = (async () => {}) as never
+
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[1].trigger('click')
+    await w.findAll('.lrow').find(b => b.text().includes('Token listrik'))!.trigger('click')
+
+    const tombol = () => w.findAll('.sheet .btn.block')[0]
+    await tombol().trigger('click')
+    expect(dihapus).toHaveLength(0)
+    expect(tombol().classes()).toContain('danger')
+
+    await tombol().trigger('click')
+    await flushPromises()
+    expect(dihapus).toEqual(['x1'])
+  })
+
+  it('menyimpan perubahan pengeluaran', async () => {
+    const tulis: Array<[string, Record<string, unknown>]> = []
+    usePengeluaranStore().update = (async (id: string, d: Record<string, unknown>) => {
+      tulis.push([id, d])
+    }) as never
+
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[1].trigger('click')
+    await w.findAll('.lrow').find(b => b.text().includes('Token listrik'))!.trigger('click')
+    await w.findAll('.sheet input')[0].setValue('500000')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis[0][0]).toBe('x1')
+    expect(tulis[0][1]).toMatchObject({ jumlah: 500_000 })
+  })
+})

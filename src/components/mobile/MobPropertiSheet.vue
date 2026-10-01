@@ -12,15 +12,16 @@ import MobSheet from './MobSheet.vue'
 import MobIcon from './MobIcon.vue'
 import type { Property } from '../../types'
 
-const props = defineProps<{ properti: Property }>()
+/** `properti` kosong berarti membuat yang baru. */
+const props = defineProps<{ properti?: Property | null }>()
 const emit = defineEmits<{ tutup: []; simpan: [data: Partial<Property>] }>()
 
-const nama = ref(props.properti.nama ?? '')
-const alamat = ref(props.properti.alamat ?? '')
-const noHp = ref(props.properti.no_hp ?? '')
-const bankNama = ref(props.properti.bank_nama ?? '')
-const bankRekening = ref(props.properti.bank_rekening ?? '')
-const bankAn = ref(props.properti.bank_an ?? '')
+const nama = ref(props.properti?.nama ?? '')
+const alamat = ref(props.properti?.alamat ?? '')
+const noHp = ref(props.properti?.no_hp ?? '')
+const bankNama = ref(props.properti?.bank_nama ?? '')
+const bankRekening = ref(props.properti?.bank_rekening ?? '')
+const bankAn = ref(props.properti?.bank_an ?? '')
 const galat = ref('')
 
 function simpan() {
@@ -38,7 +39,11 @@ function simpan() {
 </script>
 
 <template>
-  <MobSheet judul="Ubah data kos" :sub="props.properti.nama" @tutup="emit('tutup')">
+  <MobSheet
+    :judul="props.properti ? 'Ubah data kos' : 'Properti baru'"
+    :sub="props.properti?.nama ?? ''"
+    @tutup="emit('tutup')"
+  >
     <div class="fstack" style="padding:6px 10px 4px">
       <label class="field">
         <span class="field-lbl">Nama properti<span class="req"> *</span></span>
@@ -70,7 +75,7 @@ function simpan() {
         <input v-model="bankAn" class="field-in" aria-label="Nama pemilik rekening">
       </label>
 
-      <div class="note info">
+      <div v-if="props.properti" class="note info">
         <MobIcon name="info" :size="18" />
         <span>
           Saldo awal diatur di tampilan desktop. Angka itu jadi titik nol seluruh
