@@ -180,6 +180,54 @@ const SHOTS = [
     `q('[data-simpan]').click()`,
     `qa('.ptab')[2].click()`,
   ]],
+
+  /* ronde 5 — sisa jalan buntu */
+  ['38-notif',       '#/notif',         []],
+  ['39-home-badge',  '',                []],
+  ['40-cari',        '#/cari',          [`set('[data-cari]', 'ra')`]],
+  ['41-cari-kosong', '#/cari',          []],
+  ['42-info',        '#/info/p1',       []],
+  ['43-menu-prop',   '#/prop/p1',       [`q('[data-sheet^="menuprop"]').click()`]],
+  ['44-menu-kamar',  '#/room/p1-101',   [`q('[data-sheet^="menukamar"]').click()`]],
+  ['45-menu-kal',    '#/calendar',      [`q('[data-sheet="menukal"]').click()`]],
+  ['46-kal-pilih',   '#/calendar',      [`q('[data-hari="2026-09-05"]').click()`]],
+  ['47-foto-kosong', '#/foto/p1-101',   []],
+  ['48-foto-isi',    '#/foto/p1-101',   [
+    `q('[data-dok="p1-101|foto|new"]').click()`,
+    `(function () {
+       var c = document.createElement('canvas'); c.width = 600; c.height = 450;
+       var g = c.getContext('2d');
+       g.fillStyle = '#DCE8F4'; g.fillRect(0, 0, 600, 450);
+       g.fillStyle = '#0070C0'; g.fillRect(60, 150, 200, 240);
+       g.fillStyle = '#FFC000'; g.fillRect(330, 90, 210, 150);
+       g.fillStyle = '#00456F'; g.font = 'bold 34px sans-serif'; g.fillText('KAMAR 101', 60, 90);
+       c.toBlob(function (b) {
+         var dt = new DataTransfer();
+         dt.items.add(new File([b], 'kamar-101.png', { type: 'image/png' }));
+         var i = document.getElementById('berkas-in');
+         i.files = dt.files;
+         i.dispatchEvent(new Event('change'));
+       });
+     })()`,
+  ]],
+  ['49-logo',        '',                [
+    `q('[data-form="prop"]').click()`,
+    `q('[data-step="2"]').click()`,
+    `q('.uploader').click()`,
+    `(function () {
+       var c = document.createElement('canvas'); c.width = 300; c.height = 300;
+       var g = c.getContext('2d');
+       g.fillStyle = '#00456F'; g.fillRect(0, 0, 300, 300);
+       g.fillStyle = '#FFC000'; g.beginPath(); g.arc(150, 150, 82, 0, 7); g.fill();
+       c.toBlob(function (b) {
+         var dt = new DataTransfer();
+         dt.items.add(new File([b], 'logo.png', { type: 'image/png' }));
+         var i = document.getElementById('berkas-in');
+         i.files = dt.files;
+         i.dispatchEvent(new Event('change'));
+       });
+     })()`,
+  ]],
 ];
 
 const RUNNER = langkah => `<script>
@@ -191,10 +239,41 @@ var set = function (s, v) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 };
 var LANGKAH = [${langkah.map(x => JSON.stringify(x)).join(', ')}];
+var GAGAL = [];
+window.addEventListener('error', function (e) { GAGAL.push('error runtime: ' + e.message); });
+
+/* Potret diambil saat budget waktu virtual habis, dan waktu virtual bisa
+   melompat tanpa pernah menjalankan satu frame animasi pun. Elemen yang
+   animasinya baru mulai lalu beku di detik nol terpotret dengan
+   animation-fill-mode:both, yaitu keadaan "from" — opacity 0, alias layar
+   kosong melompong. Jadi selesaikan dulu semua animasi, baru dipotret. */
+function bekukan() {
+  if (!document.getAnimations) return;
+  document.getAnimations().forEach(function (a) { try { a.finish(); } catch (e) {} });
+}
+
+/* Jaring pengaman, sempit dengan sengaja: hanya elemen yang digerakkan
+   animasi masuk. Yang memang sengaja transparan sampai dipicu — .tb-title
+   sebelum layar digulir, .pick-ck sebelum dipilih — bukan urusan di sini. */
+function periksaTembusPandang() {
+  var sisa = [];
+  [].forEach.call(document.querySelectorAll('.stagger > *, .anim-fadeUp'), function (el) {
+    if (getComputedStyle(el).opacity === '0') sisa.push(el.className || el.tagName);
+  });
+  if (sisa.length) GAGAL.push('masih transparan: ' + sisa.slice(0, 3).join(', '));
+}
+
 setTimeout(function jalan(i) {
   i = i || 0;
-  if (i >= LANGKAH.length) return;
-  try { eval(LANGKAH[i]); } catch (e) { document.title = 'GAGAL LANGKAH ' + i + ': ' + e.message; }
+  if (i >= LANGKAH.length) {
+    setTimeout(function () {
+      bekukan();
+      periksaTembusPandang();
+      if (GAGAL.length) document.title = 'GAGAL: ' + GAGAL.join(' | ');
+    }, 60);
+    return;
+  }
+  try { eval(LANGKAH[i]); } catch (e) { GAGAL.push('langkah ' + i + ': ' + e.message); }
   setTimeout(function () { jalan(i + 1); }, 450);
 }, 450);
 <\/script>`;
@@ -209,19 +288,29 @@ for (const [nama, hash, langkah] of SHOTS) {
   /* Jalur Windows tidak berawalan "/", jalur POSIX sudah punya */
   const jalur = file.replace(/\\/g, '/');
   const url = 'file://' + (jalur.startsWith('/') ? '' : '/') + jalur + hash;
-  execFileSync(chrome, [
+  /* --dump-dom ikut dipanggil supaya judul halaman terbaca: runner menulis
+     kegagalan langkah ke sana, dan dulu tidak ada yang pernah membacanya. */
+  const dom = execFileSync(chrome, [
     '--headless', '--disable-gpu', '--hide-scrollbars',
     '--force-prefers-reduced-motion',
     '--force-device-scale-factor=2',
     '--window-size=430,890',
     '--virtual-time-budget=' + (2500 + langkah.length * 700),
     '--screenshot=' + path.join(out, nama + '.png'),
-    url,
-  ], { stdio: 'ignore' });
+    '--dump-dom', url,
+  ], { encoding: 'utf8', maxBuffer: 64e6 });
 
   fs.unlinkSync(file);
+  const judul = (dom.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
   const s = fs.statSync(path.join(out, nama + '.png'));
-  if (s.size < 20000) { gagal++; console.log(nama.padEnd(16) + 'MENCURIGAKAN ' + s.size + ' B'); }
-  else console.log(nama.padEnd(16) + Math.round(s.size / 1024) + ' KB');
+  if (judul.startsWith('GAGAL')) {
+    gagal++;
+    console.log(nama.padEnd(16) + judul.slice(0, 110));
+  } else if (s.size < 20000) {
+    gagal++;
+    console.log(nama.padEnd(16) + 'MENCURIGAKAN ' + s.size + ' B');
+  } else {
+    console.log(nama.padEnd(16) + Math.round(s.size / 1024) + ' KB');
+  }
 }
 process.exit(gagal ? 1 : 0);

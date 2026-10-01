@@ -954,6 +954,269 @@ step('R4 pengeluaran mengisi properti yang tadinya kosong', async () => {
   return window.eval("TXN.p2.length") + ' baris di arus kas p2, Rp480.000 keluar';
 });
 
+/* ════════════ RONDE 5: sisa jalan buntu ════════════ */
+
+step('R5 foto kamar: unggah, tampil di galeri, hitungan naik', async () => {
+  bersihSheet();
+  await hash('#/room/p1-101');
+  rawClick(qa('.ptab')[3]);                      /* tab Lainnya */
+  const baris = q('[data-go="foto/p1-101"]');
+  if (!baris) throw new Error('baris Foto kamar tidak menuju ke mana-mana');
+  if (!baris.textContent.includes('Belum ada foto')) throw new Error(baris.textContent.trim());
+  await nav(baris);
+  if (!T().includes('Foto kamar 101')) throw new Error('bukan layar foto: ' + T().slice(0, 60));
+  rawClick(q('[data-dok="p1-101|foto|new"]'));
+  const inp = D.getElementById('berkas-in');
+  if (inp.getAttribute('capture') !== 'environment') throw new Error('foto kamar harus kamera belakang');
+  suntikBerkas('kamar-101-depan.jpg', 'image/jpeg');
+  const ubin = q('[data-dok="p1-101|foto|0"]');
+  if (!ubin || !ubin.classList.contains('has-img')) throw new Error('foto tidak muncul di galeri');
+  await nav(q('[data-back]'));
+  rawClick(qa('.ptab')[3]);
+  if (!q('[data-go="foto/p1-101"]').textContent.includes('1 foto'))
+    throw new Error('hitungan tidak naik: ' + q('[data-go="foto/p1-101"]').textContent.trim());
+  return '1 foto, thumbnail ' + ubin.querySelector('img').getAttribute('src');
+});
+
+step('R5 foto bisa dihapus lewat penampil', async () => {
+  await hash('#/foto/p1-101');
+  rawClick(q('[data-dok="p1-101|foto|0"]'));
+  if (!q('.viewer')) throw new Error('penampil tidak terbuka');
+  if (!q('.viewer').textContent.includes('Kamar 101'))
+    throw new Error('judul penampil: ' + q('.viewer-judul').textContent.trim());
+  rawClick(q('[data-vhapus]'));
+  if (q('.viewer')) throw new Error('penampil tidak menutup');
+  if (window.eval("fotoDi('p1-101').length") !== 0) throw new Error('foto tidak terhapus');
+});
+
+step('R5 info properti menampilkan keterangan dan ringkasan terhitung', async () => {
+  await hash('#/prop/p1');
+  rawClick(qa('.ptab')[2]);                      /* tab Lainnya */
+  await nav(q('[data-go="info/p1"]'));
+  if (!T().includes('Info properti')) throw new Error(T().slice(0, 60));
+  if (!T().includes('Jl. Citra Raya')) throw new Error('alamat tidak tampil');
+  const kamar = window.eval("roomsOf('p1').length");
+  const isi = window.eval("roomsOf('p1').filter(r => r.status !== 'kosong').length");
+  if (!T().includes(isi + ' dari ' + kamar)) throw new Error('ringkasan terisi salah: ' + T().slice(0, 200));
+  /* Alamat panjang harus boleh turun baris, bukan dipotong */
+  const alamat = qa('.drow dd').find(d => d.textContent.includes('Citra Raya'));
+  if (!alamat.classList.contains('wrap')) throw new Error('alamat masih dipotong');
+  return kamar + ' kamar, ' + isi + ' terisi';
+});
+
+step('R5 menu properti berisi lima pintasan yang semuanya bertujuan', async () => {
+  await hash('#/prop/p1');
+  rawClick(q('[data-sheet="menuprop:p1"]'));
+  const item = qa('.sheet .aitem');
+  if (item.length !== 5) throw new Error(item.length + ' item');
+  if (qa('.sheet .aitem[data-act="soon"]').length) throw new Error('masih ada item buntu');
+  bersihSheet();
+  return item.map(b => b.querySelector('.aitem-t').childNodes[0].textContent).join(' · ');
+});
+
+step('R5 menu kamar berbeda antara kamar terisi dan kamar kosong', async () => {
+  await hash('#/room/p1-101');
+  rawClick(q('[data-sheet="menukamar:p1-101"]'));
+  const terisi = qa('.sheet .aitem').map(b => b.querySelector('.aitem-t').childNodes[0].textContent);
+  if (!terisi.includes('Pengaturan sewa')) throw new Error('kamar terisi: ' + terisi.join(', '));
+  bersihSheet();
+  /* p1-105 dikosongkan oleh uji pindah kamar di ronde 4 */
+  await hash('#/room/p1-105');
+  rawClick(q('[data-sheet="menukamar:p1-105"]'));
+  const kosong = qa('.sheet .aitem').map(b => b.querySelector('.aitem-t').childNodes[0].textContent);
+  if (kosong.includes('Pengaturan sewa')) throw new Error('kamar kosong tidak boleh punya Pengaturan sewa');
+  if (!kosong.includes('Tambah penghuni')) throw new Error('kamar kosong: ' + kosong.join(', '));
+  bersihSheet();
+  return 'terisi ' + terisi.length + ' item, kosong ' + kosong.length + ' item';
+});
+
+step('R5 sakelar menu kalender mematikan penanda', async () => {
+  await hash('#/calendar');
+  const titik = () => qa('.cal-dots i').length;
+  const awal = titik();
+  if (!awal) throw new Error('kalender tidak punya penanda sama sekali');
+  if (!T().includes('Telat')) throw new Error('legenda Telat tidak ada');
+  rawClick(q('[data-sheet="menukal"]'));
+  const sakelar = qa('.sheet [data-toggle]');
+  if (sakelar.length !== 3) throw new Error(sakelar.length + ' sakelar');
+  rawClick(q('.sheet [data-toggle="kal.late"]'));
+  const sesudah = titik();
+  if (sesudah >= awal) throw new Error('penanda tidak berkurang: ' + awal + ' → ' + sesudah);
+  if (A().includes('Telat')) throw new Error('legenda Telat harusnya ikut hilang');
+  rawClick(q('.sheet [data-toggle="kal.late"]'));         /* nyalakan lagi */
+  if (titik() !== awal) throw new Error('tidak kembali seperti semula');
+  bersihSheet();
+  return awal + ' titik → ' + sesudah + ' saat Telat dimatikan';
+});
+
+step('R5 tap tanggal mengubah agenda, tap lagi kembali ke hari ini', async () => {
+  await hash('#/calendar');
+  if (!T().includes('Agenda hari ini')) throw new Error('judul awal: ' + T().slice(0, 120));
+  const tgl5 = q('[data-hari="2026-09-05"]');
+  if (!tgl5) throw new Error('tanggal 5 tidak bisa diketuk');
+  rawClick(tgl5);
+  if (!A().includes('Agenda 05 Sep 2026')) throw new Error('judul agenda: ' + A().slice(0, 140));
+  const terpilih = q('.cal-day.is-sel');
+  if (!terpilih || terpilih.textContent.trim()[0] !== '5') throw new Error('tanggal tidak ditandai terpilih');
+  rawClick(q('[data-hari="2026-09-05"]'));
+  if (!A().includes('Agenda hari ini')) throw new Error('tidak kembali ke hari ini: ' + A().slice(0, 120));
+  if (q('.cal-day.is-sel')) throw new Error('penanda terpilih tidak dilepas');
+});
+
+/* Titik di kalender dan agenda di bawahnya harus menceritakan hal yang sama.
+   Pernah tidak: tanggal 5 bertitik "jatuh tempo" tapi agendanya 0, karena
+   titiknya ikut menandai kamar yang sudah lunas. */
+step('R5 setiap tanggal bertitik tagihan punya agenda', async () => {
+  await hash('#/calendar');
+  const bohong = [];
+  qa('.cal-day[data-hari]').forEach(el => {
+    const titik = el.querySelectorAll('.cal-dots i').length;
+    if (!titik) return;
+    const iso = el.dataset.hari;
+    const n = window.eval('agendaHari(' + JSON.stringify(iso) + ').length');
+    if (!n) bohong.push(iso + ' (' + titik + ' titik, 0 agenda)');
+  });
+  if (bohong.length) throw new Error('titik tanpa agenda: ' + bohong.join(', '));
+  const bertitik = qa('.cal-day .cal-dots').length;
+  return bertitik + ' tanggal bertitik, semuanya punya agenda';
+});
+
+step('R5 pindah bulan membatalkan tanggal terpilih', () => {
+  rawClick(q('[data-hari="2026-09-12"]'));
+  if (!q('.cal-day.is-sel')) throw new Error('tanggal tidak terpilih');
+  rawClick(q('[data-cal="1"]'));
+  if (q('.cal-day.is-sel')) throw new Error('pilihan bulan lama masih menempel di bulan baru');
+  if (!A().includes('Agenda hari ini')) throw new Error('judul: ' + A().slice(0, 120));
+  rawClick(q('[data-cal="-1"]'));
+});
+
+step('R5 notifikasi diturunkan dari data, bukan daftar karangan', async () => {
+  await hash('#/notif');
+  const jml = window.eval("daftarNotif().length");
+  if (!jml) throw new Error('daftar notifikasi kosong');
+  if (!T().includes('Pembayaran telat')) throw new Error('tidak ada baris telat: ' + T().slice(0, 140));
+  const sebelum = qa('[data-go^="room/"]').length;
+  /* Satu kamar telat dilunaskan: daftarnya harus ikut menyusut */
+  window.eval("room('p1-106').status = 'lunas'");
+  await hash('#/home');
+  await hash('#/notif');
+  const sesudah = qa('[data-go^="room/"]').length;
+  if (sesudah !== sebelum - 1) throw new Error('daftar tidak ikut berubah: ' + sebelum + ' → ' + sesudah);
+  window.eval("room('p1-106').status = 'telat'");
+  return sebelum + ' → ' + sesudah + ' setelah satu kamar dilunaskan';
+});
+
+step('R5 lencana lonceng ikut hitungan, hilang saat nol', async () => {
+  await hash('#/home');
+  const n = window.eval("jumlahNotif()");
+  const lencana = q('.iconbtn .badge');
+  if (!lencana) throw new Error('lencana tidak muncul padahal ada ' + n);
+  if (lencana.textContent !== String(n)) throw new Error('isi lencana: ' + lencana.textContent + ' ≠ ' + n);
+  /* Semua telat dan jatuh tempo dianggap lunas */
+  window.eval("ROOMS.filter(r => r.status === 'telat' || r.status === 'belum')" +
+              ".forEach(r => { r._asli = r.status; r.status = 'lunas'; })");
+  await hash('#/calendar');
+  await hash('#/home');
+  if (q('.iconbtn .badge')) throw new Error('lencana masih ada padahal nol');
+  window.eval("ROOMS.filter(r => r._asli).forEach(r => { r.status = r._asli; delete r._asli; })");
+  return 'lencana ' + n + ' → hilang saat nol';
+});
+
+step('R5 cari menemukan properti, kamar, dan penghuni', async () => {
+  await hash('#/home');
+  await nav(q('[data-go="cari"]'));
+  if (!T().includes('Mau cari apa?')) throw new Error('petunjuk awal tidak ada: ' + T().slice(0, 90));
+  ketik('[data-cari]', 'citra');
+  if (!A().includes('Raffles Kost Citra 1')) throw new Error('properti tidak ketemu: ' + A().slice(0, 140));
+  ketik('[data-cari]', '203');
+  if (!A().includes('Kamar')) throw new Error('kamar tidak ketemu: ' + A().slice(0, 140));
+  ketik('[data-cari]', 'clara');
+  if (!A().includes('Clara Wijaya')) throw new Error('penghuni tidak ketemu: ' + A().slice(0, 140));
+  const hasil = qa('[data-hasil] [data-go]').length;
+  ketik('[data-cari]', 'zzzz');
+  if (!A().includes('Tidak ditemukan')) throw new Error('keadaan kosong tidak muncul: ' + A().slice(0, 140));
+  /* Kolom cari tidak boleh ikut digambar ulang — fokus mengetik akan hilang */
+  if (q('[data-cari]').value !== 'zzzz') throw new Error('isi kolom cari hilang saat menyaring');
+  return hasil + ' hasil untuk "clara"';
+});
+
+step('R5 ikon cari tab Penghuni memfokuskan kolom yang sudah ada', async () => {
+  await hash('#/tenants');
+  const sebelum = qa('[data-search]').length;
+  if (sebelum !== 1) throw new Error(sebelum + ' kolom cari di layar Penghuni');
+  rawClick(q('[data-act="fokuscari"]'));
+  if (qa('[data-search]').length !== 1) throw new Error('muncul kolom cari kedua');
+  if (D.activeElement !== q('[data-search]')) throw new Error('kolom cari tidak difokuskan');
+  return 'satu kolom cari, difokuskan';
+});
+
+step('R5 logo properti: pemilih berkas sungguhan, lalu tampil di ubinnya', async () => {
+  await hash('#/home');
+  rawClick(q('[data-form="prop"]'));
+  await tick(); bersih();
+  rawClick(q('[data-step="2"]'));
+  const ubin = q('.uploader');
+  if (!ubin) throw new Error('ubin logo tidak ada');
+  if (ubin.dataset.act === 'soon') throw new Error('ubin logo masih buntu');
+  rawClick(ubin);
+  suntikBerkas('logo-kos.png', 'image/png');
+  const baru = q('.uploader');
+  if (!baru.classList.contains('has-img')) throw new Error('logo tidak tampil di ubinnya');
+  if (!baru.querySelector('img')) throw new Error('tidak ada gambar di ubin');
+  const src = baru.querySelector('img').getAttribute('src');
+  /* Langkah 2 tidak punya [data-back] — tombol kirinya kembali ke langkah 1 */
+  window.history.back();
+  await tick(); bersih();
+  return src;
+});
+
+/* Uji penutup ronde: telusuri seluruh rute dan sheet, pastikan tidak ada
+   satu pun tombol yang hanya memunculkan toast. */
+step('R5 tidak ada lagi tombol buntu di layar mana pun', async () => {
+  bersihSheet();
+  const buntu = [];
+  const periksa = tempat => {
+    const n = qa('[data-act="soon"]').length;
+    if (n) buntu.push(tempat + ' (' + n + ')');
+  };
+
+  const RUTE = ['home', 'cari', 'notif', 'calendar', 'tenants', 'filter/telat',
+                'prop/p1', 'prop/p2', 'room/p1-101', 'room/p1-105', 'room/p1-112',
+                'tenant/p1-101', 'ex/x1', 'hist/p1', 'hist/p1-101',
+                'notes/p1', 'notes/p1-101', 'foto/p1-101', 'info/p1', 'info/p2'];
+  for (const r of RUTE) {
+    await hash('#/' + r);
+    periksa(r);
+    /* setiap tab pada layar yang punya tab pil */
+    const tab = qa('.ptab').length;
+    for (let i = 1; i < tab; i++) { rawClick(qa('.ptab')[i]); periksa(r + ' tab' + i); }
+  }
+
+  const SHEET = ['menuprop:p1', 'menukamar:p1-101', 'menukamar:p1-105', 'menukal',
+                 'aksi:p1-101', 'sewa:p1-101', 'kamar:p1', 'keluar:p1',
+                 'trx:p1-101|tagihan', 'harga:p1-101', 'masa:p1-101',
+                 'pindah:p1-101', 'hapus:p1-101', 'bayar:p1-101', 'komponen:x'];
+  await hash('#/room/p1-101');
+  for (const sp of SHEET) {
+    window.eval('openSheet(' + JSON.stringify(sp) + ')');
+    periksa('sheet ' + sp);
+    bersihSheet();
+  }
+
+  /* formulir */
+  for (const f of ['tenant:p1-105', 'prop', 'edit:p1-101']) {
+    window.eval('mulaiForm(' + JSON.stringify(f) + ')');
+    await tick(); bersih();
+    periksa('form ' + f);
+    if (f === 'prop') { rawClick(q('[data-step="2"]')); periksa('form prop langkah 2'); }
+    window.history.back();
+    await tick(); bersih();
+  }
+
+  if (buntu.length) throw new Error('masih buntu di: ' + buntu.join(', '));
+  return RUTE.length + ' rute, ' + SHEET.length + ' sheet, 3 formulir — semuanya bertujuan';
+});
+
 /* ════════════ Audit statis ════════════
    Dua kelas bug yang tak terdeteksi dengan menelusuri alur: ikon yang
    dipanggil tapi tak ada di peta, dan class yang dipakai tapi tak pernah
@@ -963,7 +1226,14 @@ const kelasDipakai = new Set();
 const catatKelas = () => qa('[class]').forEach(el => el.classList.forEach(c => kelasDipakai.add(c)));
 
 step('semua ikon yang dipanggil ada di peta', () => {
-  const dipanggil = [...new Set([...body.matchAll(/ic\('([a-zA-Z]+)'/g)].map(m => m[1]))];
+  /* Dua bentuk: panggilan langsung ic('nama'), dan nama yang dititipkan
+     sebagai data lalu dipanggil ic(n.i) — item sheet, notifikasi, agenda.
+     Bentuk kedua tak terlihat oleh regex pertama, padahal ikon yang salah
+     ketik di sana merender kotak kosong tanpa error apa pun. */
+  const dipanggil = [...new Set([
+    ...[...body.matchAll(/ic\('([a-zA-Z]+)'/g)].map(m => m[1]),
+    ...[...body.matchAll(/\bi:\s*'([a-zA-Z]+)'/g)].map(m => m[1]),
+  ])];
   const peta = body.slice(body.indexOf('const P = {'), body.indexOf('const ic ='));
   const hilang = dipanggil.filter(k => !new RegExp('(^|[\\s{])' + k + ':').test(peta));
   if (hilang.length) throw new Error('tidak ada di peta ikon: ' + hilang.join(', '));
