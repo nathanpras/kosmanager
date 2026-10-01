@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { deleteField }         from '../firebase'
 import { useTagihanStore }     from '../stores/tagihan'
 import { usePenghuniStore }    from '../stores/penghuni'
-import { useKamarStore }       from '../stores/kamar'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useLogStore }         from '../stores/log'
@@ -12,7 +11,9 @@ import { useToast }            from '../composables/useToast'
 import { useWAReminder, DEFAULT_TEMPLATE, isValidPhone } from '../composables/useWAReminder'
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { kamarDiBulan } from '../utils/riwayatKamar'
+import { statusTagihan, type KodeStatusTagihan } from '../utils/statusTagihan'
 import type { DraftTagihan }   from '../composables/useTagihanCalc'
+import { useUrutKamar } from '../composables/useUrutKamar'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
@@ -24,7 +25,6 @@ import InvoiceDoc              from '../components/shared/InvoiceDoc.vue'
 
 const tagihan     = useTagihanStore()
 const penghuni    = usePenghuniStore()
-const kamar       = useKamarStore()
 const properties  = usePropertiesStore()
 const app         = useAppStore()
 const log         = useLogStore()
@@ -46,18 +46,8 @@ function nextBulanStr(bulan: string): string {
 const nextBulan  = computed(() => nextBulanStr(bulanIni()))
 const allMonths  = computed(() => months.value.includes(nextBulan.value) ? months.value : [nextBulan.value, ...months.value])
 
-function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
-  const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
-  return [...items].sort((a, b) => {
-    const aRoom = kamar.items.find(k => k.nomor === a.kamar && k.property_id === a.property_id)
-    const bRoom = kamar.items.find(k => k.nomor === b.kamar && k.property_id === b.property_id)
-    const aIdx = katList.indexOf(aRoom?.kategori ?? 'Lainnya')
-    const bIdx = katList.indexOf(bRoom?.kategori ?? 'Lainnya')
-    if ((aIdx === -1 ? 999 : aIdx) !== (bIdx === -1 ? 999 : bIdx))
-      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
-    return (a.kamar ?? '').localeCompare(b.kamar ?? '', undefined, { numeric: true })
-  })
-}
+/* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
+const { urutkan: sortByKamar } = useUrutKamar()
 
 const filtered  = computed(() => filterByProperty(tagihan.items))
 
@@ -81,14 +71,18 @@ const terkumpul = computed(() => byMonth.value.reduce((s, t) => s + (Number(t.ju
 const totalBill = computed(() => byMonth.value.reduce((s, t) => s + (Number(t.jumlah) || 0), 0))
 const collPct   = computed(() => totalBill.value > 0 ? Math.min(100, Math.round(terkumpul.value / totalBill.value * 100)) : 0)
 
+/* Keputusannya di utils/statusTagihan.ts — dipakai bersama shell mobile.
+   Yang tinggal di sini hanya tampilannya: label dan kelas badge desktop. */
+const TAMPILAN: Record<KodeStatusTagihan, { cls: string; label: string }> = {
+  lunas:  { cls: 'bg', label: '✓ Lunas' },
+  kurang: { cls: 'ba', label: '⚠ Kurang Bayar' },
+  telat:  { cls: 'br', label: '🔴 Telat' },
+  belum:  { cls: 'br', label: 'Belum Bayar' },
+}
+
 function tagStatusInfo(t: Tagihan): TagihanStatus {
-  const total   = Number(t.jumlah) || 0
-  const dibayar = Number(t.jumlah_bayar) || (t.status === 'lunas' ? total : 0)
-  const telat   = !!(t.jatuh_tempo && t.jatuh_tempo < today() && t.status !== 'lunas')
-  if (dibayar >= total && total > 0) return { status: 'lunas', cls: 'bg', label: '✓ Lunas', dibayar, sisa: 0 }
-  if (dibayar > 0 && dibayar < total) return { status: 'kurang', cls: 'ba', label: '⚠ Kurang Bayar', dibayar, sisa: total - dibayar, telat }
-  if (telat) return { status: 'telat', cls: 'br', label: '🔴 Telat', dibayar: 0, sisa: total, telat: true }
-  return { status: 'belum', cls: 'br', label: 'Belum Bayar', dibayar: 0, sisa: total }
+  const h = statusTagihan(t)
+  return { ...h, ...TAMPILAN[h.status] }
 }
 const statusMap = computed(() => {
   const m = new Map<string, TagihanStatus>()

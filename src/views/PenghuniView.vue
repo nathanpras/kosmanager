@@ -11,6 +11,7 @@ import { useToast }           from '../composables/useToast'
 import { useOccupancy, tglKeluar, sudahKeluar } from '../composables/useOccupancy'
 import { useTagihanCalc, kunciTagihan } from '../composables/useTagihanCalc'
 import { useKeluarPenghuni }  from '../composables/useKeluarPenghuni'
+import { useUrutKamar } from '../composables/useUrutKamar'
 import { kamarDiBulan, catatPindah, koreksiKamar, awalBulanBerikutnya } from '../utils/riwayatKamar'
 import { fmtTgl, fmt }        from '../utils/format'
 import { today, bulanIni, bulanFromTgl, bulanKey } from '../utils/date'
@@ -29,18 +30,8 @@ const { kamarMasihTerisi } = useOccupancy()
 const { tagihanUntukKamar } = useTagihanCalc()
 const { keluarkan } = useKeluarPenghuni()
 
-function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
-  const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
-  return [...items].sort((a, b) => {
-    const aRoom = kamar.items.find(k => k.nomor === a.kamar && k.property_id === a.property_id)
-    const bRoom = kamar.items.find(k => k.nomor === b.kamar && k.property_id === b.property_id)
-    const aIdx = katList.indexOf(aRoom?.kategori ?? 'Lainnya')
-    const bIdx = katList.indexOf(bRoom?.kategori ?? 'Lainnya')
-    if ((aIdx === -1 ? 999 : aIdx) !== (bIdx === -1 ? 999 : bIdx))
-      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
-    return a.kamar.localeCompare(b.kamar, undefined, { numeric: true })
-  })
-}
+/* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
+const { urutkan: sortByKamar } = useUrutKamar()
 
 const filtered = computed(() => sortByKamar(filterByProperty(penghuni.items)))
 

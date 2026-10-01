@@ -9,6 +9,7 @@ import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useMonths }           from '../composables/useMonths'
 import { tglKeluar }           from '../composables/useOccupancy'
+import { useUrutKamar } from '../composables/useUrutKamar'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
 import { monthsBack, bulanIni } from '../utils/date'
 import RevenueBarChart         from '../components/charts/RevenueBarChart.vue'
@@ -52,18 +53,8 @@ const filteredExp = computed(() =>
 )
 
 // Sort by kamar order
-function sortByKamar<T extends { kamar: string; property_id: string }>(items: T[]): T[] {
-  const katList = [...properties.kategori.map(k => k.nama), 'Lainnya']
-  return [...items].sort((a, b) => {
-    const aRoom = kamar.items.find(k => k.nomor === a.kamar && k.property_id === a.property_id)
-    const bRoom = kamar.items.find(k => k.nomor === b.kamar && k.property_id === b.property_id)
-    const aIdx = katList.indexOf(aRoom?.kategori ?? 'Lainnya')
-    const bIdx = katList.indexOf(bRoom?.kategori ?? 'Lainnya')
-    if ((aIdx === -1 ? 999 : aIdx) !== (bIdx === -1 ? 999 : bIdx))
-      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
-    return a.kamar.localeCompare(b.kamar, undefined, { numeric: true })
-  })
-}
+/* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
+const { urutkan: sortByKamar } = useUrutKamar()
 
 // Charts always show 6-month trend
 const months = computed(() => monthsBack(6))
