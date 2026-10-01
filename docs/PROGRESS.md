@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 332/332 hijau ·
-mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–5 berjalan**
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 343/343 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–5 selesai**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -202,9 +202,20 @@ geser bulan, tanggal bisa dipilih, agenda ikut).
 **Tahap 4 selesai.** Catat pembayaran dari detail kamar — aksi pertama yang
 benar-benar menulis. `MobSheet` jadi mekanisme bottom sheet-nya.
 
-**Tahap 5 berjalan.** Pindah kamar (detail kamar) dan Catat pengeluaran (FAB
-di tab Transaksi properti). Sisa aksi mockup belum: tambah tagihan, deposit,
-biaya lain, ubah harga, ubah masa tinggal, hapus sewa.
+**Tahap 5 selesai.** Enam aksi yang menulis, semuanya lewat jalur yang sudah
+ada di aplikasi:
+
+| Aksi | Jalurnya |
+|---|---|
+| Catat pembayaran | `useBayarTagihan` |
+| Pindah kamar | `usePindahKamar` |
+| Akhiri sewa | `useKeluarPenghuni` (dipakai apa adanya) |
+| Tambah tagihan | `useTagihanCalc.tagihanUntukKamar` untuk isian awal |
+| Ubah harga kamar | `kamar.update` |
+| Catat pengeluaran | `pengeluaran.add` + `KATEGORI_PENGELUARAN` |
+
+Belum ada: ubah masa tinggal, deposit, biaya lain, catatan, foto, riwayat
+penghuni, notifikasi, cari global.
 
 Tiga aturan yang diangkat jadi milik bersama saat tahap 2, karena sudah
 terduplikasi sebelum shell mobile ada:
@@ -244,10 +255,11 @@ Dua hal yang belum ada di shell mobile dan sebaiknya menyusul bersama:
   seluruh properti sekaligus. Itu sengaja — tab Penghuni dan Kalender memang
   lintas properti di mockup — tapi suatu saat perlu diputuskan apakah
   `app.currentPropertyId` ikut berlaku di sini.
-- **Sisa aksi uang:** tambah tagihan, deposit, biaya lain, ubah harga, ubah
-  masa tinggal, hapus sewa. Hapus sewa sudah punya `useKeluarPenghuni` di
-  aplikasi — pakai itu, jangan tulis aturan kedua. Pola yang sudah terbentuk:
-  **angkat aturannya jadi composable lebih dulu, baru dipakai dua tampilan.**
+- **Pola yang sudah terbentuk dan sebaiknya diteruskan:** sebelum shell mobile
+  memakai sebuah aturan yang hidup di dalam view desktop, **angkat dulu jadi
+  composable**, baru dipakai keduanya. Sudah dilakukan empat kali
+  (`statusTagihan`, `useUrutKamar`, `useBayarTagihan`, `usePindahKamar`) dan
+  tiap kali menemukan duplikasi yang memang sudah ada sebelumnya.
 
 Tahap berikutnya: **tahap 5 — sisa aksi uang dan layar pendukung** (catatan,
 foto, riwayat penghuni), lalu **tahap 6 — jadikan bawaan**.
