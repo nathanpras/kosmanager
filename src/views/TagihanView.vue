@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { deleteField }         from '../firebase'
 import { useTagihanStore }     from '../stores/tagihan'
 import { usePenghuniStore }    from '../stores/penghuni'
 import { usePropertiesStore }  from '../stores/properties'
@@ -14,6 +13,7 @@ import { kamarDiBulan } from '../utils/riwayatKamar'
 import { statusTagihan, type KodeStatusTagihan } from '../utils/statusTagihan'
 import type { DraftTagihan }   from '../composables/useTagihanCalc'
 import { useUrutKamar } from '../composables/useUrutKamar'
+import { useBayarTagihan } from '../composables/useBayarTagihan'
 import { DEFAULT_TGL_JATUH_TEMPO } from '../utils/billing'
 import { useSettingsStore }    from '../stores/settings'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
@@ -48,6 +48,7 @@ const allMonths  = computed(() => months.value.includes(nextBulan.value) ? month
 
 /* Urutannya milik bersama — lihat composables/useUrutKamar.ts */
 const { urutkan: sortByKamar } = useUrutKamar()
+const { catat: catatPembayaran, batalkan: batalkanPembayaran } = useBayarTagihan()
 
 const filtered  = computed(() => filterByProperty(tagihan.items))
 
@@ -104,17 +105,14 @@ function openPay(t: Tagihan) {
 async function pay() {
   if (!payTarget.value) return
   try {
-    const status = payForm.value.jumlah_bayar >= payTarget.value.jumlah ? 'lunas' : 'kurang'
-    await tagihan.update(payTarget.value.id, { jumlah_bayar: payForm.value.jumlah_bayar, tgl: payForm.value.tgl, status })
-    await log.add(`${payTarget.value.penghuni} bayar kamar ${payTarget.value.kamar} ${payTarget.value.bulan}`, 'green', payTarget.value.property_id)
+    await catatPembayaran(payTarget.value, payForm.value.jumlah_bayar, payForm.value.tgl)
     toast('Pembayaran dicatat', 'success')
     showPay.value = false
   } catch { toast('Gagal mencatat pembayaran', 'error') }
 }
 async function undoPay(t: Tagihan) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await tagihan.update(t.id, { status: 'belum', jumlah_bayar: 0, tgl: deleteField() as any })
+    await batalkanPembayaran(t)
     toast('Pembayaran dibatalkan', 'success')
   } catch { toast('Gagal membatalkan pembayaran', 'error') }
 }

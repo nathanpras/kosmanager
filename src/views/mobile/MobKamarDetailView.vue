@@ -16,6 +16,10 @@ import { statusTagihan } from '../../utils/statusTagihan'
 import { tglKeluar } from '../../composables/useOccupancy'
 import { fmt, fmtTgl } from '../../utils/format'
 import { sortBulanDesc } from '../../utils/date'
+import MobBayarSheet from '../../components/mobile/MobBayarSheet.vue'
+import { useBayarTagihan } from '../../composables/useBayarTagihan'
+import { useToast } from '../../composables/useToast'
+import type { Tagihan } from '../../types'
 
 const route = useRoute()
 const tagihanStore = useTagihanStore()
@@ -39,6 +43,28 @@ const tagihan = computed(() => {
 })
 
 const tagihanBulanIni = computed(() => tagihan.value.filter(t => t.bulan === bulan.value))
+
+/* Pembayaran ditulis lewat composable yang sama dengan desktop. */
+const { catat } = useBayarTagihan()
+const { show: toast } = useToast()
+const bayarTarget = ref<Tagihan | null>(null)
+
+const subSheet = computed(() => {
+  const p = penghuni.value[0]
+  return p ? `${p.nama} · Kamar ${nomor.value}` : `Kamar ${nomor.value}`
+})
+
+async function simpanBayar(jumlah: number, tgl: string) {
+  const t = bayarTarget.value
+  if (!t) return
+  try {
+    await catat(t, jumlah, tgl)
+    bayarTarget.value = null
+    toast('Pembayaran dicatat', 'success')
+  } catch {
+    toast('Gagal mencatat pembayaran', 'error')
+  }
+}
 
 const CHIP: Record<string, { label: string; cls: string }> = {
   lunas:  { label: 'Lunas',  cls: 'ok' },
@@ -94,6 +120,12 @@ const CHIP: Record<string, { label: string; cls: string }> = {
               </span>
             </div>
             <div class="bill-amt">{{ fmt(t.jumlah) }}</div>
+            <button
+              v-if="statusTagihan(t).status !== 'lunas'"
+              class="btn brandsoft sm block"
+              style="margin-top:12px"
+              @click="bayarTarget = t"
+            >Catat pembayaran</button>
           </div>
           <div v-if="!tagihanBulanIni.length" class="bill">
             <div class="bill-top"><span class="mlabel">Sewa · {{ bulan }}</span></div>
@@ -155,5 +187,13 @@ const CHIP: Record<string, { label: string; cls: string }> = {
         <p>Tagihan kamar ini akan muncul di sini setelah dibuat.</p>
       </div>
     </template>
+
+    <MobBayarSheet
+      v-if="bayarTarget"
+      :tagihan="bayarTarget"
+      :sub="subSheet"
+      @tutup="bayarTarget = null"
+      @simpan="simpanBayar"
+    />
   </MobScreen>
 </template>
