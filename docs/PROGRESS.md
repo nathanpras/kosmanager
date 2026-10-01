@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 343/343 hijau ·
-mockup `_smoke.cjs` 95/95 hijau · **port tahap 1–5 selesai**
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 392/392 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **paritas mobile tercapai**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -202,8 +202,23 @@ geser bulan, tanggal bisa dipilih, agenda ikut).
 **Tahap 4 selesai.** Catat pembayaran dari detail kamar — aksi pertama yang
 benar-benar menulis. `MobSheet` jadi mekanisme bottom sheet-nya.
 
-**Tahap 5 selesai.** Enam aksi yang menulis, semuanya lewat jalur yang sudah
-ada di aplikasi:
+**Paritas tercapai.** Setiap fitur desktop punya tempatnya di shell mobile.
+Petanya di `docs/superpowers/specs/2026-10-01-paritas-mobile-design.md`.
+
+Tiga tab bawah tetap dikunci seperti kontrak desain. Yang bukan pekerjaan
+harian — Tagihan, Keluhan, Laporan, Riwayat, Pengaturan — masuk **menu ⋮ di
+beranda**, bukan tab keempat: dok empat tab membuat ketiganya lebih sempit demi
+layar yang jarang dibuka.
+
+**Dua hal sengaja tetap hanya di desktop**, dan layar mobile mengatakannya
+terus terang alih-alih menyembunyikannya:
+
+| Hal | Alasan |
+|---|---|
+| Ganti penomoran kamar | Menyentuh seluruh kamar beserta tagihannya, mewajibkan backup, butuh pratinjau baris-per-baris |
+| Saldo awal properti | Titik nol seluruh perhitungan saldo; desktop menjelaskannya satu paragraf penuh sebelum diisi |
+
+Aksi yang menulis, semuanya lewat jalur yang sudah ada di aplikasi:
 
 | Aksi | Jalurnya |
 |---|---|
@@ -213,9 +228,20 @@ ada di aplikasi:
 | Tambah tagihan | `useTagihanCalc.tagihanUntukKamar` untuk isian awal |
 | Ubah harga kamar | `kamar.update` |
 | Catat pengeluaran | `pengeluaran.add` + `KATEGORI_PENGELUARAN` |
+| Tambah/ubah penghuni | `useSimpanPenghuni` |
+| Tambah kamar, tambah properti | store langsung |
+| Ubah/hapus pengeluaran | store langsung, hapus dua langkah |
+| Status keluhan, balas WA | `useKeluhan` |
 
-Belum ada: ubah masa tinggal, deposit, biaya lain, catatan, foto, riwayat
-penghuni, notifikasi, cari global.
+**Sepuluh aturan diangkat jadi composable selama port ini**, dan tiap kali
+menemukan duplikasi yang memang sudah ada sebelumnya: `statusTagihan`,
+`useUrutKamar`, `useBayarTagihan`, `usePindahKamar`, `useKeluhan`, `useLaporan`,
+`useInvoice`, `useSimpanPenghuni`, ditambah `statusKamar` dan `lamaHuni` yang
+baru. Polanya: **angkat dulu, baru dipakai dua tampilan.**
+
+Yang ada di mockup tapi belum diport, dan memang belum pernah ada di desktop:
+catatan internal, foto kamar, riwayat penghuni, notifikasi, cari global, ubah
+masa tinggal, deposit, biaya lain. Semuanya fitur baru, bukan paritas.
 
 Tiga aturan yang diangkat jadi milik bersama saat tahap 2, karena sudah
 terduplikasi sebelum shell mobile ada:
@@ -261,8 +287,11 @@ Dua hal yang belum ada di shell mobile dan sebaiknya menyusul bersama:
   (`statusTagihan`, `useUrutKamar`, `useBayarTagihan`, `usePindahKamar`) dan
   tiap kali menemukan duplikasi yang memang sudah ada sebelumnya.
 
-Tahap berikutnya: **tahap 5 — sisa aksi uang dan layar pendukung** (catatan,
-foto, riwayat penghuni), lalu **tahap 6 — jadikan bawaan**.
+**Yang tersisa: tahap 6 — jadikan bawaan.** Satu sakelar: layar sempit otomatis
+masuk `/m`. Sengaja ditahan sampai pemilik sempat memakainya, karena itulah yang
+mengubah tampilan bagi pemakai sungguhan. Sampai itu terjadi, `/m` dicapai lewat
+**Pengaturan → Tampilan Mobile Baru**, dan beranda `/m` punya tombol ✕ untuk
+kembali.
 
 ### Peta data Kamaru → kosmanager
 
