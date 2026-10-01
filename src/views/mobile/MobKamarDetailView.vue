@@ -1,0 +1,159 @@
+<script setup lang="ts">
+/* Detail kamar: Penghuni / Harga / Transaksi.
+ *
+ * Mockup punya tab keempat, "Lainnya", berisi tautan ke foto kamar, catatan,
+ * dan riwayat penghuni. Ketiganya belum diport, jadi tabnya belum ada — tab
+ * yang isinya hanya baris mati lebih buruk daripada tab yang belum muncul.
+ */
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import MobScreen from '../../components/mobile/MobScreen.vue'
+import MobTabs from '../../components/mobile/MobTabs.vue'
+import MobIcon from '../../components/mobile/MobIcon.vue'
+import { useMobile, inisial } from '../../composables/useMobile'
+import { useTagihanStore } from '../../stores/tagihan'
+import { statusTagihan } from '../../utils/statusTagihan'
+import { tglKeluar } from '../../composables/useOccupancy'
+import { fmt, fmtTgl } from '../../utils/format'
+import { sortBulanDesc } from '../../utils/date'
+
+const route = useRoute()
+const tagihanStore = useTagihanStore()
+const { kamarSatu, statusKini, penghuniKamar, bulan } = useMobile()
+
+const pid = computed(() => String(route.params.id))
+const nomor = computed(() => String(route.params.nomor))
+const kamar = computed(() => kamarSatu(pid.value, nomor.value))
+const tab = ref(0)
+
+const penghuni = computed(() => (kamar.value ? penghuniKamar(kamar.value) : []))
+const kosong = computed(() => !kamar.value || statusKini(kamar.value) === 'kosong')
+
+/** Seluruh tagihan kamar ini, terbaru dulu. */
+const tagihan = computed(() => {
+  if (!kamar.value) return []
+  const milik = tagihanStore.items.filter(
+    t => t.kamar === nomor.value && t.property_id === pid.value)
+  const urutBulan = sortBulanDesc([...new Set(milik.map(t => t.bulan))])
+  return urutBulan.flatMap(b => milik.filter(t => t.bulan === b))
+})
+
+const tagihanBulanIni = computed(() => tagihan.value.filter(t => t.bulan === bulan.value))
+
+const CHIP: Record<string, { label: string; cls: string }> = {
+  lunas:  { label: 'Lunas',  cls: 'ok' },
+  kurang: { label: 'Kurang', cls: 'warn' },
+  telat:  { label: 'Telat',  cls: 'bad' },
+  belum:  { label: 'Belum',  cls: 'warn' },
+}
+</script>
+
+<template>
+  <MobScreen :judul="`Kamar ${nomor}`" back>
+    <MobTabs v-model="tab" :tabs="['Penghuni', 'Harga', 'Transaksi']" />
+
+    <!-- Penghuni -->
+    <template v-if="tab === 0">
+      <div class="sechead"><h2>Penghuni aktif</h2></div>
+      <div v-if="penghuni.length" class="stagger">
+        <section v-for="p in penghuni" :key="p.id" class="card flush" style="margin-bottom:10px">
+          <div class="lrow">
+            <span class="av">{{ inisial(p.nama) }}</span>
+            <span class="lrow-body">
+              <span class="lrow-title">{{ p.nama }}</span>
+              <span class="lrow-sub">{{ p.hp || 'Nomor HP belum diisi' }}</span>
+            </span>
+          </div>
+          <div class="lease-grid" style="padding-top:14px;border-top:1px solid var(--hair)">
+            <div class="kv">
+              <div>
+                <div class="mlabel">Check-in</div>
+                <div class="mval">{{ fmtTgl(p.masuk) }}</div>
+              </div>
+              <div>
+                <div class="mlabel">Check-out</div>
+                <div v-if="tglKeluar(p)" class="mval">{{ fmtTgl(tglKeluar(p)!) }}</div>
+                <div v-else class="mval muted">Terbuka<span class="sub">tanpa batas</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="price-head">
+            <div>
+              <div class="mlabel">Harga sewa</div>
+              <div class="price">{{ fmt(kamar?.harga ?? 0) }}<span class="per"> / bulan</span></div>
+            </div>
+          </div>
+          <div v-for="t in tagihanBulanIni" :key="t.id" class="bill">
+            <div class="bill-top">
+              <span class="mlabel fig">Sewa · {{ t.bulan }}</span>
+              <span class="chip" :class="CHIP[statusTagihan(t).status].cls">
+                <i class="dot"></i>{{ CHIP[statusTagihan(t).status].label }}
+              </span>
+            </div>
+            <div class="bill-amt">{{ fmt(t.jumlah) }}</div>
+          </div>
+          <div v-if="!tagihanBulanIni.length" class="bill">
+            <div class="bill-top"><span class="mlabel">Sewa · {{ bulan }}</span></div>
+            <div class="bill-amt">Belum ada tagihan</div>
+          </div>
+        </section>
+      </div>
+
+      <div v-else class="card emptystate">
+        <div class="emptystate-art"><MobIcon name="door" :size="40" /></div>
+        <h3>Kamar ini kosong</h3>
+        <p>Tambahkan penghuni untuk mulai mencatat sewa dan tagihan kamar {{ nomor }}.</p>
+      </div>
+    </template>
+
+    <!-- Harga -->
+    <template v-else-if="tab === 1">
+      <div class="sechead"><h2>Harga &amp; komponen</h2></div>
+      <dl class="card flush divide stagger">
+        <div class="drow">
+          <dt>Harga sewa</dt>
+          <dd>{{ kosong ? '–' : `${fmt(kamar?.harga ?? 0)} / bulan` }}</dd>
+        </div>
+        <div class="drow">
+          <dt>Deposit</dt>
+          <dd>{{ kamar?.deposit ? fmt(kamar.deposit) : '–' }}</dd>
+        </div>
+        <div class="drow">
+          <dt>Biaya tambahan</dt>
+          <dd>{{ kamar?.nominal_tambahan ? fmt(kamar.nominal_tambahan) : 'Belum ada' }}</dd>
+        </div>
+        <div class="drow"><dt>Tipe kamar</dt><dd class="wrap">{{ kamar?.tipe || '–' }}</dd></div>
+        <div class="drow"><dt>Kategori</dt><dd class="wrap">{{ kamar?.kategori || '–' }}</dd></div>
+      </dl>
+    </template>
+
+    <!-- Transaksi -->
+    <template v-else>
+      <div class="sechead">
+        <h2>Tagihan kamar {{ nomor }}</h2>
+        <span class="count">{{ tagihan.length }}</span>
+      </div>
+      <div v-if="tagihan.length" class="card flush divide stagger">
+        <div v-for="t in tagihan" :key="t.id" class="lrow">
+          <span class="av sm" :class="statusTagihan(t).status === 'lunas' ? '' : 'ghost'">
+            <MobIcon name="receipt" :size="17" />
+          </span>
+          <span class="lrow-body">
+            <span class="lrow-title" style="font-size:14.5px">Sewa {{ t.bulan }}</span>
+            <span class="lrow-sub">{{ fmt(t.jumlah) }}</span>
+          </span>
+          <span class="chip" :class="CHIP[statusTagihan(t).status].cls">
+            <i class="dot"></i>{{ CHIP[statusTagihan(t).status].label }}
+          </span>
+        </div>
+      </div>
+      <div v-else class="card emptystate">
+        <h3>Belum ada tagihan</h3>
+        <p>Tagihan kamar ini akan muncul di sini setelah dibuat.</p>
+      </div>
+    </template>
+  </MobScreen>
+</template>

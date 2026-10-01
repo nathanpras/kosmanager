@@ -1,0 +1,209 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+import { createRouter, createMemoryHistory, RouterView, type Router } from 'vue-router'
+import { setActivePinia, createPinia } from 'pinia'
+import MobileShell from '../../components/mobile/MobileShell.vue'
+import MobPropertiView from '../../views/mobile/MobPropertiView.vue'
+import MobPropDetailView from '../../views/mobile/MobPropDetailView.vue'
+import MobKamarDetailView from '../../views/mobile/MobKamarDetailView.vue'
+import { useKamarStore } from '../../stores/kamar'
+import { usePenghuniStore } from '../../stores/penghuni'
+import { useTagihanStore } from '../../stores/tagihan'
+import { usePengeluaranStore } from '../../stores/pengeluaran'
+import { usePropertiesStore } from '../../stores/properties'
+import { useSettingsStore } from '../../stores/settings'
+import type { Kamar, Penghuni, Property, Tagihan } from '../../types'
+
+/**
+ * Tahap 2 port: layar baca memakai store sungguhan.
+ *
+ * Yang diuji bukan rupanya, melainkan bahwa angkanya berasal dari data dan
+ * tidak ada tombol yang menuju ke mana-mana — pelajaran dari ronde 5 mockup.
+ */
+
+const BULAN = 'September 2026'
+
+function isiData() {
+  usePropertiesStore().items = [
+    { id: 'p1', nama: 'Raffles Kost Citra 1', alamat: 'Kalideres', no_hp: '0851',
+      created_at: '2026-01-01' },
+    { id: 'p2', nama: 'Raffles Kost Waru 23', alamat: 'Cengkareng', no_hp: '0852',
+      created_at: '2026-01-01' },
+  ] as Property[]
+  usePropertiesStore().kategori = []
+
+  useKamarStore().items = [
+    { id: 'k1', nomor: '101', tipe: 'Mandi dalam', harga: 1_800_000, status: 'terisi', property_id: 'p1' },
+    { id: 'k2', nomor: '102', tipe: '', harga: 1_700_000, status: 'terisi', property_id: 'p1' },
+    { id: 'k3', nomor: '103', tipe: '', harga: 0, status: 'kosong', property_id: 'p1' },
+    /* Nomor yang sama di properti lain — tidak boleh tercampur */
+    { id: 'k4', nomor: '101', tipe: '', harga: 1_400_000, status: 'terisi', property_id: 'p2' },
+  ] as Kamar[]
+
+  usePenghuniStore().items = [
+    { id: 'h1', nama: 'Hizkia Nogie', kamar: '101', hp: '0812', masuk: '2026-01-01', property_id: 'p1' },
+    { id: 'h2', nama: 'Maria Goreti', kamar: '102', hp: '0813', masuk: '2026-02-01', property_id: 'p1' },
+    { id: 'h3', nama: 'Yoga Pratama', kamar: '101', hp: '0814', masuk: '2026-03-01', property_id: 'p2' },
+  ] as Penghuni[]
+
+  useTagihanStore().items = [
+    { id: 't1', penghuni: 'Hizkia Nogie', kamar: '101', bulan: BULAN, jumlah: 1_800_000,
+      status: 'lunas', jumlah_bayar: 1_800_000, tgl: '2026-09-05', property_id: 'p1',
+      createdAt: '2026-09-01' },
+    { id: 't2', penghuni: 'Maria Goreti', kamar: '102', bulan: BULAN, jumlah: 1_700_000,
+      status: 'belum', jatuh_tempo: '2026-09-01', property_id: 'p1', createdAt: '2026-09-01' },
+  ] as Tagihan[]
+
+  usePengeluaranStore().items = [
+    { id: 'x1', deskripsi: 'Token listrik', jumlah: 450_000, kategori: 'Listrik',
+      tgl: '2026-09-10', property_id: 'p1' },
+  ]
+
+  useSettingsStore().data = { nama: 'Jonathan' }
+}
+
+function buatRouter(): Router {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [{
+      path: '/m',
+      component: MobileShell,
+      children: [
+        { path: '', name: 'm-properti', component: MobPropertiView },
+        { path: 'prop/:id', name: 'm-prop', component: MobPropDetailView },
+        { path: 'prop/:id/kamar/:nomor', name: 'm-kamar', component: MobKamarDetailView },
+      ],
+    }],
+  })
+}
+
+let router: Router
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  isiData()
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-09-20T08:00:00'))
+  router = buatRouter()
+})
+afterEach(() => vi.useRealTimers())
+
+async function pasang(ke: string) {
+  await router.push(ke)
+  await router.isReady()
+  const w = mount(RouterView, { global: { plugins: [router] } })
+  await flushPromises()
+  return w
+}
+
+describe('beranda mobile', () => {
+  it('menyapa dengan nama pemilik dari pengaturan', async () => {
+    const w = await pasang('/m')
+    expect(w.text()).toContain('Jonathan')
+  })
+
+  it('menampilkan kedua properti dengan hitungan terisi masing-masing', async () => {
+    const w = await pasang('/m')
+    const kartu = w.findAll('.stack-v .lrow')
+    expect(kartu).toHaveLength(2)
+    expect(kartu[0].text()).toContain('Raffles Kost Citra 1')
+    expect(kartu[0].text()).toContain('2/3 terisi')
+    expect(kartu[1].text()).toContain('1/1 terisi')
+  })
+
+  it('chip telat hanya muncul pada properti yang memang punya', async () => {
+    const w = await pasang('/m')
+    const kartu = w.findAll('.stack-v .lrow')
+    expect(kartu[0].text()).toContain('1 telat')
+    expect(kartu[1].text()).not.toContain('telat')
+  })
+
+  it('tidak merender satu pun tombol yang tidak menuju ke mana-mana', async () => {
+    const w = await pasang('/m')
+    /* Chip statistik sengaja bukan tombol selama layar filternya belum diport. */
+    expect(w.findAll('.statgrid button')).toHaveLength(0)
+    expect(w.findAll('.statgrid .statchip').length).toBeGreaterThan(0)
+  })
+
+  it('mengetuk properti masuk ke detailnya', async () => {
+    const w = await pasang('/m')
+    await w.findAll('.stack-v .lrow')[0].trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('m-prop')
+    expect(router.currentRoute.value.params.id).toBe('p1')
+  })
+})
+
+describe('detail properti', () => {
+  it('hanya menampilkan kamar milik properti itu', async () => {
+    const w = await pasang('/m/prop/p1')
+    const baris = w.findAll('[class*="lrow"] .roomno')
+    expect(baris.map(b => b.text())).toEqual(['101', '102', '103'])
+  })
+
+  it('chip status kamar diturunkan dari tagihan, bukan dari field kamar', async () => {
+    const w = await pasang('/m/prop/p1')
+    const teks = w.text()
+    expect(teks).toContain('Lunas')   /* 101 dibayar penuh */
+    expect(teks).toContain('Telat')   /* 102 lewat jatuh tempo */
+    expect(teks).toContain('Kosong')  /* 103 */
+  })
+
+  it('tab Transaksi memakai uang yang diterima, bukan yang ditagih', async () => {
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[1].trigger('click')
+    /* Hanya t1 yang sudah dibayar; t2 belum, jadi tidak masuk pemasukan. */
+    expect(w.text()).toContain('Token listrik')
+    expect(w.text()).toContain('Hizkia Nogie')
+    expect(w.text()).not.toContain('Maria Goreti')
+  })
+
+  it('tab Lainnya menampilkan keterangan, bukan baris mati', async () => {
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.ptab')[2].trigger('click')
+    expect(w.text()).toContain('Kalideres')
+    expect(w.findAll('.ptab')).toHaveLength(3)
+  })
+
+  it('mengetuk kamar masuk ke detail kamar yang benar', async () => {
+    const w = await pasang('/m/prop/p1')
+    await w.findAll('.card.tap')[0].trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('m-kamar')
+    expect(router.currentRoute.value.params).toMatchObject({ id: 'p1', nomor: '101' })
+  })
+})
+
+describe('detail kamar', () => {
+  it('menampilkan penghuni aktif kamar itu saja', async () => {
+    const w = await pasang('/m/prop/p1/kamar/101')
+    expect(w.text()).toContain('Hizkia Nogie')
+    /* Penghuni kamar 101 di properti lain tidak boleh ikut */
+    expect(w.text()).not.toContain('Yoga Pratama')
+  })
+
+  it('kamar kosong menampilkan keadaan kosong, bukan kartu penghuni palsu', async () => {
+    const w = await pasang('/m/prop/p1/kamar/103')
+    expect(w.text()).toContain('Kamar ini kosong')
+  })
+
+  it('tab Harga membaca angka dari dokumen kamar', async () => {
+    const w = await pasang('/m/prop/p1/kamar/101')
+    await w.findAll('.ptab')[1].trigger('click')
+    expect(w.text()).toContain('Mandi dalam')
+    expect(w.text()).toContain('1.800.000')
+  })
+
+  it('tab Transaksi hanya memuat tagihan kamar itu', async () => {
+    const w = await pasang('/m/prop/p1/kamar/101')
+    await w.findAll('.ptab')[2].trigger('click')
+    const baris = w.findAll('.card.flush.divide .lrow')
+    expect(baris).toHaveLength(1)
+    expect(baris[0].text()).toContain(BULAN)
+  })
+
+  it('dok turun di layar drill-down', async () => {
+    const w = await pasang('/m/prop/p1/kamar/101')
+    expect(w.find('.dock').classes()).toContain('is-hidden')
+  })
+})

@@ -26,6 +26,10 @@ const router = createRouter({
         { path: '',          name: 'm-properti', component: () => import('../views/mobile/MobPropertiView.vue') },
         { path: 'kalender',  name: 'm-kalender', component: () => import('../views/mobile/MobKalenderView.vue') },
         { path: 'penghuni',  name: 'm-penghuni', component: () => import('../views/mobile/MobPenghuniView.vue') },
+
+        /* Drill-down. Doknya turun di sini — lihat MobileShell. */
+        { path: 'prop/:id',             name: 'm-prop',  component: () => import('../views/mobile/MobPropDetailView.vue') },
+        { path: 'prop/:id/kamar/:nomor', name: 'm-kamar', component: () => import('../views/mobile/MobKamarDetailView.vue') },
       ],
     },
   ],
