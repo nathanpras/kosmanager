@@ -2,27 +2,25 @@
 import { ref, computed } from 'vue'
 import { useTagihanStore }     from '../stores/tagihan'
 import { usePengeluaranStore } from '../stores/pengeluaran'
-import { useKamarStore }       from '../stores/kamar'
-import { usePenghuniStore }    from '../stores/penghuni'
 import { usePropertiesStore }  from '../stores/properties'
 import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useMonths }           from '../composables/useMonths'
-import { tglKeluar }           from '../composables/useOccupancy'
 import { useUrutKamar } from '../composables/useUrutKamar'
+import { useLaporan } from '../composables/useLaporan'
 import { fmt, fmtTgl, MONTHS_FULL } from '../utils/format'
-import { monthsBack, bulanIni } from '../utils/date'
+import { bulanIni } from '../utils/date'
+import { nilaiDibayar } from '../utils/saldo'
 import RevenueBarChart         from '../components/charts/RevenueBarChart.vue'
 import ExpensePieChart         from '../components/charts/ExpensePieChart.vue'
 import OccupancyTrendChart     from '../components/charts/OccupancyTrendChart.vue'
 
 const tagihan     = useTagihanStore()
 const pengeluaran = usePengeluaranStore()
-const kamar       = useKamarStore()
-const penghuni    = usePenghuniStore()
 const properties  = usePropertiesStore()
 const app         = useAppStore()
 const { filterByProperty } = useProperty()
+const { bulanTerakhir, pemasukanPerBulan, pengeluaranPerKategori, hunianPerBulan } = useLaporan()
 
 // ── MODE FILTER ──
 type LaporanMode = 'bulan_ini' | 'pilih_bulan' | 'all_time'
@@ -57,42 +55,15 @@ const filteredExp = computed(() =>
 const { urutkan: sortByKamar } = useUrutKamar()
 
 // Charts always show 6-month trend
-const months = computed(() => monthsBack(6))
+const months = computed(() => bulanTerakhir(6))
 
-const revenueByMonth = computed(() =>
-  months.value.map(bln =>
-    filterByProperty(tagihan.items)
-      .filter(t => t.bulan === bln)
-      .reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? Number(t.jumlah) || 0 : 0)), 0)
-  )
-)
-const expenseByKategori = computed(() => {
-  const map: Record<string, number> = {}
-  filterByProperty(pengeluaran.items).forEach(p => { map[p.kategori] = (map[p.kategori] ?? 0) + p.jumlah })
-  return { labels: Object.keys(map), values: Object.values(map) }
-})
-const occupancyByMonth = computed(() => {
-  const totalRooms = filterByProperty(kamar.items).length || 1
-  return months.value.map(bln => {
-    const parts = bln.split(' ')
-    const monthIdx = MONTHS_FULL.indexOf(parts[0])
-    const year = parseInt(parts[1])
-    const firstStr = new Date(year, monthIdx, 1).toISOString().split('T')[0]
-    const lastStr  = new Date(year, monthIdx + 1, 0).toISOString().split('T')[0]
-    const active = filterByProperty(penghuni.items).filter(p => {
-      const masuk  = p.masuk ?? '9999-01-01'
-      // Lewat tglKeluar(): penghuni yang keluar lewat alur arsip cuma menulis
-      // tgl_keluar, jadi membaca kontrak_selesai saja membuat mereka terhitung
-      // menghuni selamanya dan grafik hunian merangkak lewat 100%.
-      const keluar = tglKeluar(p) ?? '9999-12-31'
-      return masuk <= lastStr && keluar >= firstStr
-    }).length
-    return Math.round(active / totalRooms * 100)
-  })
-})
+/* Perhitungannya milik bersama — lihat composables/useLaporan.ts */
+const revenueByMonth     = computed(() => pemasukanPerBulan(app.currentPropertyId))
+const expenseByKategori  = computed(() => pengeluaranPerKategori(app.currentPropertyId))
+const occupancyByMonth   = computed(() => hunianPerBulan(app.currentPropertyId))
 
 // KPI — respect mode filter
-const totalMasuk  = computed(() => filteredTg.value.reduce((s, t) => s + (Number(t.jumlah_bayar) || (t.status === 'lunas' ? Number(t.jumlah) || 0 : 0)), 0))
+const totalMasuk  = computed(() => filteredTg.value.reduce((s, t) => s + nilaiDibayar(t), 0))
 const totalKeluar = computed(() => filteredExp.value.reduce((s, p) => s + p.jumlah, 0))
 const totalNet    = computed(() => totalMasuk.value - totalKeluar.value)
 const lunasCount  = computed(() => filteredTg.value.filter(t => t.status === 'lunas').length)

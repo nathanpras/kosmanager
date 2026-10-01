@@ -61,6 +61,7 @@ const menuTerbuka = ref(false)
    di sini begitu layarnya berdiri. */
 const MENU = [
   { ikon: 'build',   judul: 'Keluhan',    sub: 'Laporan kerusakan dan perbaikan', ke: 'm-keluhan' },
+  { ikon: 'money',   judul: 'Laporan',    sub: 'Pemasukan, pengeluaran, hunian',  ke: 'm-laporan' },
   { ikon: 'note',    judul: 'Riwayat',    sub: 'Catatan aktivitas aplikasi',      ke: 'm-log' },
   { ikon: 'sliders', judul: 'Pengaturan', sub: 'Data kos, PIN, cadangan',         ke: 'm-pengaturan' },
 ]

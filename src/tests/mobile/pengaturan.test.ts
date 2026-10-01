@@ -25,7 +25,11 @@ function buatRouter(): Router {
         component: MobileShell,
         children: [
           { path: '', name: 'm-properti', component: MobPropertiView },
+          /* Seluruh tujuan menu harus ada di sini. Kalau menu bertambah dan
+             rutenya lupa didaftarkan, uji di bawah menangkapnya — bukan
+             membiarkannya jadi penolakan async yang tak terlihat. */
           { path: 'keluhan', name: 'm-keluhan', component: Kosong },
+          { path: 'laporan', name: 'm-laporan', component: Kosong },
           { path: 'log', name: 'm-log', component: Kosong },
           { path: 'pengaturan', name: 'm-pengaturan', component: MobPengaturanView },
         ],
@@ -74,8 +78,13 @@ describe('menu di beranda', () => {
     for (let i = 0; i < item.length; i++) {
       const w2 = await pasang('/m')
       await bukaMenu(w2)
+      const judul = w2.findAll('.sheet .aitem')[i].text()
       await w2.findAll('.sheet .aitem')[i].trigger('click')
       await flushPromises()
+      /* Rute yang tidak terdaftar membuat router menolak secara asinkron dan
+         rutenya tidak berpindah — diperiksa di sini, bukan dibiarkan lewat. */
+      expect(router.currentRoute.value.name, `menu "${judul}" tidak menuju rute mana pun`)
+        .not.toBe('m-properti')
       expect(namaRute).toContain(router.currentRoute.value.name)
       expect(String(router.currentRoute.value.name)).toMatch(/^m-/)
     }
