@@ -2,8 +2,8 @@
 
 Titik masuk untuk melanjutkan kerja dari mesin mana pun.
 
-**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 392/392 hijau ·
-mockup `_smoke.cjs` 95/95 hijau · **paritas mobile tercapai**
+**Terakhir diperbarui:** 1 Oktober 2026 · `npm run test:run` 401/401 hijau ·
+mockup `_smoke.cjs` 95/95 hijau · **port mobile SELESAI**
 
 > **Kerjakan dari beberapa mesin.** Repo ini dikerjakan bergantian dari lebih
 > dari satu komputer. Selalu `git pull --rebase` sebelum mulai, dan push begitu
@@ -287,11 +287,23 @@ Dua hal yang belum ada di shell mobile dan sebaiknya menyusul bersama:
   (`statusTagihan`, `useUrutKamar`, `useBayarTagihan`, `usePindahKamar`) dan
   tiap kali menemukan duplikasi yang memang sudah ada sebelumnya.
 
-**Yang tersisa: tahap 6 — jadikan bawaan.** Satu sakelar: layar sempit otomatis
-masuk `/m`. Sengaja ditahan sampai pemilik sempat memakainya, karena itulah yang
-mengubah tampilan bagi pemakai sungguhan. Sampai itu terjadi, `/m` dicapai lewat
-**Pengaturan → Tampilan Mobile Baru**, dan beranda `/m` punya tombol ✕ untuk
-kembali.
+**Tahap 6 selesai — shell mobile jadi bawaan.** Layar ≤768px dibawa ke `/m`
+saat aplikasi dibuka.
+
+Yang membuatnya aman: **pilihannya bisa dibatalkan satu ketukan dan diingat.**
+Menekan ✕ di beranda mobile menyimpan `kosmanager:tampilan = 'lama'` di
+localStorage, dan sejak itu tidak dialihkan lagi. Dinyalakan kembali lewat
+**Pengaturan → Tampilan Mobile Baru**.
+
+Pengalihannya terjadi setelah data siap, bukan saat mount — mengalihkan di layar
+PIN hanya membuat alamat berkedip sebelum ada yang bisa dilihat.
+
+### Port selesai. Yang berikutnya bukan lagi port
+
+Shell mobile sudah setara desktop. Pekerjaan berikutnya adalah fitur baru yang
+ada di mockup tapi belum pernah ada di desktop mana pun: catatan internal, foto
+kamar, riwayat penghuni, notifikasi, cari global, ubah masa tinggal, deposit,
+dan biaya lain. Semuanya menambah kemampuan, bukan menyetarakan.
 
 ### Peta data Kamaru → kosmanager
 
