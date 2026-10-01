@@ -15,6 +15,8 @@ import { useMobile } from '../../composables/useMobile'
 import { useSettingsStore } from '../../stores/settings'
 import { useTampilanMobile } from '../../composables/useTampilanMobile'
 import { useTagihanStore } from '../../stores/tagihan'
+import { useMaintenanceStore } from '../../stores/maintenance'
+import { statusTagihan } from '../../utils/statusTagihan'
 import { usePengeluaranStore } from '../../stores/pengeluaran'
 import { hitungSaldo, gabungSaldo } from '../../utils/saldo'
 import { fmt } from '../../utils/format'
@@ -23,7 +25,8 @@ import { fmtTgl } from '../../utils/format'
 const router = useRouter()
 const settings = useSettingsStore()
 const tampilan = useTampilanMobile()
-const { daftarProperti, hitungan, hari } = useMobile()
+const { daftarProperti, hitungan, hari, bulan } = useMobile()
+const maintenance = useMaintenanceStore()
 
 const sapaan = computed(() => {
   const j = new Date().getHours()
@@ -101,10 +104,20 @@ function keTampilanLama() {
   router.push('/')
 }
 
-const AKSI = [
+/* Lencana lonceng: yang belum lunas bulan ini ditambah keluhan yang belum
+   ditutup. Nol tidak dirender — nol bukan kabar. */
+const jumlahNotif = computed(() =>
+  tagihanStore.items.filter(t =>
+    t.bulan === bulan.value && !t.hangus && statusTagihan(t, hari.value).status !== 'lunas').length
+  + maintenance.items.filter(m => m.status !== 'selesai').length)
+
+const AKSI = computed(() => [
+  { ikon: 'bell', label: 'Notifikasi', lencana: jumlahNotif.value,
+    onKlik: () => router.push({ name: 'm-notif' }) },
+  { ikon: 'search', label: 'Cari', onKlik: () => router.push({ name: 'm-cari' }) },
   { ikon: 'more', label: 'Menu', onKlik: () => { menuTerbuka.value = true } },
   { ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: keTampilanLama },
-]
+])
 </script>
 
 <template>

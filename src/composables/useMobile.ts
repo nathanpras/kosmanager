@@ -7,7 +7,7 @@ import { useOccupancy, tglKeluar, sudahKeluar } from './useOccupancy'
 import { useUrutKamar } from './useUrutKamar'
 import { statusKamar, type StatusKamarTampil } from '../utils/statusKamar'
 import { statusTagihan } from '../utils/statusTagihan'
-import { kamarDiBulan } from '../utils/riwayatKamar'
+import { kamarDiBulan, kamarPada } from '../utils/riwayatKamar'
 import { bulanIni, today } from '../utils/date'
 import type { Kamar, Penghuni, Property, Tagihan } from '../types'
 
@@ -193,8 +193,30 @@ export function useMobile() {
     return peta
   }
 
+  /* ── Riwayat penghuni ─────────────────────── */
+
+  /**
+   * Mantan penghuni sebuah kamar atau properti, terbaru dulu.
+   *
+   * Tidak butuh koleksi baru: orang yang keluar tetap ada di `penghuni`,
+   * hanya dengan `tgl_keluar` terisi. Kamar dibaca lewat kamarPada() pada
+   * tanggal keluarnya — yang pernah pindah harus muncul di riwayat kamar
+   * tempat ia benar-benar terakhir tinggal, bukan kamar terakhirnya di field.
+   */
+  function riwayatPenghuni(lingkup: { property_id: string; nomor?: string }): Penghuni[] {
+    return penghuniStore.items
+      .filter(p => {
+        if (p.property_id !== lingkup.property_id) return false
+        const keluar = tglKeluar(p)
+        if (!keluar || keluar >= hari.value) return false
+        if (!lingkup.nomor) return true
+        return kamarPada(p, keluar) === lingkup.nomor
+      })
+      .sort((a, b) => (tglKeluar(b) ?? '').localeCompare(tglKeluar(a) ?? ''))
+  }
+
   return {
-    bulan, hari, daftarProperti,
+    bulan, hari, daftarProperti, riwayatPenghuni,
     kamarDi, kamarSatu, tagihanKamar, statusKini, penghuniKamar, namaPenghuni, hitungan,
     penghuniAktif, tagihanPenghuni, statusPenghuni,
     agendaTanggal, penandaBulan,

@@ -33,6 +33,10 @@ const router = createRouter({
 
         /* Dicapai lewat menu ⋮ di beranda — bukan pekerjaan harian, jadi tidak
            menuntut satu tab sendiri. */
+        { path: 'prop/:id/riwayat',              name: 'm-riwayat-prop',  component: () => import('../views/mobile/MobRiwayatView.vue') },
+        { path: 'prop/:id/kamar/:nomor/riwayat', name: 'm-riwayat-kamar', component: () => import('../views/mobile/MobRiwayatView.vue') },
+        { path: 'notif',      name: 'm-notif',      component: () => import('../views/mobile/MobNotifView.vue') },
+        { path: 'cari',       name: 'm-cari',       component: () => import('../views/mobile/MobCariView.vue') },
         { path: 'tagihan',    name: 'm-tagihan',    component: () => import('../views/mobile/MobTagihanListView.vue') },
         { path: 'keluhan',    name: 'm-keluhan',    component: () => import('../views/mobile/MobKeluhanView.vue') },
         { path: 'laporan',    name: 'm-laporan',    component: () => import('../views/mobile/MobLaporanView.vue') },

@@ -224,6 +224,16 @@ function bukaKamar(nomor: string) {
         <div class="drow"><dt>Rekening</dt><dd class="wrap">{{ properti?.bank_rekening || '–' }}</dd></div>
       </dl>
 
+      <div class="sechead"><h2>Riwayat</h2></div>
+      <button class="card tap lrow" @click="router.push({ name: 'm-riwayat-prop', params: { id: pid } })">
+        <span class="av sq ghost"><MobIcon name="users" :size="19" /></span>
+        <span class="lrow-body">
+          <span class="lrow-title">Riwayat penghuni</span>
+          <span class="lrow-sub">Penghuni yang sudah keluar dari properti ini</span>
+        </span>
+        <span class="chev"><MobIcon name="chev" :size="18" /></span>
+      </button>
+
       <div class="sechead"><h2>Ringkasan kamar</h2></div>
       <dl class="card flush divide">
         <div class="drow"><dt>Jumlah kamar</dt><dd>{{ hit.total }}</dd></div>

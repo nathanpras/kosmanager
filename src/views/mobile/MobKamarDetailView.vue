@@ -6,7 +6,7 @@
  * yang isinya hanya baris mati lebih buruk daripada tab yang belum muncul.
  */
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import MobScreen from '../../components/mobile/MobScreen.vue'
 import MobTabs from '../../components/mobile/MobTabs.vue'
 import MobIcon from '../../components/mobile/MobIcon.vue'
@@ -32,6 +32,7 @@ import { useToast } from '../../composables/useToast'
 import type { Penghuni, Tagihan } from '../../types'
 
 const route = useRoute()
+const router = useRouter()
 const tagihanStore = useTagihanStore()
 const { kamarSatu, statusKini, penghuniKamar, bulan } = useMobile()
 
@@ -297,6 +298,19 @@ const CHIP: Record<string, { label: string; cls: string }> = {
           <MobIcon name="plus" :size="17" /> Tambah tagihan
         </button>
       </template>
+
+      <div class="sechead"><h2>Penghuni sebelumnya</h2></div>
+      <button
+        class="card tap lrow"
+        @click="router.push({ name: 'm-riwayat-kamar', params: { id: pid, nomor } })"
+      >
+        <span class="av sq ghost"><MobIcon name="users" :size="19" /></span>
+        <span class="lrow-body">
+          <span class="lrow-title">Riwayat penghuni</span>
+          <span class="lrow-sub">Yang pernah tinggal di kamar {{ nomor }}</span>
+        </span>
+        <span class="chev"><MobIcon name="chev" :size="18" /></span>
+      </button>
     </template>
 
     <MobPindahSheet
