@@ -30,6 +30,10 @@ const router = createRouter({
         /* Drill-down. Doknya turun di sini — lihat MobileShell. */
         { path: 'prop/:id',             name: 'm-prop',  component: () => import('../views/mobile/MobPropDetailView.vue') },
         { path: 'prop/:id/kamar/:nomor', name: 'm-kamar', component: () => import('../views/mobile/MobKamarDetailView.vue') },
+
+        /* Dicapai lewat menu ⋮ di beranda — bukan pekerjaan harian, jadi tidak
+           menuntut satu tab sendiri. */
+        { path: 'pengaturan', name: 'm-pengaturan', component: () => import('../views/mobile/MobPengaturanView.vue') },
       ],
     },
   ],

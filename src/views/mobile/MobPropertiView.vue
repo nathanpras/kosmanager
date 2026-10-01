@@ -6,10 +6,11 @@
  * tidak menuju ke mana-mana persis mengulang jalan buntu yang baru saja
  * dihabiskan di ronde 5 — lebih baik ia jadi angka yang jujur dulu.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MobScreen from '../../components/mobile/MobScreen.vue'
 import MobIcon from '../../components/mobile/MobIcon.vue'
+import MobMenuSheet from '../../components/mobile/MobMenuSheet.vue'
 import { useMobile } from '../../composables/useMobile'
 import { useSettingsStore } from '../../stores/settings'
 import { fmtTgl } from '../../utils/format'
@@ -50,10 +51,30 @@ function buka(id: string) {
   router.push({ name: 'm-prop', params: { id } })
 }
 
+const menuTerbuka = ref(false)
+
+/* Yang bukan pekerjaan harian. Tiga tab bawah sudah dikunci di kontrak desain;
+   menambah tab keempat membuat ketiganya lebih sempit demi layar yang jarang
+   dibuka. */
+/* Hanya yang rutenya sudah ada. Menu yang menampilkan tujuan belum jadi
+   persis jalan buntu yang dihabiskan di ronde 5 mockup — sisanya ditambahkan
+   di sini begitu layarnya berdiri. */
+const MENU = [
+  { ikon: 'sliders', judul: 'Pengaturan', sub: 'Data kos, PIN, cadangan', ke: 'm-pengaturan' },
+]
+
+function keMenu(ke: string) {
+  menuTerbuka.value = false
+  router.push({ name: ke })
+}
+
 /* Jalan keluar. Selama shell ini belum jadi bawaan, orang bisa mendarat di
    sini tanpa riwayat navigasi — tanpa tombol ini mereka terjebak, dan satu-
    satunya jalan keluar adalah mengetik ulang alamatnya. */
-const AKSI = [{ ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: () => router.push('/') }]
+const AKSI = [
+  { ikon: 'more', label: 'Menu', onKlik: () => { menuTerbuka.value = true } },
+  { ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: () => router.push('/') },
+]
 </script>
 
 <template>
@@ -112,5 +133,12 @@ const AKSI = [{ ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: () => rout
         <p>Tambahkan properti lewat tampilan desktop untuk mulai mencatat kamar dan penghuni.</p>
       </div>
     </div>
+
+    <MobMenuSheet
+      v-if="menuTerbuka"
+      :items="MENU"
+      @tutup="menuTerbuka = false"
+      @pilih="keMenu"
+    />
   </MobScreen>
 </template>
