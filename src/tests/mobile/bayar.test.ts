@@ -320,3 +320,54 @@ describe('ubah harga kamar dari shell mobile', () => {
     expect(tulis).toEqual([['k1', { harga: 1_950_000 }]])
   })
 })
+
+describe('tambah tagihan dari shell mobile', () => {
+  async function bukaTagihan() {
+    const w = await bukaKamar()
+    await w.findAll('.ptab')[2].trigger('click')
+    await w.findAll('.btn.brandsoft').find(b => b.text().includes('Tambah tagihan'))!.trigger('click')
+    return w
+  }
+
+  it('memperingatkan bila bulan itu sudah punya tagihan', async () => {
+    const w = await bukaTagihan()
+    /* t1 sudah ada untuk September atas nama h1. */
+    expect(w.find('.sheet .note.info').text()).toContain('sudah punya 1 tagihan')
+  })
+
+  it('jumlah nol ditahan dan tidak menulis apa pun', async () => {
+    const tulis: unknown[] = []
+    useTagihanStore().add = (async (x: unknown) => { tulis.push(x) }) as never
+
+    const w = await bukaTagihan()
+    await w.findAll('.sheet .field-in')[1].setValue('0')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(0)
+    expect(w.find('.sheet .note.bad').exists()).toBe(true)
+  })
+
+  it('menulis tagihan atas nama penghuni dan kamar yang benar', async () => {
+    const tulis: Array<Record<string, unknown>> = []
+    useTagihanStore().add = (async (x: Record<string, unknown>) => { tulis.push(x) }) as never
+
+    const w = await bukaTagihan()
+    await w.findAll('.sheet .field-in')[1].setValue('500000')
+    await w.findAll('.sheet-foot .btn').find(b => b.text() === 'Simpan')!.trigger('click')
+    await flushPromises()
+
+    expect(tulis).toHaveLength(1)
+    expect(tulis[0]).toMatchObject({
+      penghuni: 'Hizkia Nogie', penghuni_id: 'h1', kamar: '101',
+      jumlah: 500_000, status: 'belum', property_id: 'p1',
+    })
+  })
+
+  it('tombolnya tidak muncul di kamar tanpa penghuni', async () => {
+    usePenghuniStore().items = []
+    const w = await bukaKamar()
+    await w.findAll('.ptab')[2].trigger('click')
+    expect(w.findAll('.btn.brandsoft').some(b => b.text().includes('Tambah tagihan'))).toBe(false)
+  })
+})

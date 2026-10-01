@@ -20,6 +20,7 @@ import MobBayarSheet from '../../components/mobile/MobBayarSheet.vue'
 import MobPindahSheet from '../../components/mobile/MobPindahSheet.vue'
 import MobKeluarSheet from '../../components/mobile/MobKeluarSheet.vue'
 import MobHargaSheet from '../../components/mobile/MobHargaSheet.vue'
+import MobTagihanSheet from '../../components/mobile/MobTagihanSheet.vue'
 import { useKeluarPenghuni } from '../../composables/useKeluarPenghuni'
 import { useKamarStore } from '../../stores/kamar'
 import { usePindahKamar, GagalPindah } from '../../composables/usePindahKamar'
@@ -66,6 +67,23 @@ const { keluarkan } = useKeluarPenghuni()
 const kamarStore = useKamarStore()
 const keluarTarget = ref<Penghuni | null>(null)
 const sheetHarga = ref(false)
+const tagihanTarget = ref<Penghuni | null>(null)
+
+async function simpanTagihan(bln: string, nomorKamar: string, jml: number, tempo: string) {
+  const p = tagihanTarget.value
+  if (!p) return
+  try {
+    await tagihanStore.add({
+      penghuni: p.nama, penghuni_id: p.id, kamar: nomorKamar, bulan: bln,
+      jumlah: jml, status: 'belum', jatuh_tempo: tempo,
+      property_id: p.property_id, createdAt: new Date().toISOString(),
+    })
+    tagihanTarget.value = null
+    toast('Tagihan ditambahkan', 'success')
+  } catch {
+    toast('Gagal menambahkan tagihan', 'error')
+  }
+}
 
 async function simpanKeluar(tgl: string) {
   const p = keluarTarget.value
@@ -246,6 +264,13 @@ const CHIP: Record<string, { label: string; cls: string }> = {
         <h3>Belum ada tagihan</h3>
         <p>Tagihan kamar ini akan muncul di sini setelah dibuat.</p>
       </div>
+
+      <template v-if="penghuni.length">
+        <div style="height:16px"></div>
+        <button class="btn brandsoft block" @click="tagihanTarget = penghuni[0]">
+          <MobIcon name="plus" :size="17" /> Tambah tagihan
+        </button>
+      </template>
     </template>
 
     <MobPindahSheet
@@ -253,6 +278,13 @@ const CHIP: Record<string, { label: string; cls: string }> = {
       :penghuni="pindahTarget"
       @tutup="pindahTarget = null"
       @simpan="simpanPindah"
+    />
+
+    <MobTagihanSheet
+      v-if="tagihanTarget"
+      :penghuni="tagihanTarget"
+      @tutup="tagihanTarget = null"
+      @simpan="simpanTagihan"
     />
 
     <MobKeluarSheet
