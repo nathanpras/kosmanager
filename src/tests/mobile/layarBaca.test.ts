@@ -66,7 +66,9 @@ function isiData() {
 function buatRouter(): Router {
   return createRouter({
     history: createMemoryHistory(),
-    routes: [{
+    routes: [
+    { path: '/', name: 'dashboard', component: { template: '<div>lama</div>' } },
+    {
       path: '/m',
       component: MobileShell,
       children: [
@@ -124,6 +126,18 @@ describe('beranda mobile', () => {
     /* Chip statistik sengaja bukan tombol selama layar filternya belum diport. */
     expect(w.findAll('.statgrid button')).toHaveLength(0)
     expect(w.findAll('.statgrid .statchip').length).toBeGreaterThan(0)
+  })
+
+  it('punya jalan keluar ke tampilan lama', async () => {
+    /* Selama /m belum jadi bawaan, orang bisa mendarat di sini tanpa riwayat
+       navigasi. Tanpa tombol ini mereka terjebak. */
+    const w = await pasang('/m')
+    const keluar = w.findAll('.topbar .iconbtn')
+      .find(b => b.attributes('aria-label')?.includes('tampilan lama'))
+    expect(keluar).toBeTruthy()
+    await keluar!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/')
   })
 
   it('mengetuk properti masuk ke detailnya', async () => {

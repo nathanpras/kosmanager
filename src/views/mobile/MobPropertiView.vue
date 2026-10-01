@@ -49,10 +49,15 @@ function inisialProperti(nama: string): string {
 function buka(id: string) {
   router.push({ name: 'm-prop', params: { id } })
 }
+
+/* Jalan keluar. Selama shell ini belum jadi bawaan, orang bisa mendarat di
+   sini tanpa riwayat navigasi — tanpa tombol ini mereka terjebak, dan satu-
+   satunya jalan keluar adalah mengetik ulang alamatnya. */
+const AKSI = [{ ikon: 'x', label: 'Kembali ke tampilan lama', onKlik: () => router.push('/') }]
 </script>
 
 <template>
-  <MobScreen judul="Daftar properti">
+  <MobScreen judul="Daftar properti" :aksi="AKSI">
     <div class="stagger">
       <section class="card hero">
         <div class="hero-top">

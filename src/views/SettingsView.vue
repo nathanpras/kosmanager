@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBiometrik }        from '../composables/useBiometrik'
 import { useEkspor }           from '../composables/useEkspor'
@@ -9,6 +10,8 @@ import { useToast }            from '../composables/useToast'
 import type { Property, AppSettings }       from '../types'
 import { useMigrasiKamar }     from '../composables/useMigrasiKamar'
 import ConfirmDialog           from '../components/shared/ConfirmDialog.vue'
+
+const router = useRouter()
 
 const settings   = useSettingsStore()
 const properties = usePropertiesStore()
@@ -309,6 +312,22 @@ const appVersion = '2.0.0'
             JSON = cadangan utuh untuk memulihkan. CSV = untuk dibuka di Excel atau
             diserahkan ke akuntan.
           </div>
+        </div>
+      </div>
+
+      <!-- Pintu masuk shell mobile baru. Sengaja opt-in: selama port masih
+           sebagian, menjadikannya bawaan berarti mengirim IA setengah jadi ke
+           pemakai sungguhan. Lihat
+           docs/superpowers/specs/2026-10-01-port-mobile-ke-aplikasi-design.md -->
+      <div class="card" style="margin-top:12px">
+        <div class="card-hd"><div class="card-title">Tampilan Mobile Baru</div></div>
+        <div style="padding:0 16px 16px">
+          <p style="font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:12px">
+            Shell baru bergaya Kamaru — tiga tab dengan drill-down. Masih dalam
+            pengerjaan dan belum menggantikan tampilan yang sekarang. Tombol
+            kembali HP atau ikon kembali membawa Anda keluar dari sana.
+          </p>
+          <button class="btn btn-primary" @click="router.push('/m')">Coba tampilan mobile baru</button>
         </div>
       </div>
 
