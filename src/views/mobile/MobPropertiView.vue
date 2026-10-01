@@ -60,7 +60,9 @@ const menuTerbuka = ref(false)
    persis jalan buntu yang dihabiskan di ronde 5 mockup — sisanya ditambahkan
    di sini begitu layarnya berdiri. */
 const MENU = [
-  { ikon: 'sliders', judul: 'Pengaturan', sub: 'Data kos, PIN, cadangan', ke: 'm-pengaturan' },
+  { ikon: 'build',   judul: 'Keluhan',    sub: 'Laporan kerusakan dan perbaikan', ke: 'm-keluhan' },
+  { ikon: 'note',    judul: 'Riwayat',    sub: 'Catatan aktivitas aplikasi',      ke: 'm-log' },
+  { ikon: 'sliders', judul: 'Pengaturan', sub: 'Data kos, PIN, cadangan',         ke: 'm-pengaturan' },
 ]
 
 function keMenu(ke: string) {

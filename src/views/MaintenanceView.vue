@@ -8,7 +8,7 @@ import { useAppStore }         from '../stores/app'
 import { useProperty }         from '../composables/useProperty'
 import { useToast }            from '../composables/useToast'
 import { useOccupancy }        from '../composables/useOccupancy'
-import { normalizePhone, isValidPhone } from '../composables/useWAReminder'
+import { useKeluhan } from '../composables/useKeluhan'
 import { fmt, fmtTgl }         from '../utils/format'
 import { today }               from '../utils/date'
 import { JENIS_KELUHAN, NAMA_JENIS, jenisIkon, jenisWarna, labelDurasi } from '../utils/keluhan'
@@ -19,6 +19,7 @@ const maintenance = useMaintenanceStore()
 const kamar       = useKamarStore()
 const pengeluaran = usePengeluaranStore()
 const log         = useLogStore()
+const { ubahStatus, urlBalasWA } = useKeluhan()
 const app         = useAppStore()
 const { filterByProperty } = useProperty()
 const { show: toast }      = useToast()
@@ -106,40 +107,19 @@ function closeDetail() {
 
 async function updateStatus(m: Maintenance, status: Maintenance['status']) {
   try {
-    // Tanggal selesai diisi otomatis supaya lama penanganan terhitung tanpa
-    // perlu diingat manual; dikosongkan lagi kalau keluhan dibuka kembali.
-    const patch: Partial<Maintenance> = { status }
-    if (status === 'selesai') patch.tgl_selesai = m.tgl_selesai ?? today()
-    else if (m.tgl_selesai) patch.tgl_selesai = ''
-
-    await maintenance.update(m.id, patch)
-    await log.add(`Maintenance kamar ${m.kamar} → ${status}`, 'blue', m.property_id)
+    await ubahStatus(m, status)
     toast('Status diperbarui', 'success')
     const fresh = maintenance.items.find(item => item.id === m.id)
-    if (fresh && detailItem.value?.id === m.id) detailItem.value = { ...fresh, ...patch }
+    if (fresh && detailItem.value?.id === m.id) detailItem.value = { ...fresh }
   } catch {
     toast('Gagal memperbarui status', 'error')
   }
 }
 
-/**
- * Keluhan ditanggapi lewat chat, jadi tombol ini yang dipakai paling sering.
- * Nomor diambil dari penghuni kamar bersangkutan — pelapor dicocokkan per nama
- * bila ada, kalau tidak jatuh ke penghuni terlama di kamar itu.
- */
-function penghuniKeluhan(m: Maintenance) {
-  const diKamar = penghuniDiKamar(m.kamar, m.property_id)
-  return diKamar.find(p => p.nama === m.pelapor) ?? diKamar[0] ?? null
-}
-
 function balasWA(m: Maintenance) {
-  const p = penghuniKeluhan(m)
-  if (!p) { toast('Penghuni kamar ini tidak ditemukan', 'error'); return }
-  if (!isValidPhone(p.hp)) { toast(`Nomor HP ${p.nama} tidak valid`, 'error'); return }
-  const pesan =
-    `Halo ${p.nama}, soal laporan ${m.jenis ?? 'kendala'} di kamar ${m.kamar} ` +
-    `(${m.deskripsi}) — `
-  window.open(`https://wa.me/${normalizePhone(p.hp)}?text=${encodeURIComponent(pesan)}`, '_blank')
+  const hasil = urlBalasWA(m)
+  if ('galat' in hasil) { toast(hasil.galat, 'error'); return }
+  window.open(hasil.url, '_blank')
 }
 
 /** Biaya perbaikan ikut tercatat sebagai pengeluaran supaya saldo tetap benar. */
